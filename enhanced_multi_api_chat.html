@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-API Chat Interface (v2.0 - Enhanced)</title>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+
+    <!-- Embedded CSS -->
+    <style>
+:root {
+  /* Primitive Color Tokens */
+  --color-white: rgba(255, 255, 255, 1);
+  --color-black: rgba(0, 0, 0, 1);
+  --color-cream-50: rgba(252, 252, 249, 1);
+  --color-cream-100: rgba(255, 255, 253, 1);
+  --color-gray-200: rgba(245, 245, 245, 1);
+  --color-gray-300: rgba(167, 169, 169, 1);
+  --color-gray-400: rgba(119, 124, 124, 1);
+  --color-slate-500: rgba(98, 108, 113, 1);
+  --color-brown-600: rgba(94, 82, 64, 1);
+  --color-charcoal-700: rgba(31, 33, 33, 1);
+  --color-charcoal-800: rgba(38, 40, 40, 1);
+  --color-slate-900: rgba(19, 52, 59, 1);
+  --color-teal-300: rgba(50, 184, 198, 1);
+  --color-teal-400: rgba(45, 166, 178, 1);
+  --color-teal-500: rgba(33, 128, 141, 1);
+  --color-teal-600: rgba(29, 116, 128, 1);
+  --color-teal-700: rgba(26, 104, 115, 1);
+  --color-teal-800: rgba(41, 150, 161, 1);
+  --color-red-400: rgba(255, 84, 89, 1);
+  --color-red-500: rgba(192, 21, 47, 1);
+  --color-orange-400: rgba(230, 129, 97, 1);
+  --color-orange-500: rgba(168, 75, 47, 1);
+
+  /* RGB versions for opacity control */
+  --color-brown-600-rgb: 94, 82, 64;
+  --color-teal-500-rgb: 33, 128, 141;
+  --color-slate-900-rgb: 19, 52, 59;
+  --color-slate-500-rgb: 98, 108, 113;
+  --color-red-500-rgb: 192, 21, 47;
+  --color-red-400-rgb: 255, 84, 89;
+  --color-orange-500-rgb: 168, 75, 47;
+  --color-orange-400-rgb: 230, 129, 97;
+
+  /* Background color tokens (Light Mode) */
+  --color-bg-1: var(--color-cream-50);
+  --color-bg-2: var(--color-white);
+  --color-bg-3: var(--color-cream-100);
+
+  /* Text color tokens */
+  --color-text-primary: var(--color-brown-600);
+  --color-text-secondary: var(--color-slate-500);
+  --color-text-muted: var(--color-gray-400);
+  --color-text-contrast: var(--color-white);
+
+  /* Interactive color tokens */
+  --color-interactive-primary: var(--color-teal-500);
+  --color-interactive-secondary: var(--color-teal-600);
+  --color-interactive-hover: var(--color-teal-700);
+  --color-interactive-pressed: var(--color-teal-800);
+
+  /* Border and divider colors */
+  --color-border-primary: var(--color-gray-200);
+  --color-border-secondary: rgba(var(--color-teal-500-rgb), 0.2);
+
+  /* Status colors */
+  --color-status-error: var(--color-red-500);
+  --color-status-warning: var(--color-orange-500);
+  --color-status-success: var(--color-teal-600);
+
+  /* Shadow tokens */
+  --shadow-sm: 0 1px 2px rgba(var(--color-slate-900-rgb), 0.1);
+  --shadow-md: 0 4px 6px rgba(var(--color-slate-900-rgb), 0.1);
+  --shadow-lg: 0 10px 15px rgba(var(--color-slate-900-rgb), 0.1);
+
+  /* Spacing tokens */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Border radius tokens */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Typography tokens */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Z-index scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal: 1040;
+  --z-popover: 1050;
+  --z-tooltip: 1060;
+}
+
+/* Dark Mode Color Overrides */
+[data-theme="dark"] {
+  --color-bg-1: var(--color-charcoal-800);
+  --color-bg-2: var(--color-charcoal-700);
+  --color-bg-3: var(--color-slate-900);
+
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-gray-300);
+  --color-text-muted: var(--color-gray-400);
+
+  --color-border-primary: rgba(var(--color-slate-500-rgb), 0.3);
+  --color-border-secondary: rgba(var(--color-teal-500-rgb), 0.3);
+}
+
+/* Base Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Typography Base */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-1);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Layout Components */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Styles */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-border-primary);
+  background-color: var(--color-bg-2);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.header-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.header-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.status-label {
+  color: var(--color-text-secondary);
+  min-width: 80px;
+}
+
+.status-value {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-interactive-primary);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* Button Components */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--color-interactive-primary);
+  color: var(--color-text-contrast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-interactive-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--color-bg-3);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-interactive-primary);
+  color: var(--color-text-contrast);
+  border-color: var(--color-interactive-primary);
+}
+
+.btn-icon {
+  padding: var(--spacing-sm);
+  min-width: auto;
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+/* Chat Container */
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-2);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-md) 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+/* Messages Area */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  scroll-behavior: smooth;
+}
+
+.message {
+  max-width: 85%;
+  word-wrap: break-word;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.message.user {
+  align-self: flex-end;
+  background-color: var(--color-interactive-primary);
+  color: var(--color-text-contrast);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--spacing-xs) var(--radius-lg);
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background-color: var(--color-bg-3);
+  color: var(--color-text-primary);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--spacing-xs);
+  border: 1px solid var(--color-border-primary);
+}
+
+/* Message Content Styling */
+.message-content {
+  line-height: var(--line-height-relaxed);
+}
+
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content h5,
+.message-content h6 {
+  margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.message-content p {
+  margin: var(--spacing-sm) 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-lg);
+}
+
+.message-content li {
+  margin: var(--spacing-xs) 0;
+}
+
+.message-content blockquote {
+  border-left: 4px solid var(--color-interactive-primary);
+  margin: var(--spacing-md) 0;
+  padding-left: var(--spacing-md);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.message-content code {
+  background-color: rgba(var(--color-slate-500-rgb), 0.1);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: var(--font-size-sm);
+}
+
+.message-content pre {
+  background-color: rgba(var(--color-slate-500-rgb), 0.1);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin: var(--spacing-md) 0;
+  border: 1px solid var(--color-border-primary);
+}
+
+.message-content pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--spacing-md) 0;
+}
+
+.message-content th,
+.message-content td {
+  border: 1px solid var(--color-border-primary);
+  padding: var(--spacing-sm);
+  text-align: left;
+}
+
+.message-content th {
+  background-color: var(--color-bg-1);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Input Area */
+.input-container {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+  background-color: var(--color-bg-1);
+  border-top: 1px solid var(--color-border-primary);
+}
+
+.input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.message-input {
+  width: 100%;
+  min-height: 44px;
+  max-height: 120px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-2);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  resize: vertical;
+  transition: all 0.2s ease;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: var(--color-interactive-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-teal-500-rgb), 0.1);
+}
+
+.message-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Loading States */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-primary);
+  max-width: 200px;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-interactive-primary);
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dot:nth-child(1) { animation-delay: -0.32s; }
+.loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* Popup Styles */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.popup-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.popup {
+  background-color: var(--color-bg-2);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  transform: scale(0.9) translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.popup-overlay.active .popup {
+  transform: scale(1) translateY(0);
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.popup-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: var(--color-bg-1);
+  color: var(--color-text-primary);
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-3);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-interactive-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-teal-500-rgb), 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Model Options */
+.model-options {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.model-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-3);
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-sm);
+}
+
+.model-option:hover {
+  border-color: var(--color-interactive-primary);
+  background-color: var(--color-bg-2);
+}
+
+.model-option.active {
+  border-color: var(--color-interactive-primary);
+  background-color: rgba(var(--color-teal-500-rgb), 0.1);
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.model-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.model-provider {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* API Status Indicators */
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.api-status.connected {
+  background-color: rgba(var(--color-teal-500-rgb), 0.1);
+  color: var(--color-status-success);
+}
+
+.api-status.disconnected {
+  background-color: rgba(var(--color-red-500-rgb), 0.1);
+  color: var(--color-status-error);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* Utility Classes */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-muted { color: var(--color-text-muted); }
+.text-small { font-size: var(--font-size-sm); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.mb-0 { margin-bottom: 0; }
+.mt-lg { margin-top: var(--spacing-lg); }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+  }
+
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .header-controls {
+    align-self: stretch;
+    justify-content: flex-start;
+  }
+
+  .message {
+    max-width: 95%;
+  }
+
+  .input-container {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .popup {
+    margin: var(--spacing-md);
+    max-width: none;
+    width: auto;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .btn {
+    border: 2px solid currentColor;
+  }
+
+  .message {
+    border: 2px solid var(--color-text-primary);
+  }
+
+  .form-input,
+  .message-input {
+    border-width: 3px;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .header-controls,
+  .input-container,
+  .popup-overlay {
+    display: none;
+  }
+
+  .container {
+    height: auto;
+  }
+
+  .messages {
+    overflow: visible;
+  }
+
+  .message {
+    break-inside: avoid;
+    border: 1px solid #000;
+    margin-bottom: var(--spacing-md);
+  }
+}
+
+/* Focus Styles for Better Accessibility */
+.btn:focus-visible,
+.model-option:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-interactive-primary);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-interactive-primary);
+  outline-offset: -2px;
+}
+
+/* Selection Styles */
+::selection {
+  background-color: rgba(var(--color-teal-500-rgb), 0.3);
+  color: var(--color-text-primary);
+}
+
+/* Scrollbar Styles */
+.messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: var(--color-bg-1);
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: var(--radius-full);
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+  background: var(--color-interactive-primary);
+}
+
+/* Supporting Firefox */
+.messages {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-primary) var(--color-bg-1);
+}
+    </style>
+</head>
+
+<body data-theme="light">
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="header-title">
+                    🤖 Multi-API Chat Interface
+                </h1>
+
+                <div class="header-status">
+                    <div class="status-item">
+                        <span class="status-label">API:</span>
+                        <span class="status-value" id="currentAPI">OpenAI</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Model:</span>
+                        <span class="status-value" id="modelStatus">gpt-4o</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <button class="btn btn-secondary btn-sm" id="apiKeyToggle">
+                    🔑 API Keys
+                </button>
+                <button class="btn btn-secondary btn-sm" id="modelToggle">
+                    ⚙️ Models
+                </button>
+                <button class="btn btn-secondary btn-icon btn-sm" id="themeToggle" title="Toggle theme">
+                    🌓
+                </button>
+                <button class="btn btn-secondary btn-sm" id="clearBtn">
+                    🗑️ Clear
+                </button>
+                <button class="btn btn-primary btn-sm" id="oneShotBtn">
+                    ⚡ One-Shot
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <!-- Messages will be added here -->
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
+                        rows="1"
+                    ></textarea>
+                </div>
+                <button class="btn btn-primary" id="sendBtn" disabled>
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Keys Popup -->
+    <div class="popup-overlay" id="apiKeyPopup">
+        <div class="popup">
+            <div class="popup-header">
+                <h2 class="popup-title">API Configuration</h2>
+                <button class="close-btn" data-popup="apiKey">&times;</button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="perplexityKey">Perplexity API Key:</label>
+                <input 
+                    type="password" 
+                    id="perplexityKey" 
+                    class="form-input" 
+                    placeholder="pplx-..." 
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="openaiKey">OpenAI API Key:</label>
+                <input 
+                    type="password" 
+                    id="openaiKey" 
+                    class="form-input" 
+                    placeholder="sk-..." 
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="geminiKey">Google Gemini API Key:</label>
+                <input 
+                    type="password" 
+                    id="geminiKey" 
+                    class="form-input" 
+                    placeholder="AIza..." 
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="moonshotKey">Moonshot API Key:</label>
+                <input 
+                    type="password" 
+                    id="moonshotKey" 
+                    class="form-input" 
+                    placeholder="sk-..." 
+                >
+            </div>
+
+            <button class="btn btn-primary mt-lg" id="saveKeysBtn">
+                Save API Keys
+            </button>
+        </div>
+    </div>
+
+    <!-- Model Selection Popup -->
+    <div class="popup-overlay" id="modelPopup">
+        <div class="popup">
+            <div class="popup-header">
+                <h2 class="popup-title">Select Model</h2>
+                <button class="close-btn" data-popup="model">&times;</button>
+            </div>
+
+            <div class="model-options" id="modelOptions">
+                <!-- Model options will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        class MultiAPIChat {
+            constructor() {
+                // API Keys storage
+                this.apiKeys = {
+                    perplexity: localStorage.getItem('perplexity_api_key') || '',
+                    openai: localStorage.getItem('openai_api_key') || '',
+                    gemini: localStorage.getItem('gemini_api_key') || '',
+                    moonshot: localStorage.getItem('moonshot_api_key') || ''
+                };
+
+                // Default model and API
+                this.currentModel = 'gpt-4o';
+                this.currentAPI = 'openai';
+                this.conversationHistory = [];
+                this.isLoading = false;
+                this.oneShotMode = false;
+
+                // Initialize markdown converter
+                this.converter = new showdown.Converter({
+                    tables: true,
+                    strikethrough: true,
+                    tasklists: true,
+                    simpleLineBreaks: true,
+                    openLinksInNewWindow: true
+                });
+
+                // Model configurations with latest models
+                this.models = {
+                    perplexity: [
+                        { value: "sonar", name: "Sonar" },
+                        { value: "sonar-pro", name: "Sonar Pro" },
+                        { value: "sonar-reasoning", name: "Sonar Reasoning" },
+                        { value: "sonar-deep-research", name: "Sonar Deep Research" }
+                    ],
+                    openai: [
+                        { value: "gpt-4o", name: "GPT-4o" },
+                        { value: "gpt-4o-mini", name: "GPT-4o Mini" },
+                        { value: "gpt-4-turbo", name: "GPT-4 Turbo" },
+                        { value: "gpt-4", name: "GPT-4" },
+                        { value: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
+                        { value: "o1-preview", name: "o1 Preview" },
+                        { value: "o1-mini", name: "o1 Mini" },
+                        { value: "gpt-4.1", name: "GPT-4.1" },
+                        { value: "gpt-4.1-mini", name: "GPT-4.1 Mini" }
+                    ],
+                    gemini: [
+                        { value: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+                        { value: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+                        { value: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
+                        { value: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+                        { value: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+                        { value: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
+                        { value: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash 8B" }
+                    ],
+                    moonshot: [
+                        { value: "moonshot-v1-8k", name: "Moonshot K2-8K" },
+                        { value: "moonshot-v1-32k", name: "Moonshot K2-32K" },
+                        { value: "moonshot-v1-128k", name: "Moonshot K2-128K" }
+                    ]
+                };
+
+                // API Endpoints
+                this.apiEndpoints = {
+                    perplexity: "https://api.perplexity.ai/chat/completions",
+                    openai: "https://api.openai.com/v1/chat/completions",
+                    gemini: "https://generativelanguage.googleapis.com/v1beta/models",
+                    moonshot: "https://api.moonshot.cn/v1/chat/completions"
+                };
+
+                this.initializeElements();
+                this.attachEventListeners();
+                this.loadTheme();
+                this.loadSettings();
+                this.updateUI();
+                this.updateHeaderStatus();
+                this.updateOneShotButton();
+            }
+
+            initializeElements() {
+                // Main elements
+                this.messagesContainer = document.getElementById('messages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.themeToggle = document.getElementById('themeToggle');
+                this.oneShotBtn = document.getElementById('oneShotBtn');
+
+                // Status elements
+                this.currentAPIElement = document.getElementById('currentAPI');
+                this.modelStatus = document.getElementById('modelStatus');
+
+                // Control elements
+                this.apiKeyToggle = document.getElementById('apiKeyToggle');
+                this.modelToggle = document.getElementById('modelToggle');
+
+                // Popup elements
+                this.apiKeyPopup = document.getElementById('apiKeyPopup');
+                this.modelPopup = document.getElementById('modelPopup');
+                this.modelOptions = document.getElementById('modelOptions');
+
+                // API Key inputs
+                this.perplexityKeyInput = document.getElementById('perplexityKey');
+                this.openaiKeyInput = document.getElementById('openaiKey');
+                this.geminiKeyInput = document.getElementById('geminiKey');
+                this.moonshotKeyInput = document.getElementById('moonshotKey');
+                this.saveKeysBtn = document.getElementById('saveKeysBtn');
+            }
+
+            attachEventListeners() {
+                // Send message
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+
+                // Input handling
+                this.messageInput.addEventListener('input', () => this.handleInputChange());
+                this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+                // Control buttons
+                this.clearBtn.addEventListener('click', () => this.clearMessages());
+                this.themeToggle.addEventListener('click', () => this.toggleTheme());
+                this.oneShotBtn.addEventListener('click', () => this.toggleOneShotMode());
+
+                // Popup toggles
+                this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
+                this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+
+                // Close popups
+                document.querySelectorAll('.close-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const popup = e.target.getAttribute('data-popup');
+                        this.closePopup(popup);
+                    });
+                });
+
+                // Close popup on overlay click
+                [this.apiKeyPopup, this.modelPopup].forEach(popup => {
+                    popup.addEventListener('click', (e) => {
+                        if (e.target === popup) {
+                            this.closeAllPopups();
+                        }
+                    });
+                });
+
+                // Save API keys
+                this.saveKeysBtn.addEventListener('click', () => this.saveApiKeys());
+
+                // Model options (will be populated dynamically)
+                this.populateModelOptions();
+
+                // Auto-resize textarea
+                this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
+            }
+
+            populateModelOptions() {
+                this.modelOptions.innerHTML = '';
+
+                Object.keys(this.models).forEach(apiProvider => {
+                    this.models[apiProvider].forEach(model => {
+                        const option = document.createElement('button');
+                        option.className = 'model-option';
+                        option.setAttribute('data-api', apiProvider);
+                        option.setAttribute('data-model', model.value);
+
+                        const isActive = this.currentAPI === apiProvider && this.currentModel === model.value;
+                        if (isActive) {
+                            option.classList.add('active');
+                        }
+
+                        option.innerHTML = `
+                            <div class="model-info">
+                                <div class="model-name">${model.name}</div>
+                                <div class="model-provider">${apiProvider}</div>
+                            </div>
+                            <div class="api-status ${this.apiKeys[apiProvider] ? 'connected' : 'disconnected'}">
+                                <div class="status-dot"></div>
+                                ${this.apiKeys[apiProvider] ? 'Ready' : 'No Key'}
+                            </div>
+                        `;
+
+                        option.addEventListener('click', () => {
+                            this.selectModel(apiProvider, model.value, model.name);
+                        });
+
+                        this.modelOptions.appendChild(option);
+                    });
+                });
+            }
+
+            selectModel(apiProvider, modelValue, modelName) {
+                this.currentAPI = apiProvider;
+                this.currentModel = modelValue;
+
+                // Update active state
+                document.querySelectorAll('.model-option').forEach(opt => opt.classList.remove('active'));
+                document.querySelector(`[data-api="${apiProvider}"][data-model="${modelValue}"]`).classList.add('active');
+
+                this.updateHeaderStatus();
+                this.saveSettings();
+                this.closePopup('model');
+            }
+
+            togglePopup(type) {
+                if (type === 'apiKey') {
+                    this.loadApiKeysToForm();
+                    this.apiKeyPopup.classList.toggle('active');
+                    this.modelPopup.classList.remove('active');
+                } else if (type === 'model') {
+                    this.populateModelOptions();
+                    this.modelPopup.classList.toggle('active');
+                    this.apiKeyPopup.classList.remove('active');
+                }
+            }
+
+            closePopup(type) {
+                if (type === 'apiKey') {
+                    this.apiKeyPopup.classList.remove('active');
+                } else if (type === 'model') {
+                    this.modelPopup.classList.remove('active');
+                }
+            }
+
+            closeAllPopups() {
+                this.apiKeyPopup.classList.remove('active');
+                this.modelPopup.classList.remove('active');
+            }
+
+            loadApiKeysToForm() {
+                this.perplexityKeyInput.value = this.apiKeys.perplexity;
+                this.openaiKeyInput.value = this.apiKeys.openai;
+                this.geminiKeyInput.value = this.apiKeys.gemini;
+                this.moonshotKeyInput.value = this.apiKeys.moonshot;
+            }
+
+            saveApiKeys() {
+                this.apiKeys.perplexity = this.perplexityKeyInput.value.trim();
+                this.apiKeys.openai = this.openaiKeyInput.value.trim();
+                this.apiKeys.gemini = this.geminiKeyInput.value.trim();
+                this.apiKeys.moonshot = this.moonshotKeyInput.value.trim();
+
+                // Save to localStorage
+                Object.keys(this.apiKeys).forEach(key => {
+                    if (this.apiKeys[key]) {
+                        localStorage.setItem(`${key}_api_key`, this.apiKeys[key]);
+                    } else {
+                        localStorage.removeItem(`${key}_api_key`);
+                    }
+                });
+
+                this.closePopup('apiKey');
+                this.populateModelOptions(); // Refresh model options to update status
+
+                // Show success message
+                this.showMessage('System', 'API keys saved successfully!', 'assistant');
+            }
+
+            handleInputChange() {
+                const hasText = this.messageInput.value.trim().length > 0;
+                const hasApiKey = this.apiKeys[this.currentAPI];
+                this.sendBtn.disabled = !hasText || !hasApiKey || this.isLoading;
+            }
+
+            handleKeyDown(e) {
+                if (e.key === 'Enter') {
+                    if (e.shiftKey) {
+                        // Allow new line
+                        return;
+                    } else {
+                        e.preventDefault();
+                        if (!this.sendBtn.disabled) {
+                            this.sendMessage();
+                        }
+                    }
+                }
+            }
+
+            autoResizeTextarea() {
+                const textarea = this.messageInput;
+                textarea.style.height = 'auto';
+                const newHeight = Math.min(textarea.scrollHeight, 120);
+                textarea.style.height = newHeight + 'px';
+            }
+
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isLoading) return;
+
+                const apiKey = this.apiKeys[this.currentAPI];
+                if (!apiKey) {
+                    alert(`Please set your ${this.currentAPI.toUpperCase()} API key first.`);
+                    this.togglePopup('apiKey');
+                    return;
+                }
+
+                // Clear input and show user message
+                this.messageInput.value = '';
+                this.autoResizeTextarea();
+                this.showMessage('You', message, 'user');
+
+                // Add to conversation history (if not in one-shot mode)
+                if (!this.oneShotMode) {
+                    this.conversationHistory.push({ role: 'user', content: message });
+                }
+
+                // Show loading
+                this.setLoading(true);
+
+                try {
+                    const response = await this.callAPI(message);
+                    this.showMessage('Assistant', response, 'assistant');
+
+                    // Add to conversation history (if not in one-shot mode)
+                    if (!this.oneShotMode) {
+                        this.conversationHistory.push({ role: 'assistant', content: response });
+                    }
+                } catch (error) {
+                    console.error('API Error:', error);
+                    this.showMessage('System', `Error: ${error.message}`, 'assistant');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            async callAPI(message) {
+                const apiKey = this.apiKeys[this.currentAPI];
+                const messages = this.oneShotMode ? 
+                    [{ role: 'user', content: message }] : 
+                    [...this.conversationHistory, { role: 'user', content: message }];
+
+                switch (this.currentAPI) {
+                    case 'perplexity':
+                        return await this.callPerplexityAPI(messages, apiKey);
+                    case 'openai':
+                        return await this.callOpenAIAPI(messages, apiKey);
+                    case 'gemini':
+                        return await this.callGeminiAPI(messages, apiKey);
+                    case 'moonshot':
+                        return await this.callMoonshotAPI(messages, apiKey);
+                    default:
+                        throw new Error(`Unsupported API: ${this.currentAPI}`);
+                }
+            }
+
+            async callPerplexityAPI(messages, apiKey) {
+                const response = await fetch(this.apiEndpoints.perplexity, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: this.currentModel,
+                        messages: messages,
+                        stream: false,
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            async callOpenAIAPI(messages, apiKey) {
+                const response = await fetch(this.apiEndpoints.openai, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: this.currentModel,
+                        messages: messages,
+                        stream: false,
+                        temperature: 0.7,
+                        max_tokens: 4000
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            async callGeminiAPI(messages, apiKey) {
+                // Convert OpenAI-style messages to Gemini format
+                const contents = this.convertMessagesToGeminiFormat(messages);
+
+                const modelPath = `${this.currentModel}:generateContent`;
+                const url = `${this.apiEndpoints.gemini}/${modelPath}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'x-goog-api-key': apiKey,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: contents,
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 4000,
+                            topP: 0.8,
+                            topK: 40
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                    throw new Error('Invalid response from Gemini API');
+                }
+
+                return data.candidates[0].content.parts[0].text;
+            }
+
+            async callMoonshotAPI(messages, apiKey) {
+                const response = await fetch(this.apiEndpoints.moonshot, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: this.currentModel,
+                        messages: messages,
+                        stream: false,
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            convertMessagesToGeminiFormat(messages) {
+                return messages.map(msg => {
+                    const role = msg.role === 'assistant' ? 'model' : 'user';
+                    return {
+                        role: role,
+                        parts: [{ text: msg.content }]
+                    };
+                });
+            }
+
+            setLoading(loading) {
+                this.isLoading = loading;
+                this.sendBtn.disabled = loading || !this.messageInput.value.trim() || !this.apiKeys[this.currentAPI];
+
+                if (loading) {
+                    this.showLoadingMessage();
+                } else {
+                    this.removeLoadingMessage();
+                }
+            }
+
+            showLoadingMessage() {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading';
+                loadingDiv.id = 'loading-message';
+                loadingDiv.innerHTML = `
+                    <div class="loading-dots">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                    <span>Thinking...</span>
+                `;
+                this.messagesContainer.appendChild(loadingDiv);
+                this.scrollToBottom();
+            }
+
+            removeLoadingMessage() {
+                const loadingMessage = document.getElementById('loading-message');
+                if (loadingMessage) {
+                    loadingMessage.remove();
+                }
+            }
+
+            showMessage(sender, content, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+
+                if (type === 'assistant') {
+                    // Convert markdown to HTML
+                    const htmlContent = this.converter.makeHtml(content);
+                    contentDiv.innerHTML = htmlContent;
+
+                    // Highlight code blocks
+                    setTimeout(() => {
+                        contentDiv.querySelectorAll('pre code').forEach(block => {
+                            hljs.highlightElement(block);
+                        });
+                    }, 0);
+                } else {
+                    contentDiv.textContent = content;
+                }
+
+                messageDiv.appendChild(contentDiv);
+                this.messagesContainer.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            scrollToBottom() {
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            }
+
+            clearMessages() {
+                if (confirm('Clear all messages? This cannot be undone.')) {
+                    this.messagesContainer.innerHTML = '';
+                    this.conversationHistory = [];
+                    this.showMessage('System', 'Conversation cleared. Ready for a new chat!', 'assistant');
+                }
+            }
+
+            toggleOneShotMode() {
+                this.oneShotMode = !this.oneShotMode;
+                this.updateOneShotButton();
+                this.saveSettings();
+
+                const mode = this.oneShotMode ? 'enabled' : 'disabled';
+                this.showMessage('System', `One-shot mode ${mode}. ${this.oneShotMode ? 'Each message will be treated independently.' : 'Conversation history will be maintained.'}`, 'assistant');
+            }
+
+            updateOneShotButton() {
+                if (this.oneShotMode) {
+                    this.oneShotBtn.textContent = '⚡ One-Shot ON';
+                    this.oneShotBtn.classList.add('btn-primary');
+                    this.oneShotBtn.classList.remove('btn-secondary');
+                } else {
+                    this.oneShotBtn.textContent = '⚡ One-Shot';
+                    this.oneShotBtn.classList.remove('btn-primary');
+                    this.oneShotBtn.classList.add('btn-secondary');
+                }
+            }
+
+            toggleTheme() {
+                const currentTheme = document.body.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            }
+
+            loadTheme() {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.body.setAttribute('data-theme', savedTheme);
+            }
+
+            updateHeaderStatus() {
+                this.currentAPIElement.textContent = this.currentAPI.charAt(0).toUpperCase() + this.currentAPI.slice(1);
+
+                const modelName = this.models[this.currentAPI].find(m => m.value === this.currentModel)?.name || this.currentModel;
+                this.modelStatus.textContent = modelName;
+            }
+
+            updateUI() {
+                this.handleInputChange();
+            }
+
+            saveSettings() {
+                const settings = {
+                    currentAPI: this.currentAPI,
+                    currentModel: this.currentModel,
+                    oneShotMode: this.oneShotMode
+                };
+                localStorage.setItem('chat_settings', JSON.stringify(settings));
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('chat_settings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    this.currentAPI = settings.currentAPI || 'openai';
+                    this.currentModel = settings.currentModel || 'gpt-4o';
+                    this.oneShotMode = settings.oneShotMode || false;
+                }
+            }
+        }
+
+        // Initialize the chat application
+        document.addEventListener('DOMContentLoaded', () => {
+            new MultiAPIChat();
+        });
+    </script>
+</body>
+</html>
