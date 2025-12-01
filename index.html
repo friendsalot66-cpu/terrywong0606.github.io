@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v1.3)</title>
+    <title>Multi-API Chat Interface (v1.4)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -3080,6 +3080,7 @@ select.form-control {
 
 }
     </style>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div class="app-container">
@@ -3136,6 +3137,9 @@ select.form-control {
                         placeholder="Type your message here..."
                         rows="1"></textarea>
                     <div class="input-actions">
+                         <button class="action-btn" id="manualImageInput" title="Add Image URL/Base64">
+                            <span>🔗</span>
+                        </button>
                         <button class="action-btn" id="imageUpload" title="Upload Image">
                             <span>📷</span>
                         </button>
@@ -3259,6 +3263,20 @@ select.form-control {
             <div class="form-group">
                 <button class="btn btn--secondary btn--sm" id="showApiKeys">Show/Hide</button>
                 <button class="btn btn--primary btn--sm" id="saveApiKeys">Save Keys</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Input Popup -->
+    <div class="popup hidden" id="imageInputPopup">
+        <div class="popup-content">
+            <h3>Add Image Source</h3>
+            <div class="form-group">
+                <label class="form-label">Image URL or Base64 String:</label>
+                <textarea id="imageInputString" class="form-control" rows="5" placeholder="https://... or data:image/..."></textarea>
+            </div>
+            <div class="form-group">
+                <button class="btn btn--primary btn--full-width" id="saveImageInputBtn">Set Image</button>
             </div>
         </div>
     </div>
@@ -3477,6 +3495,12 @@ class MultiAPIChat {
         this.fileInput = document.getElementById('fileInput');
 
         this.modelToggle = document.getElementById('modelToggle');
+        
+        // Manual Image Input elements
+        this.manualImageInput = document.getElementById('manualImageInput');
+        this.imageInputPopup = document.getElementById('imageInputPopup');
+        this.imageInputString = document.getElementById('imageInputString');
+        this.saveImageInputBtn = document.getElementById('saveImageInputBtn');
 
         // Token display
 
@@ -3545,6 +3569,10 @@ class MultiAPIChat {
         this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
 
         this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+        
+        // Manual Image Input Events
+        this.manualImageInput.addEventListener('click', () => this.togglePopup('imageInput'));
+        this.saveImageInputBtn.addEventListener('click', () => this.saveImageInput());
 
         // Theme options
 
@@ -3696,7 +3724,7 @@ class MultiAPIChat {
 
     togglePopup(type) {
 
-        const popups = ['theme', 'persona', 'model', 'apiKey'];
+        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput'];
 
         // Close all other popups first
 
@@ -3752,6 +3780,11 @@ class MultiAPIChat {
 
                 document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
 
+            }
+            
+            // Focus image input if showing image popup
+            if (type === 'imageInput' && !popup.classList.contains('hidden')) {
+                setTimeout(() => this.imageInputString.focus(), 100);
             }
 
         }
@@ -4034,6 +4067,24 @@ class MultiAPIChat {
 
         this.updateOneShotButton();
 
+    }
+
+    // Logic to save image from popup
+    saveImageInput() {
+        const input = this.imageInputString.value.trim();
+        if (input) {
+            if (input.startsWith('http') || input.startsWith('data:image')) {
+                this.uploadedImage = input;
+                this.showImagePreview(input);
+                this.showStatus('Image source set', 'success');
+                this.togglePopup('imageInput');
+                this.imageInputString.value = ''; // Reset
+            } else {
+                this.showStatus('Invalid format. Must start with http or data:image', 'error');
+            }
+        } else {
+            this.showStatus('Please enter a URL or Base64 string', 'warning');
+        }
     }
 
     // Enhanced file upload with image preview
@@ -5302,5 +5353,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
