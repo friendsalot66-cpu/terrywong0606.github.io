@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v1.4)</title>
+    <title>Multi-API Chat Interface (v1.5)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -348,6 +348,13 @@ a:hover { color: var(--color-primary-hover); }
 .form-label { display: block; margin-bottom: var(--space-8); font-weight: var(--font-weight-medium); font-size: var(--font-size-sm); }
 .form-group { margin-bottom: var(--space-16); }
 
+/* Range Input */
+input[type="range"] {
+    width: 100%;
+    margin: var(--space-8) 0;
+    cursor: pointer;
+}
+
 /* App Layout */
 .app-container {
   display: flex;
@@ -431,6 +438,18 @@ a:hover { color: var(--color-primary-hover); }
 
 /* Chat Container */
 .chat-container { flex: 1; overflow-y: auto; padding: var(--space-16) var(--space-12); background-color: var(--color-background); }
+.messages-wrapper {
+    width: 80%;
+    min-width: 60%;
+    margin: 0 auto;
+    transition: width var(--duration-normal) var(--ease-standard);
+}
+@media (max-width: 768px) {
+    .messages-wrapper {
+        width: 100%;
+        min-width: 100%;
+    }
+}
 .messages { display: flex; flex-direction: column; gap: var(--space-16); min-height: 100%; }
 .message {
   background-color: var(--color-surface);
@@ -565,6 +584,28 @@ a:hover { color: var(--color-primary-hover); }
   background-color: var(--color-primary); color: var(--color-btn-primary-text); border-color: var(--color-primary);
 }
 
+/* History List */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin-top: var(--space-16);
+    max-height: 300px;
+    overflow-y: auto;
+}
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-8);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+}
+.history-name { flex: 1; margin-right: var(--space-8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-actions { display: flex; gap: var(--space-4); }
+
 /* Status Indicator */
 .status-container { position: fixed; top: var(--space-16); right: var(--space-16); z-index: 1001; }
 .status {
@@ -600,7 +641,10 @@ a:hover { color: var(--color-primary-hover); }
             <div class="sidebar-icon" id="oneShotToggle" title="One-shot Mode (Clear history on each new message)">
                 <span class="icon">🔥</span>
             </div>
-            <div class="sidebar-icon" id="clearHistory" title="Clear History">
+            <div class="sidebar-icon" id="historyToggle" title="Chat History">
+                <span class="icon">📂</span>
+            </div>
+            <div class="sidebar-icon" id="clearHistory" title="Clear Current Chat">
                 <span class="icon">🗑️</span>
             </div>
             <div class="sidebar-icon" id="apiKeyToggle" title="API Keys">
@@ -627,8 +671,10 @@ a:hover { color: var(--color-primary-hover); }
 
             <!-- Chat Container -->
             <div class="chat-container" id="chatContainer">
-                <div class="messages" id="messages">
-                    <!-- Messages will be dynamically added here -->
+                <div class="messages-wrapper">
+                    <div class="messages" id="messages">
+                        <!-- Messages will be dynamically added here -->
+                    </div>
                 </div>
             </div>
 
@@ -648,7 +694,7 @@ a:hover { color: var(--color-primary-hover); }
                         <button class="action-btn" id="imageUpload" title="Upload Image">
                             <span>📷</span>
                         </button>
-                        <button class="action-btn" id="modelToggle" title="Change Model">
+                        <button class="action-btn" id="modelToggle" title="Change Model & Settings">
                             <span>⚙️</span>
                         </button>
                         <button class="send-btn" id="sendMessage" title="Send Message">
@@ -718,8 +764,15 @@ a:hover { color: var(--color-primary-hover); }
     <!-- Model Popup -->
     <div class="popup hidden" id="modelPopup">
         <div class="popup-content">
-            <h3>Choose Model</h3>
-            <h4>Perplexity Models</h4>
+            <h3>Choose Model & Settings</h3>
+            
+            <div class="form-group">
+                <label class="form-label">Max Tokens: <span id="maxTokensValue">4096</span></label>
+                <input type="range" id="maxTokensSlider" min="100" max="8000" step="100" value="4096">
+                <input type="number" id="maxTokensInput" class="form-control" style="width: 100%; margin-top: 4px;" value="4096" min="100" max="8000">
+            </div>
+
+            <h4 style="margin-top:16px;">Perplexity Models</h4>
             <div class="model-options">
                 <button class="model-option" data-model="sonar" data-api="perplexity">
                     <span>🔍</span> Sonar
@@ -809,6 +862,25 @@ a:hover { color: var(--color-primary-hover); }
         </div>
     </div>
 
+    <!-- History Popup -->
+    <div class="popup hidden" id="historyPopup">
+        <div class="popup-content">
+            <h3>Chat History</h3>
+            <div class="form-group">
+                <label class="form-label">Save Current Chat:</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="chatNameInput" class="form-control" placeholder="Chat Name">
+                    <button class="btn btn--primary btn--sm" id="saveChatBtn">Save</button>
+                </div>
+            </div>
+            <h4>Saved Chats</h4>
+            <div class="history-list" id="historyList">
+                <!-- History items will be here -->
+                <p style="text-align:center; color: var(--color-text-secondary);">No saved chats.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Embedded JavaScript -->
     <script>
 class MultiAPIChat {
@@ -827,6 +899,8 @@ class MultiAPIChat {
         this.references = {};
         this.currentReference = { num: '', url: '' };
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
+        this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
+        this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
 
         this.converter = new showdown.Converter({
             tables: true,
@@ -870,6 +944,7 @@ class MultiAPIChat {
         this.updateUI();
         this.updateHeaderStatus();
         this.updateOneShotButton();
+        this.updateTokenConfigUI();
     }
 
     initializeElements() {
@@ -878,6 +953,7 @@ class MultiAPIChat {
         this.clearHistory = document.getElementById('clearHistory');
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
         this.oneShotToggle = document.getElementById('oneShotToggle');
+        this.historyToggle = document.getElementById('historyToggle');
 
         this.header = document.getElementById('header');
         this.collapseHeader = document.getElementById('collapseHeader');
@@ -909,7 +985,18 @@ class MultiAPIChat {
         this.modelPopup = document.getElementById('modelPopup');
         this.apiKeyPopup = document.getElementById('apiKeyPopup');
         this.referencePopup = document.getElementById('referencePopup');
+        this.historyPopup = document.getElementById('historyPopup');
         this.statusIndicator = document.getElementById('statusIndicator');
+
+        // History Elements
+        this.chatNameInput = document.getElementById('chatNameInput');
+        this.saveChatBtn = document.getElementById('saveChatBtn');
+        this.historyList = document.getElementById('historyList');
+
+        // Token Elements
+        this.maxTokensSlider = document.getElementById('maxTokensSlider');
+        this.maxTokensInput = document.getElementById('maxTokensInput');
+        this.maxTokensValue = document.getElementById('maxTokensValue');
     }
 
     attachEventListeners() {
@@ -918,6 +1005,10 @@ class MultiAPIChat {
         this.clearHistory.addEventListener('click', () => this.clearChatHistory());
         this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
         this.oneShotToggle.addEventListener('click', () => this.toggleOneShotMode());
+        this.historyToggle.addEventListener('click', () => {
+            this.renderChatHistory();
+            this.togglePopup('history');
+        });
         this.collapseHeader.addEventListener('click', () => this.toggleHeader());
 
         this.messageInput.addEventListener('input', () => {
@@ -952,6 +1043,13 @@ class MultiAPIChat {
         document.getElementById('showApiKeys').addEventListener('click', () => this.toggleApiKeysVisibility());
         document.getElementById('saveCustomPrompt').addEventListener('click', () => this.saveCustomPrompt());
         
+        // History Actions
+        this.saveChatBtn.addEventListener('click', () => this.saveCurrentChat());
+
+        // Token Slider Sync
+        this.maxTokensSlider.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
+        this.maxTokensInput.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
+
         document.getElementById('closeReferencePopup').addEventListener('click', () => this.closeReferencePopup());
         document.getElementById('openReference').addEventListener('click', () => this.openReference());
         document.getElementById('copyReference').addEventListener('click', () => this.copyReference());
@@ -963,7 +1061,7 @@ class MultiAPIChat {
     }
 
     togglePopup(type) {
-        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput'];
+        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -990,15 +1088,112 @@ class MultiAPIChat {
         }
     }
 
+    // Max Tokens Logic
+    updateMaxTokens(value) {
+        const val = parseInt(value);
+        if (isNaN(val)) return;
+        this.maxTokens = val;
+        this.maxTokensSlider.value = val;
+        this.maxTokensInput.value = val;
+        this.maxTokensValue.textContent = val;
+        localStorage.setItem('maxTokens', val);
+    }
+    
+    updateTokenConfigUI() {
+        this.maxTokensSlider.value = this.maxTokens;
+        this.maxTokensInput.value = this.maxTokens;
+        this.maxTokensValue.textContent = this.maxTokens;
+    }
+
+    // History Logic
+    saveCurrentChat() {
+        const name = this.chatNameInput.value.trim();
+        if (!name) {
+            this.showStatus('Please enter a chat name', 'warning');
+            return;
+        }
+        if (this.messages.length === 0) {
+            this.showStatus('No messages to save', 'warning');
+            return;
+        }
+        const id = Date.now().toString();
+        this.savedChats[id] = {
+            id: id,
+            name: name,
+            date: new Date().toISOString(),
+            messages: this.messages,
+            references: this.references
+        };
+        localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+        this.chatNameInput.value = '';
+        this.renderChatHistory();
+        this.showStatus('Chat saved', 'success');
+    }
+
+    deleteChat(id) {
+        if (confirm('Delete this chat?')) {
+            delete this.savedChats[id];
+            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+            this.renderChatHistory();
+        }
+    }
+
+    loadChat(id) {
+        const chat = this.savedChats[id];
+        if (chat) {
+            this.messages = chat.messages || [];
+            this.references = chat.references || {};
+            this.renderMessages();
+            this.showStatus(`Loaded "${chat.name}"`, 'success');
+            this.togglePopup('history');
+        }
+    }
+
+    renderChatHistory() {
+        this.historyList.innerHTML = '';
+        const ids = Object.keys(this.savedChats).sort((a, b) => b - a); // Newest first
+        if (ids.length === 0) {
+            this.historyList.innerHTML = '<p style="text-align:center; color: var(--color-text-secondary);">No saved chats.</p>';
+            return;
+        }
+
+        ids.forEach(id => {
+            const chat = this.savedChats[id];
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'history-name';
+            nameSpan.textContent = chat.name;
+            item.appendChild(nameSpan);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'history-actions';
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'btn btn--primary btn--sm';
+            loadBtn.textContent = 'Load';
+            loadBtn.onclick = () => this.loadChat(id);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn--secondary btn--sm';
+            delBtn.innerHTML = '🗑️';
+            delBtn.onclick = () => this.deleteChat(id);
+
+            actionsDiv.appendChild(loadBtn);
+            actionsDiv.appendChild(delBtn);
+            item.appendChild(actionsDiv);
+            
+            this.historyList.appendChild(item);
+        });
+    }
+
     // Logic to save image from popup
     saveImageInput() {
         let input = this.imageInputString.value.trim();
         if (input) {
-            // Check if it's a raw base64 string (alphanumeric + +/=) without header
             const isRawBase64 = /^[A-Za-z0-9+/=]+$/.test(input) && input.length > 50;
-            
             if (isRawBase64) {
-                // Assume PNG if raw base64 provided
                 input = `data:image/png;base64,${input}`;
             }
 
@@ -1007,7 +1202,7 @@ class MultiAPIChat {
                 this.showImagePreview(input);
                 this.showStatus('Image source set', 'success');
                 this.togglePopup('imageInput');
-                this.imageInputString.value = ''; // Reset
+                this.imageInputString.value = '';
             } else {
                 this.showStatus('Invalid format. Must be URL or Base64', 'error');
             }
@@ -1212,11 +1407,11 @@ class MultiAPIChat {
     }
 
     clearChatHistory() {
-        if (confirm('Are you sure you want to clear the chat history?')) {
+        if (confirm('Are you sure you want to clear the current chat messages?')) {
             this.messages = [];
             this.references = {};
             this.renderMessages();
-            this.showStatus('Chat history cleared', 'info');
+            this.showStatus('Current chat cleared', 'info');
         }
     }
 
@@ -1345,7 +1540,7 @@ class MultiAPIChat {
         const requestBody = {
             model: this.currentModel,
             messages: messages,
-            max_tokens: 5000,
+            max_tokens: this.maxTokens, // Use user-defined max tokens
             temperature: 0.2,
             stream: false
         };
