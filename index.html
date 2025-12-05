@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v1.5)</title>
+    <title>Multi-API Chat Interface (v2.0)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -468,6 +468,24 @@ input[type="range"] {
 .message-content { font-size: var(--font-size-sm); line-height: var(--line-height-normal); color: var(--color-text); position: relative; z-index: 1; }
 .message-image { max-width: 100%; height: auto; border-radius: var(--radius-base); margin: var(--space-8) 0; border: 1px solid var(--color-border); }
 
+/* Copy Button */
+.copy-btn {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition: all var(--duration-fast) var(--ease-standard);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.copy-btn:hover {
+  background-color: var(--color-secondary);
+  color: var(--color-text);
+}
+
 /* Code Blocks */
 .message-content pre {
   background-color: var(--color-secondary);
@@ -525,6 +543,7 @@ input[type="range"] {
   font-size: var(--font-size-sm); color: var(--color-text);
 }
 .action-btn:hover { background-color: var(--color-secondary-hover); transform: translateY(-1px); }
+.action-btn.hidden { display: none !important; }
 .send-btn {
   width: 32px; height: 32px; border: none; background-color: var(--color-primary);
   border-radius: var(--radius-base); cursor: pointer; display: flex; align-items: center;
@@ -532,6 +551,36 @@ input[type="range"] {
   transition: all var(--duration-fast) var(--ease-standard); font-size: var(--font-size-base);
 }
 .send-btn:hover:not(:disabled) { background-color: var(--color-primary-hover); transform: translateY(-1px); }
+
+/* Partial Mode (Prefill) */
+.partial-mode-container {
+    margin-bottom: var(--space-8);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-base);
+    padding: var(--space-8);
+    animation: slideDown var(--duration-fast) var(--ease-standard);
+}
+.partial-mode-container.hidden { display: none; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.prefill-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-primary);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--space-4);
+    display: block;
+}
+#prefillInput {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    resize: none;
+    min-height: 40px;
+}
 
 /* Image Preview */
 .image-preview { margin-bottom: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: var(--space-8); background-color: var(--color-background); display: inline-block; }
@@ -562,15 +611,16 @@ input[type="range"] {
 }
 @keyframes popupSlide { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-/* Token Corner */
+/* Token Corner - MILD Style */
 .token-usage-corner {
-  position: absolute; top: var(--space-8); right: var(--space-12);
-  font-size: var(--font-size-xs); color: var(--color-text-secondary);
-  background-color: var(--color-secondary); padding: var(--space-2) var(--space-6);
-  border-radius: var(--radius-sm); font-family: var(--font-family-mono);
-  font-weight: var(--font-weight-medium); opacity: 0.8; z-index: 2;
-  border: 1px solid var(--color-border); cursor: help;
+  position: absolute; top: var(--space-12); right: var(--space-16);
+  font-size: 10px; color: var(--color-text-secondary);
+  background-color: transparent; padding: 0;
+  border: none; font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium); opacity: 0.5; z-index: 2;
+  cursor: help;
 }
+.token-usage-corner:hover { opacity: 1; }
 
 /* Theme/Persona/Model Options */
 .theme-options, .persona-options, .model-options { display: flex; flex-direction: column; gap: var(--space-8); }
@@ -578,8 +628,12 @@ input[type="range"] {
   padding: var(--space-8) var(--space-12); border: 1px solid var(--color-border);
   background-color: var(--color-secondary); border-radius: var(--radius-base);
   cursor: pointer; text-align: left; font-size: var(--font-size-sm); color: var(--color-text);
-  display: flex; align-items: center; gap: var(--space-8);
+  display: flex; align-items: center; gap: var(--space-8); justify-content: space-between;
 }
+.model-info { display: flex; align-items: center; gap: var(--space-8); }
+.cap-badges { display: flex; gap: 4px; }
+.cap-badge { font-size: 12px; opacity: 0.8; }
+
 .theme-option.active, .persona-option.active, .model-option.active {
   background-color: var(--color-primary); color: var(--color-btn-primary-text); border-color: var(--color-primary);
 }
@@ -682,12 +736,20 @@ input[type="range"] {
             <div class="input-area">
                 <!-- Image Preview Container (will be added dynamically) -->
                 <div id="imagePreview" class="image-preview hidden"></div>
+                <!-- Partial Mode Input -->
+                <div id="partialModeContainer" class="partial-mode-container hidden">
+                    <span class="prefill-label">Partial / Prefill Mode (Assistant Start):</span>
+                    <textarea id="prefillInput" placeholder="Type the beginning of the assistant's response here (e.g., 'Sure, here is the list:')..."></textarea>
+                </div>
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
                         placeholder="Type your message here..."
                         rows="1"></textarea>
                     <div class="input-actions">
+                        <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
+                            <span>📝</span>
+                        </button>
                         <button class="action-btn" id="manualImageInput" title="Input Image URL/Base64">
                             <span>📥</span>
                         </button>
@@ -700,12 +762,6 @@ input[type="range"] {
                         <button class="send-btn" id="sendMessage" title="Send Message">
                             <span>→</span>
                         </button>
-                    </div>
-                </div>
-                <div class="token-display hidden" id="tokenDisplay">
-                    <div class="token-info">
-                        <span class="token-count" id="tokenCount">Tokens: 0</span>
-                        <span class="token-details" id="tokenDetails"></span>
                     </div>
                 </div>
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
@@ -775,29 +831,55 @@ input[type="range"] {
             <h4 style="margin-top:16px;">Perplexity Models</h4>
             <div class="model-options">
                 <button class="model-option" data-model="sonar" data-api="perplexity">
-                    <span>🔍</span> Sonar
+                    <div class="model-info"><span>🔍</span> Sonar</div>
                 </button>
                 <button class="model-option" data-model="sonar-pro" data-api="perplexity">
-                    <span>🔍</span> Sonar Pro
+                    <div class="model-info"><span>🔍</span> Sonar Pro</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Vision Capable">👁️</span></div>
                 </button>
-                <button class="model-option" data-model="sonar-reasoning" data-api="perplexity">
-                    <span>🧠</span> Sonar Reasoning
+                <button class="model-option" data-model="sonar-reasoning-pro" data-api="perplexity">
+                    <div class="model-info"><span>🧠</span> Sonar Reasoning Pro</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span></div>
                 </button>
                 <button class="model-option" data-model="sonar-deep-research" data-api="perplexity">
-                    <span>📚</span> Sonar Deep Research
+                    <div class="model-info"><span>📚</span> Sonar Deep Research</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span></div>
                 </button>
             </div>
-            <h4 style="margin-top: 16px;">Moonshot Models</h4>
+            <h4 style="margin-top: 16px;">Moonshot Models (Kimi)</h4>
             <div class="model-options">
+                <button class="model-option" data-model="kimi-k2-0905-preview" data-api="moonshot">
+                    <div class="model-info"><span>🚀</span> Kimi k2 (Preview)</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Vision Capable">👁️</span></div>
+                </button>
+                <button class="model-option" data-model="kimi-k2-turbo-preview" data-api="moonshot">
+                    <div class="model-info"><span>🚀</span> Kimi k2 Turbo (Preview)</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Vision Capable">👁️</span></div>
+                </button>
+                <button class="model-option" data-model="kimi-k2-thinking" data-api="moonshot">
+                    <div class="model-info"><span>🧠</span> Kimi k2 Thinking</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span> <span class="cap-badge" title="Vision Capable">👁️</span></div>
+                </button>
+                <button class="model-option" data-model="kimi-k2-thinking-turbo" data-api="moonshot">
+                    <div class="model-info"><span>🧠</span> Kimi k2 Thinking Turbo</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span> <span class="cap-badge" title="Vision Capable">👁️</span></div>
+                </button>
+                <button class="model-option" data-model="moonshot-k1" data-api="moonshot">
+                    <div class="model-info"><span>🧠</span> Kimi k1 (Reasoning)</div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span></div>
+                </button>
                 <button class="model-option" data-model="moonshot-v1-8k" data-api="moonshot">
-                    <span>🌙</span> K2-8K
+                    <div class="model-info"><span>🌙</span> Kimi v1 8K</div>
                 </button>
                 <button class="model-option" data-model="moonshot-v1-32k" data-api="moonshot">
-                    <span>🌙</span> K2-32K
+                    <div class="model-info"><span>🌙</span> Kimi v1 32K</div>
                 </button>
                 <button class="model-option" data-model="moonshot-v1-128k" data-api="moonshot">
-                    <span>🌙</span> K2-128K
+                    <div class="model-info"><span>🌙</span> Kimi v1 128K</div>
                 </button>
+            </div>
+            <div style="margin-top: 12px; font-size: 11px; color: var(--color-text-secondary); text-align: center;">
+                Icons: 👁️ Vision Capable | 🧠 Thinking/Reasoning
             </div>
         </div>
     </div>
@@ -922,13 +1004,18 @@ class MultiAPIChat {
             perplexity: [
                 { value: "sonar", name: "Sonar" },
                 { value: "sonar-pro", name: "Sonar Pro" },
-                { value: "sonar-reasoning", name: "Sonar Reasoning" },
+                { value: "sonar-reasoning-pro", name: "Sonar Reasoning Pro" },
                 { value: "sonar-deep-research", name: "Sonar Deep Research" }
             ],
             moonshot: [
-                { value: "moonshot-v1-8k", name: "K2-8K" },
-                { value: "moonshot-v1-32k", name: "K2-32K" },
-                { value: "moonshot-v1-128k", name: "K2-128K" }
+                { value: "kimi-k2-0905-preview", name: "Kimi k2 (Preview)" },
+                { value: "kimi-k2-turbo-preview", name: "Kimi k2 Turbo (Preview)" },
+                { value: "kimi-k2-thinking", name: "Kimi k2 Thinking" },
+                { value: "kimi-k2-thinking-turbo", name: "Kimi k2 Thinking Turbo" },
+                { value: "moonshot-k1", name: "Kimi k1 (Reasoning)" },
+                { value: "moonshot-v1-8k", name: "Kimi v1 8K" },
+                { value: "moonshot-v1-32k", name: "Kimi v1 32K" },
+                { value: "moonshot-v1-128k", name: "Kimi v1 128K" }
             ]
         };
 
@@ -945,6 +1032,7 @@ class MultiAPIChat {
         this.updateHeaderStatus();
         this.updateOneShotButton();
         this.updateTokenConfigUI();
+        this.updatePartialModeButton(); // Initial check
     }
 
     initializeElements() {
@@ -968,6 +1056,11 @@ class MultiAPIChat {
         this.fileInput = document.getElementById('fileInput');
         this.modelToggle = document.getElementById('modelToggle');
 
+        // Partial Mode
+        this.togglePartialModeBtn = document.getElementById('togglePartialMode');
+        this.partialModeContainer = document.getElementById('partialModeContainer');
+        this.prefillInput = document.getElementById('prefillInput');
+
         // Image Input Elements
         this.manualImageInput = document.getElementById('manualImageInput');
         this.imageInputPopup = document.getElementById('imageInputPopup');
@@ -975,9 +1068,6 @@ class MultiAPIChat {
         this.saveImageInputBtn = document.getElementById('saveImageInput');
         this.cancelImageInputBtn = document.getElementById('cancelImageInput');
 
-        this.tokenDisplay = document.getElementById('tokenDisplay');
-        this.tokenCount = document.getElementById('tokenCount');
-        this.tokenDetails = document.getElementById('tokenDetails');
         this.imagePreview = document.getElementById('imagePreview');
 
         this.themePopup = document.getElementById('themePopup');
@@ -1013,11 +1103,18 @@ class MultiAPIChat {
 
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
-            this.updateTokenCount();
         });
         this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
         this.sendMessage.addEventListener('click', () => this.sendUserMessage());
         
+        // Partial Mode
+        this.togglePartialModeBtn.addEventListener('click', () => {
+            this.partialModeContainer.classList.toggle('hidden');
+            if(!this.partialModeContainer.classList.contains('hidden')) {
+                this.prefillInput.focus();
+            }
+        });
+
         // Image Handling
         this.imageUpload.addEventListener('click', () => this.fileInput.click());
         this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
@@ -1203,6 +1300,7 @@ class MultiAPIChat {
                 this.showStatus('Image source set', 'success');
                 this.togglePopup('imageInput');
                 this.imageInputString.value = '';
+                this.ensureVisionModel();
             } else {
                 this.showStatus('Invalid format. Must be URL or Base64', 'error');
             }
@@ -1219,10 +1317,27 @@ class MultiAPIChat {
                 this.uploadedImage = e.target.result;
                 this.showImagePreview(e.target.result);
                 this.showStatus('Image uploaded successfully', 'success');
+                this.ensureVisionModel();
             };
             reader.readAsDataURL(file);
         } else if (file) {
             this.showStatus('Please select an image file', 'error');
+        }
+    }
+
+    ensureVisionModel() {
+        const visionModels = [
+            'sonar-pro',
+            'kimi-k2-0905-preview',
+            'kimi-k2-turbo-preview',
+            'kimi-k2-thinking',
+            'kimi-k2-thinking-turbo'
+        ];
+        
+        // If current model is NOT capable of vision, switch to Sonar Pro
+        if (!visionModels.includes(this.currentModel)) {
+            this.setModel('sonar-pro', 'perplexity');
+            this.showStatus('Switched to Sonar Pro for image analysis', 'info');
         }
     }
 
@@ -1298,7 +1413,6 @@ class MultiAPIChat {
     resetTextareaSize() {
         this.messageInput.style.height = 'auto';
         this.messageInput.rows = 1;
-        this.tokenDisplay.classList.add('hidden');
     }
 
     handleKeyDown(e) {
@@ -1306,20 +1420,6 @@ class MultiAPIChat {
             e.preventDefault();
             this.sendUserMessage();
         }
-    }
-
-    updateTokenCount() {
-        const message = this.messageInput.value.trim();
-        if (!message) {
-            this.tokenDisplay.classList.add('hidden');
-            return;
-        }
-        const estimatedTokens = Math.ceil(message.length / 4);
-        const systemPrompt = this.getSystemPrompt();
-        const systemTokens = Math.ceil(systemPrompt.length / 4);
-        this.tokenCount.textContent = `Tokens: ${estimatedTokens}`;
-        this.tokenDetails.textContent = `System: ${systemTokens} | Input: ${estimatedTokens}`;
-        this.tokenDisplay.classList.remove('hidden');
     }
 
     setTheme(theme) {
@@ -1368,7 +1468,17 @@ class MultiAPIChat {
         localStorage.setItem('currentAPI', api);
         this.updateModelOptions();
         this.updateHeaderStatus();
+        this.updatePartialModeButton(); // Update partial mode button visibility
         this.togglePopup('model');
+    }
+
+    updatePartialModeButton() {
+        if (this.currentAPI === 'moonshot') {
+            this.togglePartialModeBtn.classList.remove('hidden');
+        } else {
+            this.togglePartialModeBtn.classList.add('hidden');
+            this.partialModeContainer.classList.add('hidden');
+        }
     }
 
     updateModelOptions() {
@@ -1439,6 +1549,8 @@ class MultiAPIChat {
 
     async sendUserMessage() {
         const message = this.messageInput.value.trim();
+        const prefill = this.prefillInput.value.trim();
+        
         if (!message && !this.uploadedImage) return;
         if (this.isLoading) return;
 
@@ -1457,6 +1569,9 @@ class MultiAPIChat {
         this.messages.push(userMessage);
 
         this.messageInput.value = '';
+        this.prefillInput.value = ''; // Clear prefill
+        this.partialModeContainer.classList.add('hidden'); // Hide partial mode after send
+        
         this.resetTextareaSize();
         this.removeImagePreview();
         this.uploadedImage = null;
@@ -1471,10 +1586,14 @@ class MultiAPIChat {
         this.setLoading(true);
 
         try {
-            const response = await this.callAPI(message);
+            const response = await this.callAPI(message, prefill);
+            
+            // If we used prefill, prepend it to the response content for display
+            const finalContent = prefill ? (prefill + response.content) : response.content;
+            
             const assistantMessage = {
                 role: 'assistant',
-                content: response.content,
+                content: finalContent,
                 timestamp: new Date(),
                 tokenUsage: response.tokenUsage,
                 searchResults: response.searchResults || [],
@@ -1497,7 +1616,7 @@ class MultiAPIChat {
         }
     }
 
-    buildMessagesForAPI() {
+    buildMessagesForAPI(prefill) {
         const systemPrompt = this.getSystemPrompt();
         const apiMessages = [
             { role: 'system', content: systemPrompt }
@@ -1529,11 +1648,20 @@ class MultiAPIChat {
                 });
             }
         }
+
+        // If Partial Mode (Prefill) is active, append the assistant start message
+        if (prefill && this.currentAPI === 'moonshot') {
+             apiMessages.push({
+                 role: 'assistant',
+                 content: prefill
+             });
+        }
+
         return apiMessages;
     }
 
-    async callAPI(message) {
-        const messages = this.buildMessagesForAPI();
+    async callAPI(message, prefill) {
+        const messages = this.buildMessagesForAPI(prefill);
         const endpoint = this.apiEndpoints[this.currentAPI];
         const apiKey = this.apiKeys[this.currentAPI];
         
