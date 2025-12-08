@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.0)</title>
+    <title>Multi-API Chat Interface (v2.1)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -1622,7 +1622,14 @@ class MultiAPIChat {
             { role: 'system', content: systemPrompt }
         ];
 
-        const recentMessages = this.messages.slice(-10);
+        // Increased context window to 15
+        let recentMessages = this.messages.slice(-15);
+
+        // Ensure the conversation history starts with a USER message.
+        // If the slice captures an Assistant message first, remove it to maintain strict alternation.
+        while (recentMessages.length > 0 && recentMessages[0].role !== 'user') {
+            recentMessages.shift();
+        }
 
         for (const msg of recentMessages) {
             if (msg.role === 'user') {
