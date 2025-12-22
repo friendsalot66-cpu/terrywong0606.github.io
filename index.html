@@ -673,6 +673,29 @@ input[type="range"] {
 .status--error { background-color: rgba(var(--color-error-rgb), 0.15); color: var(--color-error); border: 1px solid rgba(var(--color-error-rgb), 0.25); }
 .status--info { background-color: rgba(var(--color-info-rgb), 0.15); color: var(--color-info); border: 1px solid rgba(var(--color-info-rgb), 0.25); }
 
+/* Selection Tooltip */
+.selection-tooltip {
+    position: absolute;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-primary);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-sm);
+    padding: var(--space-4) var(--space-8);
+    z-index: 1000;
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    animation: popupSlide var(--duration-fast) var(--ease-standard);
+}
+.selection-tooltip:hover {
+    background-color: var(--color-secondary);
+}
+.selection-tooltip.hidden { display: none; }
+
 /* Mobile */
 @media (max-width: 768px) {
   .sidebar { width: 45px; }
@@ -694,6 +717,9 @@ input[type="range"] {
             </div>
             <div class="sidebar-icon" id="oneShotToggle" title="One-shot Mode (Clear history on each new message)">
                 <span class="icon">🔥</span>
+            </div>
+            <div class="sidebar-icon" id="feedbackToggle" title="Feedback Loop (Learn from edits)">
+                <span class="icon">🔁</span>
             </div>
             <div class="sidebar-icon" id="historyToggle" title="Chat History">
                 <span class="icon">📂</span>
@@ -773,6 +799,11 @@ input[type="range"] {
     <div class="status-container">
         <div class="status hidden" id="statusIndicator"></div>
     </div>
+
+    <!-- Selection Tooltip -->
+    <button class="selection-tooltip hidden" id="selectionTooltip">
+        <span>✏️</span> Improve
+    </button>
 
     <!-- Theme Popup -->
     <div class="popup hidden" id="themePopup">
@@ -963,6 +994,28 @@ input[type="range"] {
         </div>
     </div>
 
+    <!-- Revision Popup -->
+    <div class="popup hidden" id="revisionPopup">
+        <div class="popup-content" style="max-width: 600px;">
+            <h3>Feedback Loop</h3>
+            <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: 16px;">
+                Provide the revised version. The model will learn from this in future messages within this chat.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Original:</label>
+                <div id="revisionOriginal" style="background: var(--color-secondary); padding: 8px; border-radius: 6px; font-size: var(--font-size-sm); max-height: 150px; overflow-y: auto;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Revised:</label>
+                <textarea id="revisionInput" class="form-control" rows="5" placeholder="Enter how it should have been written..."></textarea>
+            </div>
+            <div class="form-group">
+                <button class="btn btn--secondary btn--sm" id="cancelRevision">Cancel</button>
+                <button class="btn btn--primary btn--sm" id="saveRevision">Save & Learn</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Embedded JavaScript -->
     <script>
 class MultiAPIChat {
@@ -983,6 +1036,11 @@ class MultiAPIChat {
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
         this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
         this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
+        
+        // Feedloop / Feedback properties
+        this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
+        this.feedbackLoops = JSON.parse(localStorage.getItem('feedback_loops') || '{}');
+        this.currentChatId = Date.now().toString(); // Initialize a session ID immediately
 
         this.converter = new showdown.Converter({
             tables: true,
@@ -1031,6 +1089,7 @@ class MultiAPIChat {
         this.updateUI();
         this.updateHeaderStatus();
         this.updateOneShotButton();
+        this.updateFeedbackButton();
         this.updateTokenConfigUI();
         this.updatePartialModeButton(); // Initial check
     }
@@ -1041,6 +1100,7 @@ class MultiAPIChat {
         this.clearHistory = document.getElementById('clearHistory');
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
         this.oneShotToggle = document.getElementById('oneShotToggle');
+        this.feedbackToggle = document.getElementById('feedbackToggle');
         this.historyToggle = document.getElementById('historyToggle');
 
         this.header = document.getElementById('header');
@@ -1076,6 +1136,15 @@ class MultiAPIChat {
         this.apiKeyPopup = document.getElementById('apiKeyPopup');
         this.referencePopup = document.getElementById('referencePopup');
         this.historyPopup = document.getElementById('historyPopup');
+        
+        // Revision Elements
+        this.revisionPopup = document.getElementById('revisionPopup');
+        this.selectionTooltip = document.getElementById('selectionTooltip');
+        this.revisionOriginal = document.getElementById('revisionOriginal');
+        this.revisionInput = document.getElementById('revisionInput');
+        this.cancelRevisionBtn = document.getElementById('cancelRevision');
+        this.saveRevisionBtn = document.getElementById('saveRevision');
+
         this.statusIndicator = document.getElementById('statusIndicator');
 
         // History Elements
@@ -1095,6 +1164,7 @@ class MultiAPIChat {
         this.clearHistory.addEventListener('click', () => this.clearChatHistory());
         this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
         this.oneShotToggle.addEventListener('click', () => this.toggleOneShotMode());
+        this.feedbackToggle.addEventListener('click', () => this.toggleFeedbackMode());
         this.historyToggle.addEventListener('click', () => {
             this.renderChatHistory();
             this.togglePopup('history');
@@ -1150,6 +1220,12 @@ class MultiAPIChat {
         document.getElementById('closeReferencePopup').addEventListener('click', () => this.closeReferencePopup());
         document.getElementById('openReference').addEventListener('click', () => this.openReference());
         document.getElementById('copyReference').addEventListener('click', () => this.copyReference());
+        
+        // Feedloop / Revision Actions
+        document.addEventListener('mouseup', (e) => this.handleTextSelection(e));
+        this.selectionTooltip.addEventListener('click', () => this.openRevisionPopup());
+        this.cancelRevisionBtn.addEventListener('click', () => this.closeRevisionPopup());
+        this.saveRevisionBtn.addEventListener('click', () => this.saveRevision());
 
         document.addEventListener('click', (e) => this.handleOutsideClick(e));
         document.querySelectorAll('.popup-content').forEach(content => {
@@ -1158,7 +1234,7 @@ class MultiAPIChat {
     }
 
     togglePopup(type) {
-        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history'];
+        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -1183,6 +1259,82 @@ class MultiAPIChat {
                 document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
             }
         }
+    }
+    
+    // Feedback Loop Logic
+    toggleFeedbackMode() {
+        this.feedbackMode = !this.feedbackMode;
+        localStorage.setItem('feedbackMode', this.feedbackMode);
+        this.updateFeedbackButton();
+        this.showStatus(this.feedbackMode ? 'Feedback Loop Enabled (Select text to revise)' : 'Feedback Loop Disabled', this.feedbackMode ? 'success' : 'info');
+    }
+
+    updateFeedbackButton() {
+        if(this.feedbackToggle) {
+            this.feedbackToggle.classList.toggle('active', this.feedbackMode);
+        }
+    }
+
+    handleTextSelection(e) {
+        if (!this.feedbackMode) return;
+        
+        // Hide tooltip if clicking elsewhere or empty selection
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim() === '') {
+            this.selectionTooltip.classList.add('hidden');
+            return;
+        }
+
+        // Only allow selection inside messages
+        if (!this.messagesContainer.contains(selection.anchorNode)) {
+             this.selectionTooltip.classList.add('hidden');
+             return;
+        }
+
+        // Show tooltip
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        this.selectionTooltip.style.top = `${rect.top + window.scrollY - 40}px`;
+        this.selectionTooltip.style.left = `${rect.left + window.scrollX}px`;
+        this.selectionTooltip.classList.remove('hidden');
+    }
+
+    openRevisionPopup() {
+        const selection = window.getSelection();
+        if (!selection) return;
+        
+        this.currentSelectionText = selection.toString();
+        this.revisionOriginal.textContent = this.currentSelectionText;
+        this.revisionInput.value = '';
+        this.selectionTooltip.classList.add('hidden');
+        this.togglePopup('revision');
+    }
+
+    closeRevisionPopup() {
+        this.revisionPopup.classList.add('hidden');
+    }
+
+    saveRevision() {
+        const revised = this.revisionInput.value.trim();
+        if (!revised) {
+            this.showStatus('Please enter a revised version', 'warning');
+            return;
+        }
+
+        // Initialize array for this chat ID if not exists
+        if (!this.feedbackLoops[this.currentChatId]) {
+            this.feedbackLoops[this.currentChatId] = [];
+        }
+
+        this.feedbackLoops[this.currentChatId].push({
+            original: this.currentSelectionText,
+            revised: revised
+        });
+
+        localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
+        this.closeRevisionPopup();
+        this.showStatus('Feedback learned!', 'success');
     }
 
     // Max Tokens Logic
@@ -1213,7 +1365,10 @@ class MultiAPIChat {
             this.showStatus('No messages to save', 'warning');
             return;
         }
-        const id = Date.now().toString();
+        
+        // Use the current session ID
+        const id = this.currentChatId;
+        
         this.savedChats[id] = {
             id: id,
             name: name,
@@ -1228,9 +1383,16 @@ class MultiAPIChat {
     }
 
     deleteChat(id) {
-        if (confirm('Delete this chat?')) {
+        if (confirm('Delete this chat and its learned feedback?')) {
             delete this.savedChats[id];
             localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+            
+            // Clean up feedback loops associated with this chat
+            if (this.feedbackLoops[id]) {
+                delete this.feedbackLoops[id];
+                localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
+            }
+
             this.renderChatHistory();
         }
     }
@@ -1238,6 +1400,7 @@ class MultiAPIChat {
     loadChat(id) {
         const chat = this.savedChats[id];
         if (chat) {
+            this.currentChatId = id; // Set active chat ID to the loaded one
             this.messages = chat.messages || [];
             this.references = chat.references || {};
             this.renderMessages();
@@ -1520,6 +1683,7 @@ class MultiAPIChat {
         if (confirm('Are you sure you want to clear the current chat messages?')) {
             this.messages = [];
             this.references = {};
+            this.currentChatId = Date.now().toString(); // Generate new session ID on clear
             this.renderMessages();
             this.showStatus('Current chat cleared', 'info');
         }
@@ -1704,10 +1868,26 @@ class MultiAPIChat {
     }
 
     getSystemPrompt() {
+        let basePrompt = '';
         if (this.currentPersona === 'customized') {
-            return this.customPrompt || 'You are a helpful AI assistant.';
+            basePrompt = this.customPrompt || 'You are a helpful AI assistant.';
+        } else {
+            basePrompt = this.personas[this.currentPersona]?.prompt || 'You are a helpful AI assistant.';
         }
-        return this.personas[this.currentPersona]?.prompt || 'You are a helpful AI assistant.';
+
+        // Inject Feedback Loop Data if available for this chat
+        if (this.feedbackLoops[this.currentChatId] && this.feedbackLoops[this.currentChatId].length > 0) {
+            const feedbackList = this.feedbackLoops[this.currentChatId];
+            let feedbackString = `\n\n[USER STYLE PREFERENCES]\nThe user has provided corrections to previous answers. Adapt your future responses to match the style and logic of the "Revised" versions below:\n`;
+            
+            feedbackList.forEach((item, index) => {
+                feedbackString += `${index + 1}. ORIGINAL: "${item.original}" -> REVISED: "${item.revised}"\n`;
+            });
+            
+            basePrompt += feedbackString;
+        }
+
+        return basePrompt;
     }
 
     // Extract References
