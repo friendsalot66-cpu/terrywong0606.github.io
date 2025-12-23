@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.1)</title>
+    <title>Multi-API Chat Interface (v2.6)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    
+    <!-- Highcharts & SheetJS Dependencies -->
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- Embedded CSS -->
     <style>
@@ -290,6 +296,9 @@ html {
 
 body { margin: 0; padding: 0; }
 *, *::before, *::after { box-sizing: inherit; }
+
+/* Utility Classes */
+.hidden { display: none !important; }
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
@@ -696,6 +705,77 @@ input[type="range"] {
 }
 .selection-tooltip.hidden { display: none; }
 
+/* Thinking Block */
+.thinking-details {
+    background-color: var(--color-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    margin-bottom: var(--space-16);
+    overflow: hidden;
+}
+.thinking-details summary {
+    padding: var(--space-8) var(--space-12);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+.thinking-details summary::before {
+    content: "💭";
+}
+.thinking-details[open] summary {
+    border-bottom: 1px solid var(--color-border);
+}
+.thinking-content {
+    padding: var(--space-12);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-2); /* Slight yellowish tint for thinking */
+}
+
+/* Highcharts & Table Wrapper */
+.highcharts-wrapper {
+    margin: var(--space-16) 0;
+    border-radius: var(--radius-base);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+}
+.table-responsive {
+    overflow-x: auto;
+    margin: var(--space-16) 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background-color: var(--color-surface);
+}
+.table-responsive table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+.table-responsive th, .table-responsive td {
+    padding: var(--space-8) var(--space-12);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+.table-responsive th {
+    background-color: var(--color-secondary);
+    font-weight: var(--font-weight-semibold);
+}
+.table-actions {
+    display: flex;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-12);
+    background-color: var(--color-secondary);
+    border-bottom: 1px solid var(--color-border);
+    justify-content: flex-end;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .sidebar { width: 45px; }
@@ -720,6 +800,12 @@ input[type="range"] {
             </div>
             <div class="sidebar-icon" id="feedbackToggle" title="Feedback Loop (Learn from edits)">
                 <span class="icon">🔁</span>
+            </div>
+            <div class="sidebar-icon" id="refToggle" title="Toggle References (Show/Hide [1])">
+                <span class="icon">🔗</span>
+            </div>
+            <div class="sidebar-icon" id="toolsToggle" title="Local / Web Tools">
+                <span class="icon">🛠️</span>
             </div>
             <div class="sidebar-icon" id="historyToggle" title="Chat History">
                 <span class="icon">📂</span>
@@ -824,6 +910,7 @@ input[type="range"] {
     <div class="popup hidden" id="personaPopup">
         <div class="popup-content">
             <h3>Choose Persona</h3>
+            <!-- Standard Personas -->
             <div class="persona-options">
                 <button class="persona-option" data-persona="allrounder">
                     <span>🎯</span> All-rounder
@@ -835,14 +922,32 @@ input[type="range"] {
                     <span>🔍</span> Auditor
                 </button>
                 <button class="persona-option" data-persona="customized">
-                    <span>⚙️</span> Customized
+                    <span>⚙️</span> Custom / Create
                 </button>
             </div>
-            <div class="custom-prompt-section hidden" id="customPromptSection">
-                <label class="form-label">Custom Prompt:</label>
-                <textarea id="customPrompt" class="form-control" placeholder="Enter your custom prompt here..." rows="3"></textarea>
-                <div class="form-group" style="margin-top: 8px;">
-                    <button class="btn btn--primary btn--sm" id="saveCustomPrompt">Save Custom Prompt</button>
+
+            <!-- Saved Personas List -->
+            <h4 style="margin-top:16px; margin-bottom:8px; font-size:11px; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Saved Personas</h4>
+            <div class="persona-options" id="savedPersonasContainer">
+                <!-- Content injected via JS -->
+            </div>
+
+            <!-- Editor Section -->
+            <div class="custom-prompt-section hidden" id="customPromptSection" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--color-border);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h4 style="font-size:14px; margin:0;">Edit Persona</h4>
+                    <span id="editingPersonaId" style="font-size:10px; color:var(--color-text-secondary); display:none;"></span>
+                </div>
+                
+                <label class="form-label">Name:</label>
+                <input type="text" id="customPersonaName" class="form-control" placeholder="e.g. Python Expert" style="margin-bottom: 8px;">
+                
+                <label class="form-label">System Prompt:</label>
+                <textarea id="customPrompt" class="form-control" placeholder="Enter system prompt..." rows="3"></textarea>
+                
+                <div class="form-group" style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button class="btn btn--primary btn--sm" id="saveCustomPrompt" style="flex:1;">Update / Apply</button>
+                    <button class="btn btn--secondary btn--sm" id="saveAsNewPersona" style="flex:1;">Save as New</button>
                 </div>
             </div>
         </div>
@@ -881,32 +986,17 @@ input[type="range"] {
             <div class="model-options">
                 <button class="model-option" data-model="kimi-k2-0905-preview" data-api="moonshot">
                     <div class="model-info"><span>🚀</span> Kimi k2 (Preview)</div>
-                    <div class="cap-badges"><span class="cap-badge" title="Vision Capable">👁️</span></div>
                 </button>
                 <button class="model-option" data-model="kimi-k2-turbo-preview" data-api="moonshot">
                     <div class="model-info"><span>🚀</span> Kimi k2 Turbo (Preview)</div>
-                    <div class="cap-badges"><span class="cap-badge" title="Vision Capable">👁️</span></div>
                 </button>
                 <button class="model-option" data-model="kimi-k2-thinking" data-api="moonshot">
                     <div class="model-info"><span>🧠</span> Kimi k2 Thinking</div>
-                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span> <span class="cap-badge" title="Vision Capable">👁️</span></div>
+                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span></div>
                 </button>
                 <button class="model-option" data-model="kimi-k2-thinking-turbo" data-api="moonshot">
                     <div class="model-info"><span>🧠</span> Kimi k2 Thinking Turbo</div>
-                    <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span> <span class="cap-badge" title="Vision Capable">👁️</span></div>
-                </button>
-                <button class="model-option" data-model="moonshot-k1" data-api="moonshot">
-                    <div class="model-info"><span>🧠</span> Kimi k1 (Reasoning)</div>
                     <div class="cap-badges"><span class="cap-badge" title="Reasoning">🧠</span></div>
-                </button>
-                <button class="model-option" data-model="moonshot-v1-8k" data-api="moonshot">
-                    <div class="model-info"><span>🌙</span> Kimi v1 8K</div>
-                </button>
-                <button class="model-option" data-model="moonshot-v1-32k" data-api="moonshot">
-                    <div class="model-info"><span>🌙</span> Kimi v1 32K</div>
-                </button>
-                <button class="model-option" data-model="moonshot-v1-128k" data-api="moonshot">
-                    <div class="model-info"><span>🌙</span> Kimi v1 128K</div>
                 </button>
             </div>
             <div style="margin-top: 12px; font-size: 11px; color: var(--color-text-secondary); text-align: center;">
@@ -994,6 +1084,24 @@ input[type="range"] {
         </div>
     </div>
 
+    <!-- Tools Popup -->
+    <div class="popup hidden" id="toolsPopup">
+        <div class="popup-content">
+            <h3>Local / Web Tools</h3>
+            <div class="form-group">
+                <label class="form-label">Add New Tool:</label>
+                <input type="text" id="toolNameInput" class="form-control" placeholder="Tool Name" style="margin-bottom:4px;">
+                <input type="text" id="toolPathInput" class="form-control" placeholder="Path or URL (e.g. file:///C:/... or https://...)" style="margin-bottom:4px;">
+                <input type="text" id="toolDescInput" class="form-control" placeholder="Description (Optional)" style="margin-bottom:4px;">
+                <button class="btn btn--primary btn--sm" id="addToolBtn">Add Tool</button>
+            </div>
+            <h4>My Tools</h4>
+            <div class="history-list" id="toolsList">
+                <!-- content -->
+            </div>
+        </div>
+    </div>
+
     <!-- Revision Popup -->
     <div class="popup hidden" id="revisionPopup">
         <div class="popup-content" style="max-width: 600px;">
@@ -1027,7 +1135,8 @@ class MultiAPIChat {
         this.currentModel = 'sonar';
         this.currentAPI = 'perplexity';
         this.currentPersona = 'allrounder';
-        this.customPrompt = '';
+        this.customPrompt = localStorage.getItem('customPrompt') || '';
+        this.customPersonaName = localStorage.getItem('customPersonaName') || 'Custom / Create';
         this.messages = [];
         this.uploadedImage = null;
         this.isLoading = false;
@@ -1037,6 +1146,11 @@ class MultiAPIChat {
         this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
         this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
         
+        // New features
+        this.showReferences = localStorage.getItem('showReferences') !== 'false'; // Default true
+        this.localTools = JSON.parse(localStorage.getItem('localTools') || '[]');
+        this.savedPersonas = JSON.parse(localStorage.getItem('saved_personas') || '{}');
+
         // Feedloop / Feedback properties
         this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
         this.feedbackLoops = JSON.parse(localStorage.getItem('feedback_loops') || '{}');
@@ -1055,8 +1169,15 @@ class MultiAPIChat {
             allrounder: { name: "All-rounder", prompt: "You are a versatile AI assistant." },
             grammar: { name: "Grammar checker", prompt: "You are a professional grammar checker. Correct the text and explain." },
             auditor: { name: "Auditor", prompt: "You are an experienced audit specialist." },
-            customized: { name: "Customized", prompt: "" }
+            customized: { name: "Custom / Create", prompt: "" }
         };
+        
+        // Merge saved personas
+        Object.assign(this.personas, this.savedPersonas);
+        
+        // Init custom name and prompt for the scratchpad 'customized' persona
+        this.personas.customized.name = this.customPersonaName;
+        this.personas.customized.prompt = this.customPrompt;
 
         this.models = {
             perplexity: [
@@ -1069,11 +1190,7 @@ class MultiAPIChat {
                 { value: "kimi-k2-0905-preview", name: "Kimi k2 (Preview)" },
                 { value: "kimi-k2-turbo-preview", name: "Kimi k2 Turbo (Preview)" },
                 { value: "kimi-k2-thinking", name: "Kimi k2 Thinking" },
-                { value: "kimi-k2-thinking-turbo", name: "Kimi k2 Thinking Turbo" },
-                { value: "moonshot-k1", name: "Kimi k1 (Reasoning)" },
-                { value: "moonshot-v1-8k", name: "Kimi v1 8K" },
-                { value: "moonshot-v1-32k", name: "Kimi v1 32K" },
-                { value: "moonshot-v1-128k", name: "Kimi v1 128K" }
+                { value: "kimi-k2-thinking-turbo", name: "Kimi k2 Thinking Turbo" }
             ]
         };
 
@@ -1086,6 +1203,7 @@ class MultiAPIChat {
         this.attachEventListeners();
         this.loadTheme();
         this.loadSettings();
+        this.renderSavedPersonas();
         this.updateUI();
         this.updateHeaderStatus();
         this.updateOneShotButton();
@@ -1102,6 +1220,8 @@ class MultiAPIChat {
         this.oneShotToggle = document.getElementById('oneShotToggle');
         this.feedbackToggle = document.getElementById('feedbackToggle');
         this.historyToggle = document.getElementById('historyToggle');
+        this.refToggle = document.getElementById('refToggle');
+        this.toolsToggle = document.getElementById('toolsToggle');
 
         this.header = document.getElementById('header');
         this.collapseHeader = document.getElementById('collapseHeader');
@@ -1136,6 +1256,11 @@ class MultiAPIChat {
         this.apiKeyPopup = document.getElementById('apiKeyPopup');
         this.referencePopup = document.getElementById('referencePopup');
         this.historyPopup = document.getElementById('historyPopup');
+        this.toolsPopup = document.getElementById('toolsPopup');
+        
+        // Persona Elements
+        this.savedPersonasContainer = document.getElementById('savedPersonasContainer');
+        this.saveAsNewPersonaBtn = document.getElementById('saveAsNewPersona');
         
         // Revision Elements
         this.revisionPopup = document.getElementById('revisionPopup');
@@ -1152,6 +1277,9 @@ class MultiAPIChat {
         this.saveChatBtn = document.getElementById('saveChatBtn');
         this.historyList = document.getElementById('historyList');
 
+        // Tools Elements
+        this.addToolBtn = document.getElementById('addToolBtn');
+
         // Token Elements
         this.maxTokensSlider = document.getElementById('maxTokensSlider');
         this.maxTokensInput = document.getElementById('maxTokensInput');
@@ -1165,6 +1293,11 @@ class MultiAPIChat {
         this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
         this.oneShotToggle.addEventListener('click', () => this.toggleOneShotMode());
         this.feedbackToggle.addEventListener('click', () => this.toggleFeedbackMode());
+        this.refToggle.addEventListener('click', () => this.toggleReferenceMode());
+        this.toolsToggle.addEventListener('click', () => {
+            this.renderToolsList();
+            this.togglePopup('tools');
+        });
         this.historyToggle.addEventListener('click', () => {
             this.renderChatHistory();
             this.togglePopup('history');
@@ -1197,9 +1330,14 @@ class MultiAPIChat {
         document.querySelectorAll('.theme-option').forEach(btn => {
             btn.addEventListener('click', (e) => this.setTheme(e.target.dataset.theme));
         });
-        document.querySelectorAll('.persona-option').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setPersona(e.target.dataset.persona));
+        
+        // Standard Persona Buttons (re-bind dynamically if needed, but these are static)
+        document.querySelectorAll('#personaPopup .persona-options button.persona-option').forEach(btn => {
+            if(btn.dataset.persona) {
+                btn.addEventListener('click', (e) => this.setPersona(btn.dataset.persona));
+            }
         });
+
         document.querySelectorAll('.model-option').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.setModel(e.target.dataset.model, e.target.dataset.api);
@@ -1209,9 +1347,13 @@ class MultiAPIChat {
         document.getElementById('saveApiKeys').addEventListener('click', () => this.saveApiKeys());
         document.getElementById('showApiKeys').addEventListener('click', () => this.toggleApiKeysVisibility());
         document.getElementById('saveCustomPrompt').addEventListener('click', () => this.saveCustomPrompt());
+        this.saveAsNewPersonaBtn.addEventListener('click', () => this.saveAsNewPersona());
         
         // History Actions
         this.saveChatBtn.addEventListener('click', () => this.saveCurrentChat());
+        
+        // Tools Actions
+        this.addToolBtn.addEventListener('click', () => this.addTool());
 
         // Token Slider Sync
         this.maxTokensSlider.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
@@ -1234,7 +1376,7 @@ class MultiAPIChat {
     }
 
     togglePopup(type) {
-        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision'];
+        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -1246,13 +1388,8 @@ class MultiAPIChat {
         if (popup) {
             popup.classList.toggle('hidden');
             if (type === 'persona') {
-                const customSection = document.getElementById('customPromptSection');
-                if (this.currentPersona === 'customized') {
-                    customSection.classList.remove('hidden');
-                    document.getElementById('customPrompt').value = this.customPrompt;
-                } else {
-                    customSection.classList.add('hidden');
-                }
+                this.setPersona(this.currentPersona);
+                popup.classList.remove('hidden'); 
             }
             if (type === 'apiKey') {
                 document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity;
@@ -1260,8 +1397,208 @@ class MultiAPIChat {
             }
         }
     }
-    
-    // Feedback Loop Logic
+
+    setPersona(persona) {
+        this.currentPersona = persona;
+        localStorage.setItem('currentPersona', persona);
+        
+        this.updatePersonaOptions();
+        this.updateHeaderStatus();
+
+        // Determine if we show the edit section
+        const isStandard = ['allrounder', 'grammar', 'auditor'].includes(persona);
+        const customSection = document.getElementById('customPromptSection');
+        
+        if (!isStandard) {
+            customSection.classList.remove('hidden');
+            // Populate inputs
+            const p = this.personas[persona];
+            if (p) {
+                document.getElementById('customPersonaName').value = p.name;
+                document.getElementById('customPrompt').value = p.prompt;
+            }
+        } else {
+            customSection.classList.add('hidden');
+        }
+    }
+
+    updatePersonaOptions() {
+        // Handle both static and dynamic options
+        document.querySelectorAll('.persona-option').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.persona === this.currentPersona);
+        });
+    }
+
+    saveCustomPrompt() {
+        const promptVal = document.getElementById('customPrompt').value;
+        const nameVal = document.getElementById('customPersonaName').value.trim() || 'Custom Persona';
+        
+        if (!nameVal) {
+            this.showStatus('Name cannot be empty', 'error');
+            return;
+        }
+
+        // Check uniqueness (exclude current self)
+        const conflict = Object.keys(this.personas).find(key => {
+            if (key === this.currentPersona) return false;
+            return this.personas[key].name.toLowerCase() === nameVal.toLowerCase();
+        });
+
+        if (conflict) {
+            this.showStatus('Persona name already exists', 'error');
+            return;
+        }
+
+        if (this.currentPersona === 'customized') {
+            // Update scratchpad
+            this.customPrompt = promptVal;
+            this.customPersonaName = nameVal;
+            this.personas.customized.prompt = promptVal;
+            this.personas.customized.name = nameVal;
+            localStorage.setItem('customPrompt', promptVal);
+            localStorage.setItem('customPersonaName', nameVal);
+            this.showStatus('Scratchpad updated', 'success');
+        } else if (this.savedPersonas[this.currentPersona]) {
+            // Update existing saved persona
+            this.savedPersonas[this.currentPersona].name = nameVal;
+            this.savedPersonas[this.currentPersona].prompt = promptVal;
+            this.personas[this.currentPersona] = this.savedPersonas[this.currentPersona]; // sync
+            localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+            this.renderSavedPersonas(); // Re-render to update names in list
+            this.showStatus('Saved persona updated', 'success');
+        } else {
+            this.showStatus('Cannot edit standard personas', 'error');
+        }
+        this.updateHeaderStatus();
+    }
+
+    saveAsNewPersona() {
+        const promptVal = document.getElementById('customPrompt').value;
+        const nameVal = document.getElementById('customPersonaName').value.trim();
+        
+        if (!nameVal) {
+            this.showStatus('Please provide a name', 'warning');
+            return;
+        }
+
+        // Uniqueness check against ALL personas
+        const conflict = Object.values(this.personas).find(p => p.name.toLowerCase() === nameVal.toLowerCase());
+        if (conflict) {
+            this.showStatus('Persona name already exists', 'error');
+            return;
+        }
+
+        const id = 'custom_' + Date.now();
+        const newPersona = { name: nameVal, prompt: promptVal };
+        
+        this.savedPersonas[id] = newPersona;
+        this.personas[id] = newPersona;
+        
+        localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+        
+        this.renderSavedPersonas();
+        this.setPersona(id); // Switch to it
+        this.showStatus('New persona saved', 'success');
+    }
+
+    deleteSavedPersona(id) {
+        // Removed confirm()
+        
+        delete this.savedPersonas[id];
+        delete this.personas[id];
+        localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+        
+        // If deleted persona was active, switch to default
+        if (this.currentPersona === id) {
+            this.setPersona('allrounder');
+        } else {
+            // Just re-render list if we deleted a non-active one (though UI might close, usually we delete from the list)
+            this.renderSavedPersonas();
+        }
+    }
+
+    renderSavedPersonas() {
+        this.savedPersonasContainer.innerHTML = '';
+        const ids = Object.keys(this.savedPersonas);
+        
+        if (ids.length === 0) {
+            this.savedPersonasContainer.innerHTML = '<div style="font-size:11px; color:var(--color-text-secondary); padding:4px;">No saved personas yet.</div>';
+            return;
+        }
+
+        ids.forEach(id => {
+            const p = this.savedPersonas[id];
+            const btn = document.createElement('button');
+            btn.className = 'persona-option';
+            if (this.currentPersona === id) btn.classList.add('active');
+            btn.dataset.persona = id;
+            btn.innerHTML = `<span>👤</span> ${p.name}`;
+            
+            // Delete button
+            const delBtn = document.createElement('span');
+            delBtn.innerHTML = '×';
+            delBtn.style.marginLeft = 'auto';
+            delBtn.style.padding = '2px 6px';
+            delBtn.style.cursor = 'pointer';
+            delBtn.style.color = 'var(--color-text-secondary)';
+            delBtn.style.fontWeight = 'bold';
+            delBtn.title = 'Delete';
+            
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (delBtn.dataset.confirm === 'true') {
+                    this.deleteSavedPersona(id);
+                } else {
+                    delBtn.dataset.confirm = 'true';
+                    delBtn.textContent = 'Sure?';
+                    delBtn.style.color = 'var(--color-error)';
+                    // Reset after 3 seconds
+                    setTimeout(() => {
+                        if (delBtn.parentElement) { // Check if still in DOM
+                            delBtn.dataset.confirm = 'false';
+                            delBtn.textContent = '×';
+                            delBtn.style.color = 'var(--color-text-secondary)';
+                        }
+                    }, 3000);
+                }
+            };
+
+            btn.appendChild(delBtn);
+            
+            btn.onclick = (e) => {
+                // Avoid triggering if del clicked
+                if (e.target === delBtn) return;
+                this.setPersona(id);
+            }
+
+            this.savedPersonasContainer.appendChild(btn);
+        });
+    }
+
+    getSystemPrompt() {
+        let basePrompt = '';
+        // Now generic for any persona ID in this.personas
+        if (this.personas[this.currentPersona]) {
+            basePrompt = this.personas[this.currentPersona].prompt;
+        } else {
+            basePrompt = 'You are a helpful AI assistant.';
+        }
+
+        // Inject Feedback Loop Data if available for this chat
+        if (this.feedbackLoops[this.currentChatId] && this.feedbackLoops[this.currentChatId].length > 0) {
+            const feedbackList = this.feedbackLoops[this.currentChatId];
+            let feedbackString = `\n\n[USER STYLE PREFERENCES]\nThe user has provided corrections to previous answers. Adapt your future responses to match the style and logic of the "Revised" versions below:\n`;
+            
+            feedbackList.forEach((item, index) => {
+                feedbackString += `${index + 1}. ORIGINAL: "${item.original}" -> REVISED: "${item.revised}"\n`;
+            });
+            
+            basePrompt += feedbackString;
+        }
+
+        return basePrompt;
+    }
+
     toggleFeedbackMode() {
         this.feedbackMode = !this.feedbackMode;
         localStorage.setItem('feedbackMode', this.feedbackMode);
@@ -1274,27 +1611,34 @@ class MultiAPIChat {
             this.feedbackToggle.classList.toggle('active', this.feedbackMode);
         }
     }
+    
+    toggleReferenceMode() {
+        this.showReferences = !this.showReferences;
+        localStorage.setItem('showReferences', this.showReferences);
+        this.updateRefButton();
+        this.renderMessages();
+        this.showStatus(this.showReferences ? 'References Visible' : 'References Hidden', 'info');
+    }
+    
+    updateRefButton() {
+        if(this.refToggle) {
+            this.refToggle.classList.toggle('active', this.showReferences);
+        }
+    }
 
     handleTextSelection(e) {
         if (!this.feedbackMode) return;
-        
-        // Hide tooltip if clicking elsewhere or empty selection
         const selection = window.getSelection();
         if (!selection || selection.toString().trim() === '') {
             this.selectionTooltip.classList.add('hidden');
             return;
         }
-
-        // Only allow selection inside messages
         if (!this.messagesContainer.contains(selection.anchorNode)) {
              this.selectionTooltip.classList.add('hidden');
              return;
         }
-
-        // Show tooltip
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
-        
         this.selectionTooltip.style.top = `${rect.top + window.scrollY - 40}px`;
         this.selectionTooltip.style.left = `${rect.left + window.scrollX}px`;
         this.selectionTooltip.classList.remove('hidden');
@@ -1303,7 +1647,6 @@ class MultiAPIChat {
     openRevisionPopup() {
         const selection = window.getSelection();
         if (!selection) return;
-        
         this.currentSelectionText = selection.toString();
         this.revisionOriginal.textContent = this.currentSelectionText;
         this.revisionInput.value = '';
@@ -1321,23 +1664,18 @@ class MultiAPIChat {
             this.showStatus('Please enter a revised version', 'warning');
             return;
         }
-
-        // Initialize array for this chat ID if not exists
         if (!this.feedbackLoops[this.currentChatId]) {
             this.feedbackLoops[this.currentChatId] = [];
         }
-
         this.feedbackLoops[this.currentChatId].push({
             original: this.currentSelectionText,
             revised: revised
         });
-
         localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
         this.closeRevisionPopup();
         this.showStatus('Feedback learned!', 'success');
     }
 
-    // Max Tokens Logic
     updateMaxTokens(value) {
         const val = parseInt(value);
         if (isNaN(val)) return;
@@ -1354,7 +1692,74 @@ class MultiAPIChat {
         this.maxTokensValue.textContent = this.maxTokens;
     }
 
-    // History Logic
+    addTool() {
+        const name = document.getElementById('toolNameInput').value.trim();
+        const path = document.getElementById('toolPathInput').value.trim();
+        const desc = document.getElementById('toolDescInput').value.trim();
+        if (!name || !path) {
+            this.showStatus('Name and Path are required', 'warning');
+            return;
+        }
+        this.localTools.push({ id: Date.now(), name, path, desc });
+        localStorage.setItem('localTools', JSON.stringify(this.localTools));
+        document.getElementById('toolNameInput').value = '';
+        document.getElementById('toolPathInput').value = '';
+        document.getElementById('toolDescInput').value = '';
+        this.renderToolsList();
+        this.showStatus('Tool added', 'success');
+    }
+
+    deleteTool(id) {
+        this.localTools = this.localTools.filter(t => t.id !== id);
+        localStorage.setItem('localTools', JSON.stringify(this.localTools));
+        this.renderToolsList();
+    }
+
+    openTool(path) {
+        window.open(path, '_blank');
+    }
+
+    renderToolsList() {
+        const list = document.getElementById('toolsList');
+        list.innerHTML = '';
+        if (this.localTools.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color: var(--color-text-secondary);">No tools defined.</p>';
+            return;
+        }
+        this.localTools.forEach(tool => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            const infoDiv = document.createElement('div');
+            infoDiv.style.flex = '1';
+            infoDiv.style.marginRight = '8px';
+            infoDiv.style.overflow = 'hidden';
+            const nameEl = document.createElement('div');
+            nameEl.style.fontWeight = '500';
+            nameEl.textContent = tool.name;
+            const descEl = document.createElement('div');
+            descEl.style.fontSize = '11px';
+            descEl.style.color = 'var(--color-text-secondary)';
+            descEl.textContent = tool.desc || tool.path;
+            infoDiv.appendChild(nameEl);
+            infoDiv.appendChild(descEl);
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'history-actions';
+            const openBtn = document.createElement('button');
+            openBtn.className = 'btn btn--primary btn--sm';
+            openBtn.textContent = 'Open';
+            openBtn.onclick = () => this.openTool(tool.path);
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn btn--secondary btn--sm';
+            delBtn.innerHTML = '🗑️';
+            delBtn.onclick = () => this.deleteTool(tool.id);
+            actionsDiv.appendChild(openBtn);
+            actionsDiv.appendChild(delBtn);
+            item.appendChild(infoDiv);
+            item.appendChild(actionsDiv);
+            list.appendChild(item);
+        });
+    }
+
     saveCurrentChat() {
         const name = this.chatNameInput.value.trim();
         if (!name) {
@@ -1365,10 +1770,7 @@ class MultiAPIChat {
             this.showStatus('No messages to save', 'warning');
             return;
         }
-        
-        // Use the current session ID
         const id = this.currentChatId;
-        
         this.savedChats[id] = {
             id: id,
             name: name,
@@ -1386,13 +1788,10 @@ class MultiAPIChat {
         if (confirm('Delete this chat and its learned feedback?')) {
             delete this.savedChats[id];
             localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-            
-            // Clean up feedback loops associated with this chat
             if (this.feedbackLoops[id]) {
                 delete this.feedbackLoops[id];
                 localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
             }
-
             this.renderChatHistory();
         }
     }
@@ -1400,7 +1799,7 @@ class MultiAPIChat {
     loadChat(id) {
         const chat = this.savedChats[id];
         if (chat) {
-            this.currentChatId = id; // Set active chat ID to the loaded one
+            this.currentChatId = id; 
             this.messages = chat.messages || [];
             this.references = chat.references || {};
             this.renderMessages();
@@ -1411,44 +1810,36 @@ class MultiAPIChat {
 
     renderChatHistory() {
         this.historyList.innerHTML = '';
-        const ids = Object.keys(this.savedChats).sort((a, b) => b - a); // Newest first
+        const ids = Object.keys(this.savedChats).sort((a, b) => b - a);
         if (ids.length === 0) {
             this.historyList.innerHTML = '<p style="text-align:center; color: var(--color-text-secondary);">No saved chats.</p>';
             return;
         }
-
         ids.forEach(id => {
             const chat = this.savedChats[id];
             const item = document.createElement('div');
             item.className = 'history-item';
-            
             const nameSpan = document.createElement('span');
             nameSpan.className = 'history-name';
             nameSpan.textContent = chat.name;
             item.appendChild(nameSpan);
-
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'history-actions';
-
             const loadBtn = document.createElement('button');
             loadBtn.className = 'btn btn--primary btn--sm';
             loadBtn.textContent = 'Load';
             loadBtn.onclick = () => this.loadChat(id);
-
             const delBtn = document.createElement('button');
             delBtn.className = 'btn btn--secondary btn--sm';
             delBtn.innerHTML = '🗑️';
             delBtn.onclick = () => this.deleteChat(id);
-
             actionsDiv.appendChild(loadBtn);
             actionsDiv.appendChild(delBtn);
             item.appendChild(actionsDiv);
-            
             this.historyList.appendChild(item);
         });
     }
 
-    // Logic to save image from popup
     saveImageInput() {
         let input = this.imageInputString.value.trim();
         if (input) {
@@ -1456,7 +1847,6 @@ class MultiAPIChat {
             if (isRawBase64) {
                 input = `data:image/png;base64,${input}`;
             }
-
             if (input.startsWith('http') || input.startsWith('data:image')) {
                 this.uploadedImage = input;
                 this.showImagePreview(input);
@@ -1489,15 +1879,7 @@ class MultiAPIChat {
     }
 
     ensureVisionModel() {
-        const visionModels = [
-            'sonar-pro',
-            'kimi-k2-0905-preview',
-            'kimi-k2-turbo-preview',
-            'kimi-k2-thinking',
-            'kimi-k2-thinking-turbo'
-        ];
-        
-        // If current model is NOT capable of vision, switch to Sonar Pro
+        const visionModels = ['sonar-pro'];
         if (!visionModels.includes(this.currentModel)) {
             this.setModel('sonar-pro', 'perplexity');
             this.showStatus('Switched to Sonar Pro for image analysis', 'info');
@@ -1605,25 +1987,6 @@ class MultiAPIChat {
         });
     }
 
-    setPersona(persona) {
-        this.currentPersona = persona;
-        localStorage.setItem('currentPersona', persona);
-        this.updatePersonaOptions();
-        this.updateHeaderStatus();
-        if (persona === 'customized') {
-            const customSection = document.getElementById('customPromptSection');
-            customSection.classList.remove('hidden');
-        } else {
-            this.togglePopup('persona');
-        }
-    }
-
-    updatePersonaOptions() {
-        document.querySelectorAll('.persona-option').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.persona === this.currentPersona);
-        });
-    }
-
     setModel(model, api) {
         this.currentModel = model;
         this.currentAPI = api;
@@ -1631,17 +1994,8 @@ class MultiAPIChat {
         localStorage.setItem('currentAPI', api);
         this.updateModelOptions();
         this.updateHeaderStatus();
-        this.updatePartialModeButton(); // Update partial mode button visibility
+        this.updatePartialModeButton();
         this.togglePopup('model');
-    }
-
-    updatePartialModeButton() {
-        if (this.currentAPI === 'moonshot') {
-            this.togglePartialModeBtn.classList.remove('hidden');
-        } else {
-            this.togglePartialModeBtn.classList.add('hidden');
-            this.partialModeContainer.classList.add('hidden');
-        }
     }
 
     updateModelOptions() {
@@ -1651,11 +2005,13 @@ class MultiAPIChat {
         });
     }
 
-    saveCustomPrompt() {
-        this.customPrompt = document.getElementById('customPrompt').value;
-        localStorage.setItem('customPrompt', this.customPrompt);
-        this.togglePopup('persona');
-        this.showStatus('Custom prompt saved', 'success');
+    updatePartialModeButton() {
+        if (this.currentAPI === 'moonshot') {
+            this.togglePartialModeBtn.classList.remove('hidden');
+        } else {
+            this.togglePartialModeBtn.classList.add('hidden');
+            this.partialModeContainer.classList.add('hidden');
+        }
     }
 
     saveApiKeys() {
@@ -1683,7 +2039,7 @@ class MultiAPIChat {
         if (confirm('Are you sure you want to clear the current chat messages?')) {
             this.messages = [];
             this.references = {};
-            this.currentChatId = Date.now().toString(); // Generate new session ID on clear
+            this.currentChatId = Date.now().toString(); 
             this.renderMessages();
             this.showStatus('Current chat cleared', 'info');
         }
@@ -1709,6 +2065,7 @@ class MultiAPIChat {
         this.updatePersonaOptions();
         this.updateModelOptions();
         this.updateOneShotButton();
+        this.updateRefButton();
     }
 
     async sendUserMessage() {
@@ -1733,8 +2090,8 @@ class MultiAPIChat {
         this.messages.push(userMessage);
 
         this.messageInput.value = '';
-        this.prefillInput.value = ''; // Clear prefill
-        this.partialModeContainer.classList.add('hidden'); // Hide partial mode after send
+        this.prefillInput.value = ''; 
+        this.partialModeContainer.classList.add('hidden'); 
         
         this.resetTextareaSize();
         this.removeImagePreview();
@@ -1752,7 +2109,6 @@ class MultiAPIChat {
         try {
             const response = await this.callAPI(message, prefill);
             
-            // If we used prefill, prepend it to the response content for display
             const finalContent = prefill ? (prefill + response.content) : response.content;
             
             const assistantMessage = {
@@ -1786,11 +2142,8 @@ class MultiAPIChat {
             { role: 'system', content: systemPrompt }
         ];
 
-        // Increased context window to 15
         let recentMessages = this.messages.slice(-15);
 
-        // Ensure the conversation history starts with a USER message.
-        // If the slice captures an Assistant message first, remove it to maintain strict alternation.
         while (recentMessages.length > 0 && recentMessages[0].role !== 'user') {
             recentMessages.shift();
         }
@@ -1798,7 +2151,6 @@ class MultiAPIChat {
         for (const msg of recentMessages) {
             if (msg.role === 'user') {
                 if (msg.image) {
-                    // Vision payload for Perplexity
                     apiMessages.push({
                         role: 'user',
                         content: [
@@ -1820,7 +2172,6 @@ class MultiAPIChat {
             }
         }
 
-        // If Partial Mode (Prefill) is active, append the assistant start message
         if (prefill && this.currentAPI === 'moonshot') {
              apiMessages.push({
                  role: 'assistant',
@@ -1839,7 +2190,7 @@ class MultiAPIChat {
         const requestBody = {
             model: this.currentModel,
             messages: messages,
-            max_tokens: this.maxTokens, // Use user-defined max tokens
+            max_tokens: this.maxTokens, 
             temperature: 0.2,
             stream: false
         };
@@ -1867,30 +2218,6 @@ class MultiAPIChat {
         return { content, tokenUsage, searchResults, citations };
     }
 
-    getSystemPrompt() {
-        let basePrompt = '';
-        if (this.currentPersona === 'customized') {
-            basePrompt = this.customPrompt || 'You are a helpful AI assistant.';
-        } else {
-            basePrompt = this.personas[this.currentPersona]?.prompt || 'You are a helpful AI assistant.';
-        }
-
-        // Inject Feedback Loop Data if available for this chat
-        if (this.feedbackLoops[this.currentChatId] && this.feedbackLoops[this.currentChatId].length > 0) {
-            const feedbackList = this.feedbackLoops[this.currentChatId];
-            let feedbackString = `\n\n[USER STYLE PREFERENCES]\nThe user has provided corrections to previous answers. Adapt your future responses to match the style and logic of the "Revised" versions below:\n`;
-            
-            feedbackList.forEach((item, index) => {
-                feedbackString += `${index + 1}. ORIGINAL: "${item.original}" -> REVISED: "${item.revised}"\n`;
-            });
-            
-            basePrompt += feedbackString;
-        }
-
-        return basePrompt;
-    }
-
-    // Extract References
     extractReferencesFromResponse(message) {
         const references = {};
         if (message.searchResults && message.searchResults.length > 0) {
@@ -2003,6 +2330,8 @@ class MultiAPIChat {
             
             if (message.role === 'assistant') {
                 this.attachReferenceHandlers(contentEl);
+                this.processHighcharts(contentEl);
+                this.processTables(contentEl);
             }
             if (window.hljs) {
                 contentEl.querySelectorAll('pre code').forEach((block) => {
@@ -2041,9 +2370,49 @@ class MultiAPIChat {
     }
 
     renderEnhancedMarkdown(text) {
-        let processedText = text;
+        if (!text) return '';
+        let processedText = String(text);
+        
+        // Handle Thinking Blocks: <think>content</think>
+        const thinkBlocks = new Map();
+        processedText = processedText.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
+            const id = `THINKBLOCKTOKEN${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+            thinkBlocks.set(id, content.trim());
+            return id;
+        });
+
+        // Basic list numbering fix
         processedText = processedText.replace(/(^|\n)(\d+)\.\s/gm, '$1$2. ');
-        let html = this.converter.makeHtml(processedText);
+        
+        // Convert Markdown
+        let html;
+        try {
+            html = this.converter.makeHtml(processedText);
+        } catch (e) {
+            console.error("Markdown conversion failed:", e);
+            html = processedText.replace(/\n/g, '<br>');
+        }
+        
+        // Re-inject Thinking Blocks with collapsible UI
+        thinkBlocks.forEach((content, id) => {
+            let innerHtml;
+            try {
+                innerHtml = this.converter.makeHtml(content);
+            } catch (e) {
+                console.error("Thinking block conversion failed:", e);
+                innerHtml = content.replace(/\n/g, '<br>');
+            }
+            
+            const detailsHtml = `
+                <details class="thinking-details">
+                    <summary>Thinking Process</summary>
+                    <div class="thinking-content">${innerHtml}</div>
+                </details>
+            `;
+            html = html.replace(new RegExp(id, 'g'), () => detailsHtml);
+        });
+
+        // Code block copy buttons
         html = html.replace(/<pre><code class="([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
             const language = langClass ? langClass.replace('language-', '') : 'text';
             const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
@@ -2055,8 +2424,63 @@ class MultiAPIChat {
                 <pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre>
             </div>`;
         });
-        html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
+        
+        // Reference links handling
+        if (this.showReferences) {
+            html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
+        } else {
+            html = html.replace(/\[\d+\]/g, '');
+        }
+        
         return html;
+    }
+
+    processHighcharts(container) {
+        const codeBlocks = container.querySelectorAll('pre code.json, pre code.language-json');
+        codeBlocks.forEach(codeBlock => {
+            try {
+                const jsonContent = codeBlock.textContent.trim();
+                if (!jsonContent.includes('series') && !jsonContent.includes('chart')) return;
+
+                const config = JSON.parse(jsonContent);
+                if (config.chart || (config.series && Array.isArray(config.series)) || config.title) {
+                    const preElement = codeBlock.parentElement.parentElement.classList.contains('code-block') 
+                        ? codeBlock.parentElement.parentElement 
+                        : codeBlock.parentElement;
+
+                    const chartDiv = document.createElement('div');
+                    chartDiv.className = 'highcharts-wrapper';
+                    chartDiv.style.width = '100%';
+                    chartDiv.style.minHeight = '400px';
+
+                    preElement.parentNode.insertBefore(chartDiv, preElement);
+                    preElement.style.display = 'none';
+
+                    Highcharts.chart(chartDiv, config);
+                }
+            } catch (e) {}
+        });
+    }
+
+    processTables(container) {
+        const tables = container.querySelectorAll('table');
+        tables.forEach(table => {
+            if (table.parentElement.classList.contains('table-responsive')) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'table-responsive';
+            
+            const actionHeader = document.createElement('div');
+            actionHeader.className = 'table-actions';
+            actionHeader.innerHTML = `
+                <button class="btn btn--secondary btn--sm" onclick="downloadTable(this, 'csv')">Export CSV</button>
+                <button class="btn btn--secondary btn--sm" onclick="downloadTable(this, 'xlsx')">Export Excel</button>
+            `;
+
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(actionHeader);
+            wrapper.appendChild(table);
+        });
     }
 
     attachReferenceHandlers(contentEl) {
@@ -2161,6 +2585,14 @@ window.copyCodeBlock = function(codeId) {
             }
         });
     }
+};
+
+window.downloadTable = function(btn, type) {
+    const table = btn.closest('.table-responsive').querySelector('table');
+    if (!table) return;
+    const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+    const fileName = `table-export-${Date.now()}.${type}`;
+    XLSX.writeFile(wb, fileName);
 };
 
 document.addEventListener('DOMContentLoaded', () => {
