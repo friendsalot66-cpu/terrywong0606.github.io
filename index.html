@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.6)</title>
+    <title>Multi-API Chat Interface (v2.7)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -196,7 +196,6 @@
     --color-card-border: rgba(var(--color-gray-400-rgb), 0.2);
     --color-card-border-inner: rgba(var(--color-gray-400-rgb), 0.15);
     --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-    --button-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
     --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
     --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
 
@@ -207,7 +206,6 @@
   }
 }
 
-/* Data attribute for manual theme switching */
 [data-color-scheme="dark"] {
   --color-gray-400-rgb: 119, 124, 124;
   --color-teal-300-rgb: 50, 184, 198;
@@ -1150,6 +1148,7 @@ class MultiAPIChat {
         this.showReferences = localStorage.getItem('showReferences') !== 'false'; // Default true
         this.localTools = JSON.parse(localStorage.getItem('localTools') || '[]');
         this.savedPersonas = JSON.parse(localStorage.getItem('saved_personas') || '{}');
+        this.editingToolId = null;
 
         // Feedloop / Feedback properties
         this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
@@ -1502,17 +1501,13 @@ class MultiAPIChat {
     }
 
     deleteSavedPersona(id) {
-        // Removed confirm()
-        
         delete this.savedPersonas[id];
         delete this.personas[id];
         localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
         
-        // If deleted persona was active, switch to default
         if (this.currentPersona === id) {
             this.setPersona('allrounder');
         } else {
-            // Just re-render list if we deleted a non-active one (though UI might close, usually we delete from the list)
             this.renderSavedPersonas();
         }
     }
@@ -1534,7 +1529,6 @@ class MultiAPIChat {
             btn.dataset.persona = id;
             btn.innerHTML = `<span>👤</span> ${p.name}`;
             
-            // Delete button
             const delBtn = document.createElement('span');
             delBtn.innerHTML = '×';
             delBtn.style.marginLeft = 'auto';
@@ -1552,9 +1546,8 @@ class MultiAPIChat {
                     delBtn.dataset.confirm = 'true';
                     delBtn.textContent = 'Sure?';
                     delBtn.style.color = 'var(--color-error)';
-                    // Reset after 3 seconds
                     setTimeout(() => {
-                        if (delBtn.parentElement) { // Check if still in DOM
+                        if (delBtn.parentElement) {
                             delBtn.dataset.confirm = 'false';
                             delBtn.textContent = '×';
                             delBtn.style.color = 'var(--color-text-secondary)';
@@ -1564,27 +1557,22 @@ class MultiAPIChat {
             };
 
             btn.appendChild(delBtn);
-            
             btn.onclick = (e) => {
-                // Avoid triggering if del clicked
                 if (e.target === delBtn) return;
                 this.setPersona(id);
             }
-
             this.savedPersonasContainer.appendChild(btn);
         });
     }
 
     getSystemPrompt() {
         let basePrompt = '';
-        // Now generic for any persona ID in this.personas
         if (this.personas[this.currentPersona]) {
             basePrompt = this.personas[this.currentPersona].prompt;
         } else {
             basePrompt = 'You are a helpful AI assistant.';
         }
 
-        // Inject Feedback Loop Data if available for this chat
         if (this.feedbackLoops[this.currentChatId] && this.feedbackLoops[this.currentChatId].length > 0) {
             const feedbackList = this.feedbackLoops[this.currentChatId];
             let feedbackString = `\n\n[USER STYLE PREFERENCES]\nThe user has provided corrections to previous answers. Adapt your future responses to match the style and logic of the "Revised" versions below:\n`;
@@ -1700,23 +1688,58 @@ class MultiAPIChat {
             this.showStatus('Name and Path are required', 'warning');
             return;
         }
-        this.localTools.push({ id: Date.now(), name, path, desc });
+
+        if (this.editingToolId) {
+            const toolIndex = this.localTools.findIndex(t => t.id === this.editingToolId);
+            if (toolIndex > -1) {
+                this.localTools[toolIndex] = { id: this.editingToolId, name, path, desc };
+                this.showStatus('Tool updated', 'success');
+            }
+            this.editingToolId = null;
+            document.getElementById('addToolBtn').textContent = 'Add Tool';
+        } else {
+            this.localTools.push({ id: Date.now(), name, path, desc });
+            this.showStatus('Tool added', 'success');
+        }
+
         localStorage.setItem('localTools', JSON.stringify(this.localTools));
         document.getElementById('toolNameInput').value = '';
         document.getElementById('toolPathInput').value = '';
         document.getElementById('toolDescInput').value = '';
         this.renderToolsList();
-        this.showStatus('Tool added', 'success');
+    }
+
+    editTool(id) {
+        const tool = this.localTools.find(t => t.id === id);
+        if (tool) {
+            document.getElementById('toolNameInput').value = tool.name;
+            document.getElementById('toolPathInput').value = tool.path;
+            document.getElementById('toolDescInput').value = tool.desc || '';
+            this.editingToolId = id;
+            document.getElementById('addToolBtn').textContent = 'Update Tool';
+        }
     }
 
     deleteTool(id) {
         this.localTools = this.localTools.filter(t => t.id !== id);
         localStorage.setItem('localTools', JSON.stringify(this.localTools));
+        if (this.editingToolId === id) {
+            this.editingToolId = null;
+            document.getElementById('addToolBtn').textContent = 'Add Tool';
+            document.getElementById('toolNameInput').value = '';
+            document.getElementById('toolPathInput').value = '';
+            document.getElementById('toolDescInput').value = '';
+        }
         this.renderToolsList();
     }
 
     openTool(path) {
-        window.open(path, '_blank');
+        // Use anchor tag click for better compatibility with local files
+        const a = document.createElement('a');
+        a.href = path;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.click();
     }
 
     renderToolsList() {
@@ -1744,20 +1767,41 @@ class MultiAPIChat {
             infoDiv.appendChild(descEl);
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'history-actions';
+            
             const openBtn = document.createElement('button');
             openBtn.className = 'btn btn--primary btn--sm';
             openBtn.textContent = 'Open';
             openBtn.onclick = () => this.openTool(tool.path);
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn--secondary btn--sm';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit';
+            editBtn.onclick = () => this.editTool(tool.id);
+
             const delBtn = document.createElement('button');
             delBtn.className = 'btn btn--secondary btn--sm';
             delBtn.innerHTML = '🗑️';
+            delBtn.title = 'Delete';
             delBtn.onclick = () => this.deleteTool(tool.id);
+            
             actionsDiv.appendChild(openBtn);
+            actionsDiv.appendChild(editBtn);
             actionsDiv.appendChild(delBtn);
             item.appendChild(infoDiv);
             item.appendChild(actionsDiv);
             list.appendChild(item);
         });
+    }
+
+    autoSaveChat() {
+        // Auto-save logic: Only save if the chat is already in savedChats (meaning it was explicitly saved/named once)
+        if (this.savedChats[this.currentChatId]) {
+            this.savedChats[this.currentChatId].messages = this.messages;
+            this.savedChats[this.currentChatId].references = this.references;
+            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+            // Optional: console.log('Auto-saved chat');
+        }
     }
 
     saveCurrentChat() {
@@ -2121,6 +2165,7 @@ class MultiAPIChat {
             };
             this.messages.push(assistantMessage);
             this.renderMessages();
+            this.autoSaveChat();
         } catch (error) {
             this.showStatus('Error: ' + error.message, 'error');
             const fallbackResponse = {
@@ -2473,8 +2518,8 @@ class MultiAPIChat {
             const actionHeader = document.createElement('div');
             actionHeader.className = 'table-actions';
             actionHeader.innerHTML = `
-                <button class="btn btn--secondary btn--sm" onclick="downloadTable(this, 'csv')">Export CSV</button>
-                <button class="btn btn--secondary btn--sm" onclick="downloadTable(this, 'xlsx')">Export Excel</button>
+                <button class="btn btn--secondary btn--sm" type="button" onclick="downloadTable(this, 'csv')">Export CSV</button>
+                <button class="btn btn--secondary btn--sm" type="button" onclick="downloadTable(this, 'xlsx')">Export Excel</button>
             `;
 
             table.parentNode.insertBefore(wrapper, table);
