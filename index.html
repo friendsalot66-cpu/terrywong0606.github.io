@@ -1734,12 +1734,39 @@ class MultiAPIChat {
     }
 
     openTool(path) {
-        // Use anchor tag click for better compatibility with local files
-        const a = document.createElement('a');
-        a.href = path;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.click();
+        let url = path.trim();
+        
+        // Normalize Windows paths (e.g., "C:\Users\..." -> "file:///C:/Users/...")
+        if (/^[a-zA-Z]:[\\/]/.test(url)) {
+            url = 'file:///' + url.replace(/\\/g, '/');
+        } 
+        // Normalize standard file paths that might miss protocol
+        else if ((url.startsWith('/') || url.startsWith('\\')) && !url.startsWith('//')) {
+            url = 'file://' + url;
+        }
+        // Add https if missing protocol and not a file
+        else if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) {
+            url = 'https://' + url;
+        }
+
+        const isLocalFile = url.startsWith('file:');
+        const isHosted = window.location.protocol.startsWith('http');
+
+        if (isLocalFile && isHosted) {
+            // Security restriction handling
+            const confirmCopy = confirm(
+                `Browser Security Notice:\n\n` +
+                `Web pages cannot directly open local files ("${url}") due to security restrictions.\n\n` +
+                `Click OK to copy the path to your clipboard.`
+            );
+            if (confirmCopy) {
+                this.copyToClipboard(url);
+            }
+            return;
+        }
+
+        // Standard open
+        window.open(url, '_blank', 'noopener,noreferrer');
     }
 
     renderToolsList() {
