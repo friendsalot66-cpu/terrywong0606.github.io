@@ -193,7 +193,7 @@
     --color-info: var(--color-gray-300);
     --color-focus-ring: rgba(var(--color-teal-300-rgb), 0.4);
     --color-btn-primary-text: var(--color-slate-900);
-    --color-card-border: rgba(var(--color-gray-400-rgb), 0.2);
+    --color-card-border: rgba(var(--color-gray-400-rgb), 0.15);
     --color-card-border-inner: rgba(var(--color-gray-400-rgb), 0.15);
     --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
     --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
@@ -245,7 +245,7 @@
   --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
 
   --color-success-rgb: var(--color-teal-300-rgb);
-  --color-error-rgb: var(--color-red-400-rgb);
+  --color-error-rgb: var(--color-red-500-rgb);
   --color-warning-rgb: var(--color-orange-400-rgb);
   --color-info-rgb: var(--color-gray-300-rgb);
 }
@@ -821,7 +821,7 @@ input[type="range"] {
             <!-- Header -->
             <div class="header" id="header">
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface</h1>
+                    <h1>Multi-API Chat Interface <span style="font-size: 0.75em; color: var(--color-text-secondary); font-weight: normal; margin-left: 4px;">v2.7</span></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
@@ -1733,7 +1733,7 @@ class MultiAPIChat {
         this.renderToolsList();
     }
 
-    openTool(path) {
+    async openTool(path) {
         let url = path.trim();
         
         // Normalize Windows paths (e.g., "C:\Users\..." -> "file:///C:/Users/...")
@@ -1753,10 +1753,43 @@ class MultiAPIChat {
         const isHosted = window.location.protocol.startsWith('http');
 
         if (isLocalFile && isHosted) {
-            // Security restriction handling
+            // Check for File System Access API support
+            if ('showOpenFilePicker' in window) {
+                const confirmOpen = confirm(
+                    `Security Notice: Web browsers cannot automatically open local paths ("${url}").\n\n` +
+                    `Click OK to select and open this file using the System File Picker.`
+                );
+                
+                if (confirmOpen) {
+                    try {
+                        const [handle] = await window.showOpenFilePicker();
+                        const file = await handle.getFile();
+                        const fileUrl = URL.createObjectURL(file);
+                        
+                        // Open the file in a new tab
+                        const win = window.open(fileUrl, '_blank');
+                        
+                        // Cleanup object URL after a delay (enough time for browser to load it)
+                        if (win) {
+                             setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+                        } else {
+                            this.showStatus('Pop-up blocked. Please allow pop-ups.', 'error');
+                        }
+                    } catch (err) {
+                        // User cancelled or error occurred
+                        if (err.name !== 'AbortError') {
+                            console.error(err);
+                            this.showStatus('Failed to open file picker', 'error');
+                        }
+                    }
+                    return;
+                }
+            }
+            
+            // Fallback for browsers without File System Access API or if user cancels
             const confirmCopy = confirm(
                 `Browser Security Notice:\n\n` +
-                `Web pages cannot directly open local files ("${url}") due to security restrictions.\n\n` +
+                `Web pages cannot directly open local files ("${url}").\n\n` +
                 `Click OK to copy the path to your clipboard.`
             );
             if (confirmCopy) {
@@ -1765,7 +1798,7 @@ class MultiAPIChat {
             return;
         }
 
-        // Standard open
+        // Standard open for non-local or properly configured environments
         window.open(url, '_blank', 'noopener,noreferrer');
     }
 
@@ -2545,6 +2578,7 @@ class MultiAPIChat {
             const actionHeader = document.createElement('div');
             actionHeader.className = 'table-actions';
             actionHeader.innerHTML = `
+                <button class="btn btn--secondary btn--sm" type="button" onclick="window.openTableInNewTab(this)">View (New Tab)</button>
                 <button class="btn btn--secondary btn--sm" type="button" onclick="downloadTable(this, 'csv')">Export CSV</button>
                 <button class="btn btn--secondary btn--sm" type="button" onclick="downloadTable(this, 'xlsx')">Export Excel</button>
             `;
@@ -2664,13 +2698,96 @@ window.downloadTable = function(btn, type) {
     if (!table) return;
     const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
     const fileName = `table-export-${Date.now()}.${type}`;
-    XLSX.writeFile(wb, fileName);
+    
+    // Generate base64 synchronously to avoid popup blockers
+    const wbout = XLSX.write(wb, {bookType: type, type: 'base64'});
+    
+    let mime = 'application/octet-stream';
+    if (type === 'csv') mime = 'text/csv';
+    else if (type === 'xlsx') mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    
+    const dataUrl = `data:${mime};base64,${wbout}`;
+    
+    // Open window immediately
+    const win = window.open('', '_blank');
+    if(!win) {
+        alert("Pop-up blocked. Please allow pop-ups for this site.");
+        return;
+    }
+
+    const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Downloading...</title>
+            <style>
+                body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f3f4f6; color: #111827; margin: 0; }
+                .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; }
+                .btn { background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h3>Downloading ${fileName}</h3>
+                <p>If the download does not start automatically, click below:</p>
+                <a id="dlink" href="${dataUrl}" download="${fileName}" class="btn">Download Now</a>
+            </div>
+            <script>
+                setTimeout(() => {
+                    document.getElementById('dlink').click();
+                }, 500);
+            <\/script>
+        <script type="module" src="/index.tsx"></script>
+</body>
+        </html>
+    `;
+    
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+};
+
+window.openTableInNewTab = function(btn) {
+    const table = btn.closest('.table-responsive').querySelector('table');
+    if (!table) return;
+    
+    // Create a clean HTML document string with the table
+    const html = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Table View - Multi-API Chat</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #e5e7eb; padding: 12px 16px; text-align: left; font-size: 14px; }
+                th { background-color: #f3f4f6; font-weight: 600; color: #111827; }
+                tr:nth-child(even) { background-color: #f9fafb; }
+                tr:hover { background-color: #f3f4f6; }
+                h1 { font-size: 20px; color: #111827; margin: 0 0 20px 0; }
+            </style>
+        </head>
+        <body>
+            <h1>Exported Table View</h1>
+            ${table.outerHTML}
+        </body>
+        </html>
+    `;
+
+    // Create a Blob and open it
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    
+    // Note: We don't revoke immediately to ensure the new tab loads, 
+    // relying on browser garbage collection for Blob URLs in this context.
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     window.chatApp = new MultiAPIChat();
 });
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
