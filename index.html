@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.8.1)</title>
+    <title>Multi-API Chat Interface (v2.9.2)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -193,7 +193,7 @@
     --color-info: var(--color-gray-300);
     --color-focus-ring: rgba(var(--color-teal-300-rgb), 0.4);
     --color-btn-primary-text: var(--color-slate-900);
-    --color-card-border: rgba(var(--color-gray-400-rgb), 0.2);
+    --color-card-border: rgba(var(--color-gray-400-rgb), 0.15);
     --color-card-border-inner: rgba(var(--color-gray-400-rgb), 0.15);
     --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
     --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
@@ -774,6 +774,18 @@ input[type="range"] {
     justify-content: flex-end;
 }
 
+/* Readme Specific Styles */
+.readme-content { max-width: 800px !important; }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-16); margin: var(--space-16) 0; }
+.feature-card { background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: var(--space-16); }
+.feature-icon { font-size: 20px; margin-bottom: var(--space-8); }
+.feature-title { font-weight: 600; margin-bottom: 4px; color: var(--color-text); font-size: var(--font-size-md); }
+.feature-desc { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; line-height: 1.4; }
+.key-section { background-color: var(--color-bg-1); border: 1px solid var(--color-primary); border-radius: var(--radius-base); padding: var(--space-16); margin: var(--space-16) 0; }
+.key-section h3 { margin-top: 0; font-size: var(--font-size-lg); }
+.key-section ul { padding-left: 20px; margin-bottom: 0; }
+.key-section li { margin-bottom: 4px; }
+
 /* Mobile */
 @media (max-width: 768px) {
   .sidebar { width: 45px; }
@@ -808,11 +820,11 @@ input[type="range"] {
             <div class="sidebar-icon" id="historyToggle" title="Chat History">
                 <span class="icon">📂</span>
             </div>
-            <div class="sidebar-icon" id="clearHistory" title="Clear Current Chat">
-                <span class="icon">🗑️</span>
-            </div>
             <div class="sidebar-icon" id="apiKeyToggle" title="API Keys">
                 <span class="icon">🔑</span>
+            </div>
+            <div class="sidebar-icon" id="readmeToggle" title="About / Readme" style="margin-top: auto;">
+                <span class="icon">ℹ️</span>
             </div>
         </div>
 
@@ -821,16 +833,21 @@ input[type="range"] {
             <!-- Header -->
             <div class="header" id="header">
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.8.1</small></h1>
+                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.9.2</small></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
                         <span class="status-item" id="personaStatus">Persona: All-rounder</span>
                     </div>
                 </div>
-                <button class="collapse-btn" id="collapseHeader">
-                    <span>−</span>
-                </button>
+                <div class="header-actions" style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn--secondary btn--sm" id="newTopicBtn" title="Start New Topic" style="padding: 4px 8px;">
+                        <span>+ New Topic</span>
+                    </button>
+                    <button class="collapse-btn" id="collapseHeader">
+                        <span>−</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Chat Container -->
@@ -854,7 +871,7 @@ input[type="range"] {
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
-                        placeholder="Type your message here..."
+                        placeholder="Type your message here... (Enter for new line, Ctrl+Enter to send)"
                         rows="1"></textarea>
                     <div class="input-actions">
                         <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
@@ -912,6 +929,9 @@ input[type="range"] {
             <div class="persona-options">
                 <button class="persona-option" data-persona="allrounder">
                     <span>🎯</span> All-rounder
+                </button>
+                <button class="persona-option" data-persona="excel">
+                    <span>📊</span> Excel Specialist
                 </button>
                 <button class="persona-option" data-persona="grammar">
                     <span>📝</span> Grammar checker
@@ -1028,6 +1048,58 @@ input[type="range"] {
         </div>
     </div>
 
+    <!-- Readme Popup -->
+    <div class="popup hidden" id="readmePopup">
+        <div class="popup-content readme-content">
+            <h3>Multi-API Chat Interface</h3>
+            <p>A versatile, static web application designed for power users who need access to multiple advanced LLMs like Perplexity (Sonar) and Moonshot (Kimi) in a single, unified interface.</p>
+            
+            <h4>Key Features</h4>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-title">Perplexity API</div>
+                    <p class="feature-desc">Access Sonar models (including Pro, Reasoning, and Deep Research) for real-time web search capabilities.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-title">Moonshot API</div>
+                    <p class="feature-desc">Utilize Kimi models (k2 preview, turbo, and thinking) for high-performance Chinese language processing.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👁️</div>
+                    <div class="feature-title">Vision Capabilities</div>
+                    <p class="feature-desc">Upload images or paste image URLs/Base64 strings for analysis using vision-capable models.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔁</div>
+                    <div class="feature-title">Feedback Loop</div>
+                    <p class="feature-desc">Teach the model your style by correcting its responses. The app remembers your preferences.</p>
+                </div>
+            </div>
+
+            <div class="key-section">
+                <h3>🔑 Getting Started</h3>
+                <p style="font-size: var(--font-size-sm);">Since this is a client-side application, your API keys are stored locally in your browser.</p>
+                <ul>
+                    <li><strong>Perplexity:</strong> <a href="https://docs.perplexity.ai/" target="_blank">Get API Key</a></li>
+                    <li><strong>Moonshot AI:</strong> <a href="https://platform.moonshot.cn/" target="_blank">Get API Key</a></li>
+                </ul>
+            </div>
+
+            <h4>Advanced Usage</h4>
+            <p style="font-size: var(--font-size-sm);">
+                <strong>Local Tools:</strong> Define shortcuts to local paths or URLs.<br>
+                <strong>One-Shot Mode:</strong> Toggle 🔥 to clear context on every message.<br>
+                <strong>Partial Mode:</strong> Guide the assistant's response (Moonshot only).
+            </p>
+            
+            <div style="margin-top: 20px; text-align: center; font-size: 11px; color: var(--color-text-secondary);">
+                v2.9.2 | Created for personal productivity.
+            </div>
+        </div>
+    </div>
+
     <!-- Reference Popup -->
     <div class="popup hidden" id="referencePopup">
         <div class="popup-content reference-popup-content">
@@ -1079,6 +1151,13 @@ input[type="range"] {
                 <!-- History items will be here -->
                 <p style="text-align:center; color: var(--color-text-secondary);">No saved chats.</p>
             </div>
+            <hr style="border: 0; border-top: 1px solid var(--color-border); margin: 16px 0;">
+            <h4>Data Backup</h4>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn--secondary btn--sm" id="exportDataBtn" style="flex:1;">Export All Data</button>
+                <button class="btn btn--secondary btn--sm" id="importDataBtn" style="flex:1;">Import Data</button>
+            </div>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
         </div>
     </div>
 
@@ -1166,6 +1245,7 @@ class MultiAPIChat {
 
         this.personas = {
             allrounder: { name: "All-rounder", prompt: "You are a versatile AI assistant." },
+            excel: { name: "Excel Specialist", prompt: "You are an expert Excel Specialist. Assist with complex formulas, Excel settings, VBA macros, and Python in Excel. For Python in Excel, prefer using the xl() function for referencing ranges/tables. If libraries (like pandas) or dataframes have been initialized in previous turns, assume they are available; do not re-import or re-load them unless specifically requested." },
             grammar: { name: "Grammar checker", prompt: "You are a professional grammar checker. Correct the text and explain." },
             auditor: { name: "Auditor", prompt: "You are an experienced audit specialist." },
             customized: { name: "Custom / Create", prompt: "" }
@@ -1214,16 +1294,17 @@ class MultiAPIChat {
     initializeElements() {
         this.themeToggle = document.getElementById('themeToggle');
         this.personaToggle = document.getElementById('personaToggle');
-        this.clearHistory = document.getElementById('clearHistory');
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
         this.oneShotToggle = document.getElementById('oneShotToggle');
         this.feedbackToggle = document.getElementById('feedbackToggle');
         this.historyToggle = document.getElementById('historyToggle');
         this.refToggle = document.getElementById('refToggle');
         this.toolsToggle = document.getElementById('toolsToggle');
+        this.readmeToggle = document.getElementById('readmeToggle');
 
         this.header = document.getElementById('header');
         this.collapseHeader = document.getElementById('collapseHeader');
+        this.newTopicBtn = document.getElementById('newTopicBtn');
         this.chatContainer = document.getElementById('chatContainer');
         this.messagesContainer = document.getElementById('messages');
         this.modelStatus = document.getElementById('modelStatus');
@@ -1256,6 +1337,7 @@ class MultiAPIChat {
         this.referencePopup = document.getElementById('referencePopup');
         this.historyPopup = document.getElementById('historyPopup');
         this.toolsPopup = document.getElementById('toolsPopup');
+        this.readmePopup = document.getElementById('readmePopup');
         
         // Persona Elements
         this.savedPersonasContainer = document.getElementById('savedPersonasContainer');
@@ -1275,6 +1357,10 @@ class MultiAPIChat {
         this.chatNameInput = document.getElementById('chatNameInput');
         this.saveChatBtn = document.getElementById('saveChatBtn');
         this.historyList = document.getElementById('historyList');
+        // Export/Import Elements
+        this.exportDataBtn = document.getElementById('exportDataBtn');
+        this.importDataBtn = document.getElementById('importDataBtn');
+        this.importFileInput = document.getElementById('importFileInput');
 
         // Tools Elements
         this.addToolBtn = document.getElementById('addToolBtn');
@@ -1288,11 +1374,12 @@ class MultiAPIChat {
     attachEventListeners() {
         this.themeToggle.addEventListener('click', () => this.togglePopup('theme'));
         this.personaToggle.addEventListener('click', () => this.togglePopup('persona'));
-        this.clearHistory.addEventListener('click', () => this.clearChatHistory());
+        this.newTopicBtn.addEventListener('click', () => this.startNewTopic());
         this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
         this.oneShotToggle.addEventListener('click', () => this.toggleOneShotMode());
         this.feedbackToggle.addEventListener('click', () => this.toggleFeedbackMode());
         this.refToggle.addEventListener('click', () => this.toggleReferenceMode());
+        this.readmeToggle.addEventListener('click', () => this.togglePopup('readme'));
         this.toolsToggle.addEventListener('click', () => {
             this.renderToolsList();
             this.togglePopup('tools');
@@ -1330,7 +1417,7 @@ class MultiAPIChat {
             btn.addEventListener('click', (e) => this.setTheme(e.target.dataset.theme));
         });
         
-        // Standard Persona Buttons (re-bind dynamically if needed, but these are static)
+        // Standard Persona Buttons
         document.querySelectorAll('#personaPopup .persona-options button.persona-option').forEach(btn => {
             if(btn.dataset.persona) {
                 btn.addEventListener('click', (e) => this.setPersona(btn.dataset.persona));
@@ -1348,8 +1435,11 @@ class MultiAPIChat {
         document.getElementById('saveCustomPrompt').addEventListener('click', () => this.saveCustomPrompt());
         this.saveAsNewPersonaBtn.addEventListener('click', () => this.saveAsNewPersona());
         
-        // History Actions
+        // History & Data Actions
         this.saveChatBtn.addEventListener('click', () => this.saveCurrentChat());
+        this.exportDataBtn.addEventListener('click', () => this.exportData());
+        this.importDataBtn.addEventListener('click', () => this.importFileInput.click());
+        this.importFileInput.addEventListener('change', (e) => this.importData(e));
         
         // Tools Actions
         this.addToolBtn.addEventListener('click', () => this.addTool());
@@ -1375,7 +1465,7 @@ class MultiAPIChat {
     }
 
     togglePopup(type) {
-        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools'];
+        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -1397,6 +1487,88 @@ class MultiAPIChat {
         }
     }
 
+    exportData() {
+        const data = {
+            version: '2.9.2',
+            timestamp: new Date().toISOString(),
+            savedChats: this.savedChats,
+            savedPersonas: this.savedPersonas,
+            localTools: this.localTools,
+            feedbackLoops: this.feedbackLoops,
+            // Settings
+            oneShotMode: this.oneShotMode,
+            maxTokens: this.maxTokens,
+            showReferences: this.showReferences,
+            customPrompt: this.customPrompt,
+            customPersonaName: this.customPersonaName
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `chat_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+        this.showStatus('Data exported successfully', 'success');
+    }
+
+    importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                // Merge or Overwrite Logic
+                if (confirm('This will overwrite your current saved chats and settings. Continue?')) {
+                    if(data.savedChats) {
+                        this.savedChats = data.savedChats;
+                        localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+                    }
+                    if(data.savedPersonas) {
+                        this.savedPersonas = data.savedPersonas;
+                        localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                    }
+                    if(data.localTools) {
+                        this.localTools = data.localTools;
+                        localStorage.setItem('localTools', JSON.stringify(this.localTools));
+                    }
+                    if(data.feedbackLoops) {
+                        this.feedbackLoops = data.feedbackLoops;
+                        localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
+                    }
+                    
+                    // Settings
+                    if(data.oneShotMode !== undefined) localStorage.setItem('oneShotMode', data.oneShotMode);
+                    if(data.maxTokens) localStorage.setItem('maxTokens', data.maxTokens);
+                    if(data.showReferences !== undefined) localStorage.setItem('showReferences', data.showReferences);
+                    if(data.customPrompt) localStorage.setItem('customPrompt', data.customPrompt);
+                    if(data.customPersonaName) localStorage.setItem('customPersonaName', data.customPersonaName);
+
+                    // Reload internal state
+                    this.loadSettings();
+                    Object.assign(this.personas, this.savedPersonas);
+                    this.renderSavedPersonas();
+                    this.renderChatHistory();
+                    this.renderToolsList();
+                    this.updateUI();
+                    
+                    this.showStatus('Data imported successfully', 'success');
+                    this.togglePopup('history');
+                }
+            } catch (err) {
+                console.error(err);
+                this.showStatus('Failed to import data. Invalid JSON.', 'error');
+            }
+            // Reset input
+            this.importFileInput.value = '';
+        };
+        reader.readAsText(file);
+    }
+
     setPersona(persona) {
         this.currentPersona = persona;
         localStorage.setItem('currentPersona', persona);
@@ -1405,7 +1577,7 @@ class MultiAPIChat {
         this.updateHeaderStatus();
 
         // Determine if we show the edit section
-        const isStandard = ['allrounder', 'grammar', 'auditor'].includes(persona);
+        const isStandard = ['allrounder', 'grammar', 'auditor', 'excel'].includes(persona);
         const customSection = document.getElementById('customPromptSection');
         
         if (!isStandard) {
@@ -1870,16 +2042,21 @@ class MultiAPIChat {
         this.showStatus('Chat saved', 'success');
     }
 
-    deleteChat(id) {
-        if (confirm('Delete this chat and its learned feedback?')) {
-            delete this.savedChats[id];
-            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-            if (this.feedbackLoops[id]) {
-                delete this.feedbackLoops[id];
-                localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
-            }
-            this.renderChatHistory();
+    startNewTopic() {
+        if (confirm('Start a new topic? This will clear the current conversation context.')) {
+            this.clearChatHistory();
         }
+    }
+
+    clearChatHistory() {
+        // This function is now used by startNewTopic internally, or could be called directly.
+        // Confirm moved to caller or handled here. Since we call from startNewTopic which confirms, we can just clear.
+        // But for safety if called elsewhere:
+        this.messages = [];
+        this.references = {};
+        this.currentChatId = Date.now().toString(); 
+        this.renderMessages();
+        this.showStatus('New topic started', 'info');
     }
 
     loadChat(id) {
@@ -1924,6 +2101,18 @@ class MultiAPIChat {
             item.appendChild(actionsDiv);
             this.historyList.appendChild(item);
         });
+    }
+
+    deleteChat(id) {
+        if (confirm('Delete this chat and its learned feedback?')) {
+            delete this.savedChats[id];
+            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+            if (this.feedbackLoops[id]) {
+                delete this.feedbackLoops[id];
+                localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
+            }
+            this.renderChatHistory();
+        }
     }
 
     saveImageInput() {
@@ -2047,7 +2236,7 @@ class MultiAPIChat {
     }
 
     handleKeyDown(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             this.sendUserMessage();
         }
@@ -2118,16 +2307,6 @@ class MultiAPIChat {
         } else {
             perplexityInput.type = 'password';
             moonshotInput.type = 'password';
-        }
-    }
-
-    clearChatHistory() {
-        if (confirm('Are you sure you want to clear the current chat messages?')) {
-            this.messages = [];
-            this.references = {};
-            this.currentChatId = Date.now().toString(); 
-            this.renderMessages();
-            this.showStatus('Current chat cleared', 'info');
         }
     }
 
