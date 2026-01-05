@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.9.2)</title>
+    <title>Multi-API Chat Interface (v2.10.1)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -443,6 +443,56 @@ input[type="range"] {
 .header.collapsed { padding: var(--space-4) var(--space-16); }
 .header.collapsed .header-info h1 { font-size: var(--font-size-sm); }
 
+/* Tabs Bar */
+.tabs-container {
+    display: flex;
+    background-color: var(--color-secondary);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 var(--space-8);
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+}
+.tabs-container::-webkit-scrollbar { display: none; }
+.tab {
+    display: flex;
+    align-items: center;
+    padding: var(--space-8) var(--space-12);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--color-border);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    min-width: 100px;
+    max-width: 200px;
+    position: relative;
+    transition: background 0.2s;
+}
+.tab:hover { background-color: rgba(var(--color-brown-600-rgb), 0.05); }
+.tab.active {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-weight: 500;
+    border-bottom: 2px solid var(--color-primary);
+    margin-bottom: -1px;
+}
+.tab-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: var(--space-8);
+    flex: 1;
+}
+.tab-close {
+    font-size: 14px;
+    opacity: 0.6;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+}
+.tab-close:hover { opacity: 1; background-color: var(--color-error); color: white; }
+
 /* Chat Container */
 .chat-container { flex: 1; overflow-y: auto; padding: var(--space-16) var(--space-12); background-color: var(--color-background); }
 .messages-wrapper {
@@ -475,8 +525,9 @@ input[type="range"] {
 .message-content { font-size: var(--font-size-sm); line-height: var(--line-height-normal); color: var(--color-text); position: relative; z-index: 1; }
 .message-image { max-width: 100%; height: auto; border-radius: var(--radius-base); margin: var(--space-8) 0; border: 1px solid var(--color-border); }
 
-/* Copy Button */
-.copy-btn {
+/* Copy/Export Buttons in Message Header */
+.msg-actions { display: flex; gap: 4px; }
+.msg-btn {
   background-color: transparent;
   border: none;
   cursor: pointer;
@@ -487,8 +538,9 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
 }
-.copy-btn:hover {
+.msg-btn:hover {
   background-color: var(--color-secondary);
   color: var(--color-text);
 }
@@ -527,22 +579,40 @@ input[type="range"] {
 
 /* Input Area */
 .input-area { border-top: 1px solid var(--color-border); background-color: var(--color-surface); padding: var(--space-12); }
+
+/* New Input Toolbar */
+.input-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-8);
+}
+.input-tools {
+    display: flex;
+    gap: var(--space-4);
+}
+
 .input-wrapper {
-  display: flex; align-items: flex-end; gap: var(--space-8);
+  display: block; /* Changed from flex to block */
+  width: 100%;
   background-color: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-12); /* Adjusted padding */
   transition: border-color var(--duration-fast) var(--ease-standard);
 }
 .input-wrapper:focus-within { border-color: var(--color-primary); }
+
 #messageInput {
-  flex: 1; border: none; outline: none; resize: none; background: transparent;
+  display: block;
+  width: 100%; /* Full width */
+  border: none; outline: none; resize: none; background: transparent;
   font-family: var(--font-family-base); font-size: var(--font-size-sm);
   line-height: var(--line-height-normal); color: var(--color-text);
   min-height: 20px; max-height: 120px; overflow-y: auto;
 }
-.input-actions { display: flex; gap: var(--space-4); align-items: center; }
+
+/* Action Buttons */
 .action-btn {
   width: 28px; height: 28px; border: none; background-color: var(--color-secondary);
   border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center;
@@ -833,7 +903,7 @@ input[type="range"] {
             <!-- Header -->
             <div class="header" id="header">
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.9.2</small></h1>
+                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.10.1</small></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
@@ -848,6 +918,11 @@ input[type="range"] {
                         <span>−</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Tabs Bar -->
+            <div class="tabs-container" id="tabsBar">
+                <!-- Tabs will be dynamically added here -->
             </div>
 
             <!-- Chat Container -->
@@ -868,12 +943,10 @@ input[type="range"] {
                     <span class="prefill-label">Partial / Prefill Mode (Assistant Start):</span>
                     <textarea id="prefillInput" placeholder="Type the beginning of the assistant's response here (e.g., 'Sure, here is the list:')..."></textarea>
                 </div>
-                <div class="input-wrapper">
-                    <textarea 
-                        id="messageInput" 
-                        placeholder="Type your message here... (Enter for new line, Ctrl+Enter to send)"
-                        rows="1"></textarea>
-                    <div class="input-actions">
+
+                <!-- Input Controls Toolbar (Icons moved here) -->
+                <div class="input-controls">
+                    <div class="input-tools">
                         <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
                             <span>📝</span>
                         </button>
@@ -886,10 +959,19 @@ input[type="range"] {
                         <button class="action-btn" id="modelToggle" title="Change Model & Settings">
                             <span>⚙️</span>
                         </button>
+                    </div>
+                    <div class="send-action">
                         <button class="send-btn" id="sendMessage" title="Send Message">
                             <span>→</span>
                         </button>
                     </div>
+                </div>
+
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Type your message here... (Enter for new line, Ctrl+Enter to send)"
+                        rows="1"></textarea>
                 </div>
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
@@ -1095,7 +1177,7 @@ input[type="range"] {
             </p>
             
             <div style="margin-top: 20px; text-align: center; font-size: 11px; color: var(--color-text-secondary);">
-                v2.9.2 | Created for personal productivity.
+                v2.10.1 | Created for personal productivity.
             </div>
         </div>
     </div>
@@ -1214,17 +1296,22 @@ class MultiAPIChat {
         this.currentPersona = 'allrounder';
         this.customPrompt = localStorage.getItem('customPrompt') || '';
         this.customPersonaName = localStorage.getItem('customPersonaName') || 'Custom / Create';
-        this.messages = [];
-        this.uploadedImage = null;
+        
         this.isLoading = false;
         this.references = {};
         this.currentReference = { num: '', url: '' };
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
         this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
         this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
-        
+        this.uploadedImage = null;
+
+        // Session/Tabs Management
+        this.sessions = {};
+        this.activeSessionId = null;
+        this.sessionCounter = 1;
+
         // New features
-        this.showReferences = localStorage.getItem('showReferences') !== 'false'; // Default true
+        this.showReferences = localStorage.getItem('showReferences') !== 'false';
         this.localTools = JSON.parse(localStorage.getItem('localTools') || '[]');
         this.savedPersonas = JSON.parse(localStorage.getItem('saved_personas') || '{}');
         this.editingToolId = null;
@@ -1232,7 +1319,6 @@ class MultiAPIChat {
         // Feedloop / Feedback properties
         this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
         this.feedbackLoops = JSON.parse(localStorage.getItem('feedback_loops') || '{}');
-        this.currentChatId = Date.now().toString(); // Initialize a session ID immediately
 
         this.converter = new showdown.Converter({
             tables: true,
@@ -1283,12 +1369,16 @@ class MultiAPIChat {
         this.loadTheme();
         this.loadSettings();
         this.renderSavedPersonas();
+        
+        // Initialize Tabs
+        this.createNewSession();
+        
         this.updateUI();
         this.updateHeaderStatus();
         this.updateOneShotButton();
         this.updateFeedbackButton();
         this.updateTokenConfigUI();
-        this.updatePartialModeButton(); // Initial check
+        this.updatePartialModeButton();
     }
 
     initializeElements() {
@@ -1305,6 +1395,7 @@ class MultiAPIChat {
         this.header = document.getElementById('header');
         this.collapseHeader = document.getElementById('collapseHeader');
         this.newTopicBtn = document.getElementById('newTopicBtn');
+        this.tabsBar = document.getElementById('tabsBar');
         this.chatContainer = document.getElementById('chatContainer');
         this.messagesContainer = document.getElementById('messages');
         this.modelStatus = document.getElementById('modelStatus');
@@ -1464,6 +1555,316 @@ class MultiAPIChat {
         });
     }
 
+    // --- Tab / Session Management ---
+
+    createNewSession() {
+        const id = Date.now().toString();
+        this.sessions[id] = {
+            id: id,
+            name: `Topic ${this.sessionCounter++}`,
+            messages: [],
+            references: {}
+        };
+        this.switchSession(id);
+    }
+
+    switchSession(id) {
+        if (!this.sessions[id]) return;
+        this.activeSessionId = id;
+        this.messages = this.sessions[id].messages;
+        this.references = this.sessions[id].references;
+        this.currentChatId = id; // Sync ID
+        
+        this.renderTabs();
+        this.renderMessages();
+    }
+
+    closeSession(id, e) {
+        e.stopPropagation(); // Prevent switching when closing
+        if (Object.keys(this.sessions).length <= 1) {
+            // If it's the last session, just clear it
+            this.sessions[id].messages = [];
+            this.sessions[id].references = {};
+            this.sessions[id].name = `Topic ${this.sessionCounter++}`;
+            this.switchSession(id);
+            return;
+        }
+
+        delete this.sessions[id];
+        
+        // If we closed the active session, switch to the last available one
+        if (this.activeSessionId === id) {
+            const remainingIds = Object.keys(this.sessions);
+            this.switchSession(remainingIds[remainingIds.length - 1]);
+        } else {
+            this.renderTabs();
+        }
+    }
+
+    renderTabs() {
+        this.tabsBar.innerHTML = '';
+        Object.values(this.sessions).forEach(session => {
+            const tab = document.createElement('div');
+            tab.className = `tab ${session.id === this.activeSessionId ? 'active' : ''}`;
+            tab.onclick = () => this.switchSession(session.id);
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'tab-name';
+            nameSpan.textContent = session.name;
+            
+            const closeBtn = document.createElement('span');
+            closeBtn.className = 'tab-close';
+            closeBtn.innerHTML = '×';
+            closeBtn.onclick = (e) => this.closeSession(session.id, e);
+            
+            tab.appendChild(nameSpan);
+            tab.appendChild(closeBtn);
+            this.tabsBar.appendChild(tab);
+        });
+    }
+
+    startNewTopic() {
+        this.createNewSession();
+        this.showStatus('New tab created', 'info');
+    }
+
+    // --- Message & API Logic ---
+
+    // Updated renderMessages to pull from current session state
+    renderMessages() {
+        this.messagesContainer.innerHTML = '';
+        this.messages.forEach((message, index) => {
+            const messageEl = this.createMessageElement(message, index);
+            this.messagesContainer.appendChild(messageEl);
+        });
+        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+    }
+
+    createMessageElement(message, index) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${message.role}`;
+        
+        const headerEl = document.createElement('div');
+        headerEl.className = 'message-header';
+        
+        const roleEl = document.createElement('span');
+        roleEl.className = 'message-role';
+        roleEl.textContent = message.role === 'user' ? 'You' : 'Assistant';
+        headerEl.appendChild(roleEl);
+
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'msg-actions';
+
+        // Word Export Button
+        if (message.content) {
+            const wordBtn = document.createElement('button');
+            wordBtn.className = 'msg-btn';
+            wordBtn.innerHTML = '📄';
+            wordBtn.title = 'Export to Word';
+            wordBtn.onclick = () => this.exportMessageToWord(message.content, index);
+            actionsEl.appendChild(wordBtn);
+        }
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'msg-btn';
+        copyBtn.innerHTML = '📋';
+        copyBtn.title = 'Copy message';
+        copyBtn.addEventListener('click', () => this.copyMessage(message.content));
+        actionsEl.appendChild(copyBtn);
+
+        headerEl.appendChild(actionsEl);
+
+        const contentEl = document.createElement('div');
+        contentEl.className = 'message-content';
+
+        if (message.image && message.role === 'user') {
+            const imgEl = document.createElement('img');
+            imgEl.src = message.image;
+            imgEl.className = 'message-image';
+            imgEl.alt = 'Uploaded image';
+            contentEl.appendChild(imgEl);
+        }
+
+        if (message.content) {
+            if (message.role === 'assistant') {
+                const msgReferences = this.extractReferencesFromResponse(message);
+                Object.assign(this.references, msgReferences);
+            }
+            const renderedContent = this.renderEnhancedMarkdown(message.content);
+            contentEl.innerHTML += renderedContent;
+            
+            if (message.role === 'assistant') {
+                this.attachReferenceHandlers(contentEl);
+                this.processHighcharts(contentEl);
+                this.processTables(contentEl);
+            }
+            if (window.hljs) {
+                contentEl.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightBlock(block);
+                });
+            }
+        }
+
+        messageEl.appendChild(headerEl);
+        messageEl.appendChild(contentEl);
+
+        if (message.role === 'assistant' && message.tokenUsage) {
+            const tokenUsageEl = this.createTokenUsageCornerElement(message.tokenUsage);
+            messageEl.appendChild(tokenUsageEl);
+        }
+
+        return messageEl;
+    }
+
+    // --- Export Logic ---
+
+    exportMessageToWord(content, index) {
+        const htmlContent = this.converter.makeHtml(content);
+        const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>`;
+        const footer = "<script type="module" src="/index.tsx"></script>
+</body></html>";
+        const sourceHTML = header + htmlContent + footer;
+        
+        const blob = new Blob(['\ufeff', sourceHTML], {
+            type: 'application/msword'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `response_${index + 1}.doc`; // .doc is widely compatible with simple HTML structure
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    processTables(container) {
+        const tables = container.querySelectorAll('table');
+        tables.forEach((table, index) => {
+            if (table.parentElement.classList.contains('table-responsive')) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'table-responsive';
+            
+            const actionHeader = document.createElement('div');
+            actionHeader.className = 'table-actions';
+            
+            // Define Buttons
+            const btnStyles = 'btn btn--secondary btn--sm';
+            
+            // Copy
+            const copyBtn = document.createElement('button');
+            copyBtn.className = btnStyles;
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = () => this.copyTableToClipboard(table);
+
+            // Export Excel
+            const xlsBtn = document.createElement('button');
+            xlsBtn.className = btnStyles;
+            xlsBtn.innerHTML = '📊 Excel';
+            xlsBtn.onclick = () => this.exportTableToExcel(table, `table_${index}`);
+
+            // Export CSV
+            const csvBtn = document.createElement('button');
+            csvBtn.className = btnStyles;
+            csvBtn.innerHTML = '📄 CSV';
+            csvBtn.onclick = () => this.exportTableToCSV(table, `table_${index}`);
+
+            // Export JSON
+            const jsonBtn = document.createElement('button');
+            jsonBtn.className = btnStyles;
+            jsonBtn.innerHTML = '{} JSON';
+            jsonBtn.onclick = () => this.exportTableToJSON(table, `table_${index}`);
+            
+            // Open New Tab
+            const openBtn = document.createElement('button');
+            openBtn.className = btnStyles;
+            openBtn.innerHTML = '↗ New Tab';
+            openBtn.onclick = () => window.openTableInBrowser(openBtn);
+
+            actionHeader.appendChild(copyBtn);
+            actionHeader.appendChild(xlsBtn);
+            actionHeader.appendChild(csvBtn);
+            actionHeader.appendChild(jsonBtn);
+            actionHeader.appendChild(openBtn);
+
+            table.parentNode.insertBefore(wrapper, table);
+            wrapper.appendChild(actionHeader);
+            wrapper.appendChild(table);
+        });
+    }
+
+    copyTableToClipboard(table) {
+        const range = document.createRange();
+        range.selectNode(table);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        this.showStatus('Table copied to clipboard', 'success');
+    }
+
+    exportTableToExcel(table, name) {
+        const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+        XLSX.writeFile(wb, `${name}.xlsx`);
+    }
+
+    exportTableToCSV(table, name) {
+        const wb = XLSX.utils.table_to_book(table);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${name}.csv`;
+        link.click();
+    }
+
+    exportTableToJSON(table, name) {
+        const wb = XLSX.utils.table_to_book(table);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws);
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${name}.json`;
+        link.click();
+    }
+
+    // --- Original Methods (Restored/Modified) ---
+
+    saveImageInput() {
+        let input = this.imageInputString.value.trim();
+        if (input) {
+            // Updated strict regex validation
+            const base64Pattern = /^data:image\/(png|jpg|jpeg|gif|webp|bmp);base64,[A-Za-z0-9+/=]+$/;
+            
+            // Check if it looks like raw base64 (no header)
+            const isRawBase64 = /^[A-Za-z0-9+/=]+$/.test(input) && input.length > 50;
+            if (isRawBase64) {
+                input = `data:image/png;base64,${input}`;
+            }
+
+            if (base64Pattern.test(input) || input.startsWith('http')) {
+                this.uploadedImage = input;
+                this.showImagePreview(input);
+                this.showStatus('Image source set', 'success');
+                this.togglePopup('imageInput');
+                this.imageInputString.value = '';
+                this.ensureVisionModel();
+            } else {
+                this.showStatus('Invalid format. Must be a URL or valid Base64 Data URI (data:image/...;base64,...)', 'error');
+            }
+        } else {
+            this.showStatus('Please enter a URL or Base64 string', 'warning');
+        }
+    }
+    
+    // --- Rest of standard methods ---
+
     togglePopup(type) {
         const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
         popups.forEach(popupType => {
@@ -1489,13 +1890,12 @@ class MultiAPIChat {
 
     exportData() {
         const data = {
-            version: '2.9.2',
+            version: '2.10.1',
             timestamp: new Date().toISOString(),
             savedChats: this.savedChats,
             savedPersonas: this.savedPersonas,
             localTools: this.localTools,
             feedbackLoops: this.feedbackLoops,
-            // Settings
             oneShotMode: this.oneShotMode,
             maxTokens: this.maxTokens,
             showReferences: this.showReferences,
@@ -1521,8 +1921,6 @@ class MultiAPIChat {
         reader.onload = (e) => {
             try {
                 const data = JSON.parse(e.target.result);
-                
-                // Merge or Overwrite Logic
                 if (confirm('This will overwrite your current saved chats and settings. Continue?')) {
                     if(data.savedChats) {
                         this.savedChats = data.savedChats;
@@ -1540,15 +1938,12 @@ class MultiAPIChat {
                         this.feedbackLoops = data.feedbackLoops;
                         localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
                     }
-                    
-                    // Settings
                     if(data.oneShotMode !== undefined) localStorage.setItem('oneShotMode', data.oneShotMode);
                     if(data.maxTokens) localStorage.setItem('maxTokens', data.maxTokens);
                     if(data.showReferences !== undefined) localStorage.setItem('showReferences', data.showReferences);
                     if(data.customPrompt) localStorage.setItem('customPrompt', data.customPrompt);
                     if(data.customPersonaName) localStorage.setItem('customPersonaName', data.customPersonaName);
 
-                    // Reload internal state
                     this.loadSettings();
                     Object.assign(this.personas, this.savedPersonas);
                     this.renderSavedPersonas();
@@ -1563,7 +1958,6 @@ class MultiAPIChat {
                 console.error(err);
                 this.showStatus('Failed to import data. Invalid JSON.', 'error');
             }
-            // Reset input
             this.importFileInput.value = '';
         };
         reader.readAsText(file);
@@ -1576,13 +1970,11 @@ class MultiAPIChat {
         this.updatePersonaOptions();
         this.updateHeaderStatus();
 
-        // Determine if we show the edit section
         const isStandard = ['allrounder', 'grammar', 'auditor', 'excel'].includes(persona);
         const customSection = document.getElementById('customPromptSection');
         
         if (!isStandard) {
             customSection.classList.remove('hidden');
-            // Populate inputs
             const p = this.personas[persona];
             if (p) {
                 document.getElementById('customPersonaName').value = p.name;
@@ -1594,7 +1986,6 @@ class MultiAPIChat {
     }
 
     updatePersonaOptions() {
-        // Handle both static and dynamic options
         document.querySelectorAll('.persona-option').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.persona === this.currentPersona);
         });
@@ -1609,7 +2000,6 @@ class MultiAPIChat {
             return;
         }
 
-        // Check uniqueness (exclude current self)
         const conflict = Object.keys(this.personas).find(key => {
             if (key === this.currentPersona) return false;
             return this.personas[key].name.toLowerCase() === nameVal.toLowerCase();
@@ -1621,7 +2011,6 @@ class MultiAPIChat {
         }
 
         if (this.currentPersona === 'customized') {
-            // Update scratchpad
             this.customPrompt = promptVal;
             this.customPersonaName = nameVal;
             this.personas.customized.prompt = promptVal;
@@ -1630,12 +2019,11 @@ class MultiAPIChat {
             localStorage.setItem('customPersonaName', nameVal);
             this.showStatus('Scratchpad updated', 'success');
         } else if (this.savedPersonas[this.currentPersona]) {
-            // Update existing saved persona
             this.savedPersonas[this.currentPersona].name = nameVal;
             this.savedPersonas[this.currentPersona].prompt = promptVal;
-            this.personas[this.currentPersona] = this.savedPersonas[this.currentPersona]; // sync
+            this.personas[this.currentPersona] = this.savedPersonas[this.currentPersona]; 
             localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
-            this.renderSavedPersonas(); // Re-render to update names in list
+            this.renderSavedPersonas(); 
             this.showStatus('Saved persona updated', 'success');
         } else {
             this.showStatus('Cannot edit standard personas', 'error');
@@ -1652,7 +2040,6 @@ class MultiAPIChat {
             return;
         }
 
-        // Uniqueness check against ALL personas
         const conflict = Object.values(this.personas).find(p => p.name.toLowerCase() === nameVal.toLowerCase());
         if (conflict) {
             this.showStatus('Persona name already exists', 'error');
@@ -1668,7 +2055,7 @@ class MultiAPIChat {
         localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
         
         this.renderSavedPersonas();
-        this.setPersona(id); // Switch to it
+        this.setPersona(id);
         this.showStatus('New persona saved', 'success');
     }
 
@@ -1907,16 +2294,12 @@ class MultiAPIChat {
 
     async openTool(path) {
         let url = path.trim();
-        
-        // Normalize Windows paths (e.g., "C:\Users\..." -> "file:///C:/Users/...")
         if (/^[a-zA-Z]:[\\/]/.test(url)) {
             url = 'file:///' + url.replace(/\\/g, '/');
         } 
-        // Normalize standard file paths that might miss protocol
         else if ((url.startsWith('/') || url.startsWith('\\')) && !url.startsWith('//')) {
             url = 'file://' + url;
         }
-        // Add https if missing protocol and not a file
         else if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) {
             url = 'https://' + url;
         }
@@ -1925,25 +2308,17 @@ class MultiAPIChat {
         
         if (isLocalFile) {
             try {
-                // Try File System Access API if available
                 if (window.showOpenFilePicker) {
                     const [fileHandle] = await window.showOpenFilePicker({
-                        types: [
-                            {
-                                description: 'All Files',
-                                accept: { '*/*': [] }
-                            }
-                        ]
+                        types: [{ description: 'All Files', accept: { '*/*': [] } }]
                     });
                     const file = await fileHandle.getFile();
                     const objectUrl = URL.createObjectURL(file);
                     window.open(objectUrl, '_blank');
                 } else {
-                    // Fallback for older browsers or if API disabled
                     alert('File System Access API is not supported in this browser. Cannot open local file.');
                 }
             } catch (err) {
-                // Ignore abort errors (user cancelled)
                 if (err.name !== 'AbortError') {
                     console.error('Error opening file:', err);
                     this.showStatus('Failed to open file', 'error');
@@ -1951,8 +2326,6 @@ class MultiAPIChat {
             }
             return;
         }
-
-        // Standard open for web URLs
         window.open(url, '_blank', 'noopener,noreferrer');
     }
 
@@ -2009,12 +2382,10 @@ class MultiAPIChat {
     }
 
     autoSaveChat() {
-        // Auto-save logic: Only save if the chat is already in savedChats (meaning it was explicitly saved/named once)
         if (this.savedChats[this.currentChatId]) {
             this.savedChats[this.currentChatId].messages = this.messages;
             this.savedChats[this.currentChatId].references = this.references;
             localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-            // Optional: console.log('Auto-saved chat');
         }
     }
 
@@ -2040,32 +2411,41 @@ class MultiAPIChat {
         this.chatNameInput.value = '';
         this.renderChatHistory();
         this.showStatus('Chat saved', 'success');
-    }
-
-    startNewTopic() {
-        if (confirm('Start a new topic? This will clear the current conversation context.')) {
-            this.clearChatHistory();
+        
+        // Update session name if matches
+        if(this.sessions[this.activeSessionId]) {
+            this.sessions[this.activeSessionId].name = name;
+            this.renderTabs();
         }
     }
 
     clearChatHistory() {
-        // This function is now used by startNewTopic internally, or could be called directly.
-        // Confirm moved to caller or handled here. Since we call from startNewTopic which confirms, we can just clear.
-        // But for safety if called elsewhere:
         this.messages = [];
         this.references = {};
-        this.currentChatId = Date.now().toString(); 
+        // Don't change ID here if working with tabs, just clear active session content
+        if(this.sessions[this.activeSessionId]) {
+            this.sessions[this.activeSessionId].messages = [];
+            this.sessions[this.activeSessionId].references = {};
+        }
         this.renderMessages();
-        this.showStatus('New topic started', 'info');
+        this.showStatus('Current conversation cleared', 'info');
     }
 
     loadChat(id) {
         const chat = this.savedChats[id];
         if (chat) {
-            this.currentChatId = id; 
-            this.messages = chat.messages || [];
-            this.references = chat.references || {};
-            this.renderMessages();
+            // Check if already open
+            if(this.sessions[id]) {
+                this.switchSession(id);
+            } else {
+                this.sessions[id] = {
+                    id: id,
+                    name: chat.name,
+                    messages: chat.messages || [],
+                    references: chat.references || {}
+                };
+                this.switchSession(id);
+            }
             this.showStatus(`Loaded "${chat.name}"`, 'success');
             this.togglePopup('history');
         }
@@ -2112,28 +2492,6 @@ class MultiAPIChat {
                 localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
             }
             this.renderChatHistory();
-        }
-    }
-
-    saveImageInput() {
-        let input = this.imageInputString.value.trim();
-        if (input) {
-            const isRawBase64 = /^[A-Za-z0-9+/=]+$/.test(input) && input.length > 50;
-            if (isRawBase64) {
-                input = `data:image/png;base64,${input}`;
-            }
-            if (input.startsWith('http') || input.startsWith('data:image')) {
-                this.uploadedImage = input;
-                this.showImagePreview(input);
-                this.showStatus('Image source set', 'success');
-                this.togglePopup('imageInput');
-                this.imageInputString.value = '';
-                this.ensureVisionModel();
-            } else {
-                this.showStatus('Invalid format. Must be URL or Base64', 'error');
-            }
-        } else {
-            this.showStatus('Please enter a URL or Base64 string', 'warning');
         }
     }
 
@@ -2340,6 +2698,7 @@ class MultiAPIChat {
         if (!message && !this.uploadedImage) return;
         if (this.isLoading) return;
 
+        // If in one-shot mode, clear current context
         if (this.oneShotMode && this.messages.length > 0) {
             this.messages = [];
             this.references = {};
@@ -2547,76 +2906,6 @@ class MultiAPIChat {
         }
     }
 
-    renderMessages() {
-        this.messagesContainer.innerHTML = '';
-        this.messages.forEach((message, index) => {
-            const messageEl = this.createMessageElement(message, index);
-            this.messagesContainer.appendChild(messageEl);
-        });
-        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
-    }
-
-    createMessageElement(message, index) {
-        const messageEl = document.createElement('div');
-        messageEl.className = `message ${message.role}`;
-        
-        const headerEl = document.createElement('div');
-        headerEl.className = 'message-header';
-        
-        const roleEl = document.createElement('span');
-        roleEl.className = 'message-role';
-        roleEl.textContent = message.role === 'user' ? 'You' : 'Assistant';
-        headerEl.appendChild(roleEl);
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.innerHTML = '📋';
-        copyBtn.title = 'Copy message';
-        copyBtn.addEventListener('click', () => this.copyMessage(message.content));
-        headerEl.appendChild(copyBtn);
-
-        const contentEl = document.createElement('div');
-        contentEl.className = 'message-content';
-
-        if (message.image && message.role === 'user') {
-            const imgEl = document.createElement('img');
-            imgEl.src = message.image;
-            imgEl.className = 'message-image';
-            imgEl.alt = 'Uploaded image';
-            contentEl.appendChild(imgEl);
-        }
-
-        if (message.content) {
-            if (message.role === 'assistant') {
-                const msgReferences = this.extractReferencesFromResponse(message);
-                Object.assign(this.references, msgReferences);
-            }
-            const renderedContent = this.renderEnhancedMarkdown(message.content);
-            contentEl.innerHTML += renderedContent;
-            
-            if (message.role === 'assistant') {
-                this.attachReferenceHandlers(contentEl);
-                this.processHighcharts(contentEl);
-                this.processTables(contentEl);
-            }
-            if (window.hljs) {
-                contentEl.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
-            }
-        }
-
-        messageEl.appendChild(headerEl);
-        messageEl.appendChild(contentEl);
-
-        if (message.role === 'assistant' && message.tokenUsage) {
-            const tokenUsageEl = this.createTokenUsageCornerElement(message.tokenUsage);
-            messageEl.appendChild(tokenUsageEl);
-        }
-
-        return messageEl;
-    }
-
     createTokenUsageCornerElement(tokenUsage) {
         const tokenEl = document.createElement('div');
         tokenEl.className = 'token-usage-corner';
@@ -2725,26 +3014,6 @@ class MultiAPIChat {
                     Highcharts.chart(chartDiv, config);
                 }
             } catch (e) {}
-        });
-    }
-
-    processTables(container) {
-        const tables = container.querySelectorAll('table');
-        tables.forEach(table => {
-            if (table.parentElement.classList.contains('table-responsive')) return;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'table-responsive';
-            
-            const actionHeader = document.createElement('div');
-            actionHeader.className = 'table-actions';
-            actionHeader.innerHTML = `
-                <button class="btn btn--secondary btn--sm" type="button" onclick="openTableInBrowser(this)">Open in New Tab</button>
-            `;
-
-            table.parentNode.insertBefore(wrapper, table);
-            wrapper.appendChild(actionHeader);
-            wrapper.appendChild(table);
         });
     }
 
@@ -2887,6 +3156,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.chatApp = new MultiAPIChat();
 });
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
