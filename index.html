@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.10.1)</title>
+    <title>Multi-API Chat Interface (v2.10.2)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -84,6 +84,9 @@
   --color-info: var(--color-slate-500);
   --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
   --color-select-caret: rgba(var(--color-slate-900-rgb), 0.8);
+  --color-tab-bg: #e4e6ea;
+  --color-tab-active: var(--color-background);
+  --color-tab-hover: #d8dbe0;
 
   /* Common style patterns */
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
@@ -198,6 +201,9 @@
     --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
     --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
     --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
+    --color-tab-bg: #2d3032;
+    --color-tab-active: var(--color-background);
+    --color-tab-hover: #383b3d;
 
     --color-success-rgb: var(--color-teal-300-rgb);
     --color-error-rgb: var(--color-red-400-rgb);
@@ -207,78 +213,13 @@
 }
 
 [data-color-scheme="dark"] {
-  --color-gray-400-rgb: 119, 124, 124;
-  --color-teal-300-rgb: 50, 184, 198;
-  --color-gray-300-rgb: 167, 169, 169;
-  --color-gray-200-rgb: 245, 245, 245;
-
-  --color-bg-1: rgba(29, 78, 216, 0.15);
-  --color-bg-2: rgba(180, 83, 9, 0.15);
-  --color-bg-3: rgba(21, 128, 61, 0.15);
-  --color-bg-4: rgba(185, 28, 28, 0.15);
-  --color-bg-5: rgba(107, 33, 168, 0.15);
-  --color-bg-6: rgba(194, 65, 12, 0.15);
-  --color-bg-7: rgba(190, 24, 93, 0.15);
-  --color-bg-8: rgba(8, 145, 178, 0.15);
-
-  --color-background: var(--color-charcoal-700);
-  --color-surface: var(--color-charcoal-800);
-  --color-text: var(--color-gray-200);
-  --color-text-secondary: rgba(var(--color-gray-300-rgb), 0.7);
-  --color-primary: var(--color-teal-300);
-  --color-primary-hover: var(--color-teal-400);
-  --color-primary-active: var(--color-teal-800);
-  --color-secondary: rgba(var(--color-gray-400-rgb), 0.15);
-  --color-secondary-hover: rgba(var(--color-gray-400-rgb), 0.25);
-  --color-secondary-active: rgba(var(--color-gray-400-rgb), 0.3);
-  --color-border: rgba(var(--color-gray-400-rgb), 0.3);
-  --color-error: var(--color-red-400);
-  --color-success: var(--color-teal-300);
-  --color-warning: var(--color-orange-400);
-  --color-info: var(--color-gray-300);
-  --color-focus-ring: rgba(var(--color-teal-300-rgb), 0.4);
-  --color-btn-primary-text: var(--color-slate-900);
-  --color-card-border: rgba(var(--color-gray-400-rgb), 0.15);
-  --color-card-border-inner: rgba(var(--color-gray-400-rgb), 0.15);
-  --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-  --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
-  --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
-
-  --color-success-rgb: var(--color-teal-300-rgb);
-  --color-error-rgb: var(--color-red-400-rgb);
-  --color-warning-rgb: var(--color-orange-400-rgb);
-  --color-info-rgb: var(--color-gray-300-rgb);
+  --color-tab-bg: #2d3032;
+  --color-tab-hover: #383b3d;
 }
 
 [data-color-scheme="light"] {
-  --color-brown-600-rgb: 94, 82, 64;
-  --color-teal-500-rgb: 33, 128, 141;
-  --color-slate-900-rgb: 19, 52, 59;
-
-  --color-background: var(--color-cream-50);
-  --color-surface: var(--color-cream-100);
-  --color-text: var(--color-slate-900);
-  --color-text-secondary: var(--color-slate-500);
-  --color-primary: var(--color-teal-500);
-  --color-primary-hover: var(--color-teal-600);
-  --color-primary-active: var(--color-teal-700);
-  --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
-  --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
-  --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
-  --color-border: rgba(var(--color-brown-600-rgb), 0.2);
-  --color-btn-primary-text: var(--color-cream-50);
-  --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
-  --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
-  --color-error: var(--color-red-500);
-  --color-success: var(--color-teal-500);
-  --color-warning: var(--color-orange-500);
-  --color-info: var(--color-slate-500);
-  --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
-
-  --color-success-rgb: var(--color-teal-500-rgb);
-  --color-error-rgb: var(--color-red-500-rgb);
-  --color-warning-rgb: var(--color-orange-500-rgb);
-  --color-info-rgb: var(--color-slate-500-rgb);
+  --color-tab-bg: #e4e6ea;
+  --color-tab-hover: #d8dbe0;
 }
 
 /* Base styles */
@@ -418,70 +359,85 @@ input[type="range"] {
 .header {
   background: linear-gradient(135deg, var(--color-bg-1), var(--color-bg-8));
   border-bottom: 1px solid var(--color-border);
-  padding: var(--space-12) var(--space-16);
+  padding: 4px var(--space-12); /* Compressed Vertical Padding */
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 50;
+  min-height: 44px;
 }
-.header-info { display: flex; flex-direction: column; gap: var(--space-4); }
-.header-info h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.status-line { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
-.collapse-btn {
-  background: var(--color-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-}
-.header.collapsed { padding: var(--space-4) var(--space-16); }
-.header.collapsed .header-info h1 { font-size: var(--font-size-sm); }
+.header-info { display: flex; flex-direction: row; gap: var(--space-12); align-items: baseline; }
+.header-info h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); margin: 0; }
+.status-line { display: flex; align-items: center; gap: var(--space-8); font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 
-/* Tabs Bar */
+/* Chrome-like Tabs */
 .tabs-container {
     display: flex;
     background-color: var(--color-secondary);
-    border-bottom: 1px solid var(--color-border);
-    padding: 0 var(--space-8);
+    padding: 8px 8px 0 8px; /* Padding top/left/right, no bottom */
     overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: thin;
+    height: 42px; /* Fixed height for tab bar */
+    align-items: flex-end;
 }
-.tabs-container::-webkit-scrollbar { display: none; }
+.tabs-container::-webkit-scrollbar { height: 4px; }
+.tabs-container:hover::-webkit-scrollbar-thumb { background-color: var(--color-gray-400); border-radius: 4px; }
+.tabs-container::-webkit-scrollbar-thumb { background-color: transparent; }
+
 .tab {
     display: flex;
     align-items: center;
-    padding: var(--space-8) var(--space-12);
+    padding: 0 16px; /* Horizontal padding */
     cursor: pointer;
-    background: transparent;
+    background: var(--color-tab-bg);
     border: none;
-    border-right: 1px solid var(--color-border);
+    border-radius: 8px 8px 0 0; /* Rounded top */
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
-    min-width: 100px;
-    max-width: 200px;
+    min-width: 120px;
+    max-width: 240px;
+    height: 34px;
+    margin-right: 2px;
     position: relative;
-    transition: background 0.2s;
+    transition: background 0.15s ease;
+    user-select: none;
 }
-.tab:hover { background-color: rgba(var(--color-brown-600-rgb), 0.05); }
+.tab:hover { background-color: var(--color-tab-hover); }
 .tab.active {
     background-color: var(--color-background);
     color: var(--color-text);
     font-weight: 500;
-    border-bottom: 2px solid var(--color-primary);
-    margin-bottom: -1px;
+    height: 36px; /* Pop up slightly */
+    z-index: 1;
+    box-shadow: 0 -1px 2px rgba(0,0,0,0.05);
 }
 .tab-name {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-right: var(--space-8);
+    margin-right: var(--space-4);
     flex: 1;
+}
+.tab-edit {
+    font-size: 12px;
+    opacity: 0;
+    cursor: pointer;
+    margin-left: 4px;
+    margin-right: 4px;
+    transition: opacity 0.2s;
+}
+.tab:hover .tab-edit { opacity: 0.6; }
+.tab:hover .tab-edit:hover { opacity: 1; color: var(--color-primary); }
+
+.tab-name-input {
+    width: 100%;
+    border: none;
+    background: white;
+    font-size: inherit;
+    padding: 0;
+    margin: 0;
+    color: black;
+    outline: 2px solid var(--color-primary);
 }
 .tab-close {
     font-size: 14px;
@@ -490,6 +446,7 @@ input[type="range"] {
     border-radius: 50%;
     width: 16px; height: 16px;
     display: flex; align-items: center; justify-content: center;
+    margin-left: 4px;
 }
 .tab-close:hover { opacity: 1; background-color: var(--color-error); color: white; }
 
@@ -580,52 +537,55 @@ input[type="range"] {
 /* Input Area */
 .input-area { border-top: 1px solid var(--color-border); background-color: var(--color-surface); padding: var(--space-12); }
 
-/* New Input Toolbar */
-.input-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-8);
-}
-.input-tools {
-    display: flex;
-    gap: var(--space-4);
-}
-
+/* Updated Input Layout */
 .input-wrapper {
-  display: block;
+  display: flex;
+  align-items: flex-end;
   width: 100%;
   background-color: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-8) var(--space-12);
   transition: border-color var(--duration-fast) var(--ease-standard);
+  gap: var(--space-8);
 }
 .input-wrapper:focus-within { border-color: var(--color-primary); }
 
 #messageInput {
-  display: block;
-  width: 100%;
+  flex: 1;
   border: none; outline: none; resize: none; background: transparent;
   font-family: var(--font-family-base); font-size: var(--font-size-sm);
   line-height: var(--line-height-normal); color: var(--color-text);
   min-height: 20px; max-height: 120px; overflow-y: auto;
 }
 
+/* Input Tools (Below Textbox) */
+.input-tools {
+    display: flex;
+    gap: var(--space-8);
+    margin-top: 4px; /* Reduced margin */
+    padding: 0 var(--space-4);
+    height: 24px; /* Reduced height */
+    align-items: center;
+}
+
 /* Action Buttons */
 .action-btn {
-  width: 28px; height: 28px; border: none; background-color: var(--color-secondary);
+  width: 20px; height: 20px; /* Smaller */
+  border: none; background-color: transparent;
   border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center;
   justify-content: center; transition: all var(--duration-fast) var(--ease-standard);
-  font-size: var(--font-size-sm); color: var(--color-text);
+  font-size: 12px; color: var(--color-text-secondary);
 }
-.action-btn:hover { background-color: var(--color-secondary-hover); transform: translateY(-1px); }
+.action-btn:hover { background-color: var(--color-secondary); color: var(--color-text); }
 .action-btn.hidden { display: none !important; }
+
 .send-btn {
   width: 32px; height: 32px; border: none; background-color: var(--color-primary);
   border-radius: var(--radius-base); cursor: pointer; display: flex; align-items: center;
   justify-content: center; color: var(--color-btn-primary-text);
   transition: all var(--duration-fast) var(--ease-standard); font-size: var(--font-size-base);
+  flex-shrink: 0;
 }
 .send-btn:hover:not(:disabled) { background-color: var(--color-primary-hover); transform: translateY(-1px); }
 
@@ -738,17 +698,24 @@ input[type="range"] {
 .history-actions { display: flex; gap: var(--space-4); }
 
 /* Status Indicator */
-.status-container { position: fixed; top: var(--space-16); right: var(--space-16); z-index: 1001; }
+.status-container { 
+    position: fixed; 
+    top: 60px; /* Moved down to avoid covering New Topic */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001; 
+}
 .status {
   display: inline-flex; align-items: center; padding: var(--space-6) var(--space-12);
   border-radius: var(--radius-full); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);
   transition: all var(--duration-normal) var(--ease-standard);
+  box-shadow: var(--shadow-md);
 }
 .status.hidden { display: none; }
 .status.show { display: inline-flex !important; }
-.status--success { background-color: rgba(var(--color-success-rgb), 0.15); color: var(--color-success); border: 1px solid rgba(var(--color-success-rgb), 0.25); }
-.status--error { background-color: rgba(var(--color-error-rgb), 0.15); color: var(--color-error); border: 1px solid rgba(var(--color-error-rgb), 0.25); }
-.status--info { background-color: rgba(var(--color-info-rgb), 0.15); color: var(--color-info); border: 1px solid rgba(var(--color-info-rgb), 0.25); }
+.status--success { background-color: var(--color-surface); color: var(--color-success); border: 1px solid var(--color-success); }
+.status--error { background-color: var(--color-surface); color: var(--color-error); border: 1px solid var(--color-error); }
+.status--info { background-color: var(--color-surface); color: var(--color-info); border: 1px solid var(--color-info); }
 
 /* Selection Tooltip */
 .selection-tooltip {
@@ -838,11 +805,36 @@ input[type="range"] {
 .table-actions {
     display: flex;
     gap: var(--space-8);
-    padding: var(--space-8) var(--space-12);
+    padding: var(--space-4) var(--space-8);
     background-color: var(--color-secondary);
     border-bottom: 1px solid var(--color-border);
     justify-content: flex-end;
+    position: relative;
 }
+.export-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    min-width: 120px;
+}
+.export-dropdown.show { display: flex; }
+.export-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    text-align: left;
+    background: none;
+    border: none;
+}
+.export-item:hover { background-color: var(--color-secondary); }
 
 /* Readme Specific Styles */
 .readme-content { max-width: 800px !important; }
@@ -903,7 +895,7 @@ input[type="range"] {
             <!-- Header -->
             <div class="header" id="header">
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.10.1</small></h1>
+                    <h1>Multi-API Chat Interface <small style="font-size: 0.5em; opacity: 0.7;">v2.10.2</small></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
@@ -913,9 +905,6 @@ input[type="range"] {
                 <div class="header-actions" style="display: flex; gap: 8px; align-items: center;">
                     <button class="btn btn--secondary btn--sm" id="newTopicBtn" title="Start New Topic" style="padding: 4px 8px;">
                         <span>+ New Topic</span>
-                    </button>
-                    <button class="collapse-btn" id="collapseHeader">
-                        <span>−</span>
                     </button>
                 </div>
             </div>
@@ -944,35 +933,32 @@ input[type="range"] {
                     <textarea id="prefillInput" placeholder="Type the beginning of the assistant's response here (e.g., 'Sure, here is the list:')..."></textarea>
                 </div>
 
-                <!-- Input Controls Toolbar (Icons moved here) -->
-                <div class="input-toolbar">
-                    <div class="input-tools">
-                        <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
-                            <span>📝</span>
-                        </button>
-                        <button class="action-btn" id="manualImageInput" title="Input Image URL/Base64">
-                            <span>📥</span>
-                        </button>
-                        <button class="action-btn" id="imageUpload" title="Upload Image">
-                            <span>📷</span>
-                        </button>
-                        <button class="action-btn" id="modelToggle" title="Change Model & Settings">
-                            <span>⚙️</span>
-                        </button>
-                    </div>
-                    <div class="send-action">
-                        <button class="send-btn" id="sendMessage" title="Send Message">
-                            <span>→</span>
-                        </button>
-                    </div>
-                </div>
-
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
                         placeholder="Type your message here... (Enter for new line, Ctrl+Enter to send)"
                         rows="1"></textarea>
+                    <button class="send-btn" id="sendMessage" title="Send Message">
+                        <span>→</span>
+                    </button>
                 </div>
+
+                <!-- Input Controls Toolbar (Icons moved below) -->
+                <div class="input-tools">
+                    <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
+                        <span>📝</span>
+                    </button>
+                    <button class="action-btn" id="manualImageInput" title="Input Image URL/Base64">
+                        <span>📥</span>
+                    </button>
+                    <button class="action-btn" id="imageUpload" title="Upload Image">
+                        <span>📷</span>
+                    </button>
+                    <button class="action-btn" id="modelToggle" title="Change Model & Settings">
+                        <span>⚙️</span>
+                    </button>
+                </div>
+                
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
         </div>
@@ -1173,11 +1159,17 @@ input[type="range"] {
             <p style="font-size: var(--font-size-sm);">
                 <strong>Local Tools:</strong> Define shortcuts to local paths or URLs.<br>
                 <strong>One-Shot Mode:</strong> Toggle 🔥 to clear context on every message.<br>
-                <strong>Partial Mode:</strong> Guide the assistant's response (Moonshot only).
+                <strong>Tabs & Renaming:</strong> Hover over a tab and click the ✎ icon to rename it.
+            </p>
+
+            <h4>Special Features</h4>
+            <p style="font-size: var(--font-size-sm);">
+                <strong>Partial / Prefill Mode (Moonshot):</strong> Toggle the 📝 icon (only visible when a Moonshot model is selected). This adds a text box where you can type the <em>start</em> of the assistant's reply. The model will continue from where you left off. Useful for forcing a specific format (e.g., "Sure, here is the JSON output:").<br>
+                <strong>Persona Customization:</strong> Select "Custom / Create" in the persona menu. You can write a custom system prompt. Click "Save as New" to store it permanently in your list.
             </p>
             
             <div style="margin-top: 20px; text-align: center; font-size: 11px; color: var(--color-text-secondary);">
-                v2.10.1 | Created for personal productivity.
+                v2.10.2 | Created for personal productivity.
             </div>
         </div>
     </div>
@@ -1393,7 +1385,7 @@ class MultiAPIChat {
         this.readmeToggle = document.getElementById('readmeToggle');
 
         this.header = document.getElementById('header');
-        this.collapseHeader = document.getElementById('collapseHeader');
+        // Removed collapseHeader element init
         this.newTopicBtn = document.getElementById('newTopicBtn');
         this.tabsBar = document.getElementById('tabsBar');
         this.chatContainer = document.getElementById('chatContainer');
@@ -1479,7 +1471,8 @@ class MultiAPIChat {
             this.renderChatHistory();
             this.togglePopup('history');
         });
-        this.collapseHeader.addEventListener('click', () => this.toggleHeader());
+        
+        // Removed toggleHeader listener
 
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
@@ -1580,7 +1573,7 @@ class MultiAPIChat {
     }
 
     closeSession(id, e) {
-        e.stopPropagation(); // Prevent switching when closing
+        if(e) e.stopPropagation();
         if (Object.keys(this.sessions).length <= 1) {
             // If it's the last session, just clear it
             this.sessions[id].messages = [];
@@ -1601,23 +1594,82 @@ class MultiAPIChat {
         }
     }
 
+    saveTabName(id, newName) {
+        const name = newName.trim();
+        if(!name) {
+            this.renderTabs(); // Revert
+            return;
+        }
+        
+        this.sessions[id].name = name;
+        
+        // If this chat is already saved, update it
+        if(this.savedChats[id]) {
+            this.savedChats[id].name = name;
+            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+        } else {
+            // Treat renaming as a save trigger per user request
+            this.saveCurrentChat(); 
+        }
+        this.renderTabs();
+    }
+
+    startTabRenaming(sessionId, containerElement) {
+        const session = this.sessions[sessionId];
+        if (!session) return;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'tab-name-input';
+        input.value = session.name;
+        
+        const save = () => {
+            this.saveTabName(sessionId, input.value);
+        };
+        
+        input.onblur = save;
+        input.onkeydown = (ev) => {
+            if(ev.key === 'Enter') {
+                input.blur();
+            }
+        };
+        
+        containerElement.innerHTML = '';
+        containerElement.appendChild(input);
+        input.focus();
+    }
+
     renderTabs() {
         this.tabsBar.innerHTML = '';
         Object.values(this.sessions).forEach(session => {
             const tab = document.createElement('div');
             tab.className = `tab ${session.id === this.activeSessionId ? 'active' : ''}`;
-            tab.onclick = () => this.switchSession(session.id);
+            tab.onclick = (e) => {
+                if(e.target.classList.contains('tab-close') || e.target.classList.contains('tab-edit') || e.target.tagName === 'INPUT') return;
+                this.switchSession(session.id);
+            };
             
             const nameSpan = document.createElement('span');
             nameSpan.className = 'tab-name';
             nameSpan.textContent = session.name;
+            // Removed double click event per request
             
+            const editBtn = document.createElement('span');
+            editBtn.className = 'tab-edit';
+            editBtn.innerHTML = '✎';
+            editBtn.title = 'Rename';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.startTabRenaming(session.id, nameSpan);
+            };
+
             const closeBtn = document.createElement('span');
             closeBtn.className = 'tab-close';
             closeBtn.innerHTML = '×';
             closeBtn.onclick = (e) => this.closeSession(session.id, e);
             
             tab.appendChild(nameSpan);
+            tab.appendChild(editBtn);
             tab.appendChild(closeBtn);
             this.tabsBar.appendChild(tab);
         });
@@ -1719,7 +1771,16 @@ class MultiAPIChat {
     // --- Export Logic ---
 
     exportMessageToWord(content, index) {
-        const htmlContent = this.converter.makeHtml(content);
+        // Pre-process content to remove references if hidden
+        let processedContent = content;
+        if (!this.showReferences) {
+            processedContent = processedContent.replace(/\[\d+\]/g, '');
+        }
+
+        // We use the markdown converter, but standard one might not handle the complex thinking blocks well for Word.
+        // For Word export, we keep it simple.
+        const htmlContent = this.converter.makeHtml(processedContent);
+        
         const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head><meta charset='utf-8'><title>Export HTML To Doc</title></head>` + `<` + `body>`;
         const footer = `<` + `/body>` + `<` + `/html>`;
@@ -1732,7 +1793,7 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `response_${index + 1}.doc`; // .doc is widely compatible with simple HTML structure
+        link.download = `response_${index + 1}.doc`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1749,44 +1810,56 @@ class MultiAPIChat {
             const actionHeader = document.createElement('div');
             actionHeader.className = 'table-actions';
             
-            // Define Buttons
-            const btnStyles = 'btn btn--secondary btn--sm';
-            
-            // Copy
+            // "Copy" Button
             const copyBtn = document.createElement('button');
-            copyBtn.className = btnStyles;
+            copyBtn.className = 'btn btn--secondary btn--sm';
             copyBtn.innerHTML = '📋 Copy';
             copyBtn.onclick = () => this.copyTableToClipboard(table);
 
-            // Export Excel
-            const xlsBtn = document.createElement('button');
-            xlsBtn.className = btnStyles;
-            xlsBtn.innerHTML = '📊 Excel';
-            xlsBtn.onclick = () => this.exportTableToExcel(table, `table_${index}`);
-
-            // Export CSV
-            const csvBtn = document.createElement('button');
-            csvBtn.className = btnStyles;
-            csvBtn.innerHTML = '📄 CSV';
-            csvBtn.onclick = () => this.exportTableToCSV(table, `table_${index}`);
-
-            // Export JSON
-            const jsonBtn = document.createElement('button');
-            jsonBtn.className = btnStyles;
-            jsonBtn.innerHTML = '{} JSON';
-            jsonBtn.onclick = () => this.exportTableToJSON(table, `table_${index}`);
+            // "Export" Button with Dropdown
+            const exportWrapper = document.createElement('div');
+            exportWrapper.style.position = 'relative';
             
-            // Open New Tab
-            const openBtn = document.createElement('button');
-            openBtn.className = btnStyles;
-            openBtn.innerHTML = '↗ New Tab';
-            openBtn.onclick = () => window.openTableInBrowser(openBtn);
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'btn btn--secondary btn--sm';
+            exportBtn.innerHTML = 'Export ▾';
+            
+            const dropdown = document.createElement('div');
+            dropdown.className = 'export-dropdown';
+            
+            const formats = [
+                { name: '📊 Excel', action: () => this.exportTableToExcel(table, `table_${index}`) },
+                { name: '📄 CSV', action: () => this.exportTableToCSV(table, `table_${index}`) },
+                { name: '{} JSON', action: () => this.exportTableToJSON(table, `table_${index}`) },
+                { name: '↗ Open in Tab', action: () => window.openTableInBrowser(table) }
+            ];
+
+            formats.forEach(fmt => {
+                const item = document.createElement('button');
+                item.className = 'export-item';
+                item.textContent = fmt.name;
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    fmt.action();
+                    dropdown.classList.remove('show');
+                };
+                dropdown.appendChild(item);
+            });
+
+            exportBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Close others
+                document.querySelectorAll('.export-dropdown').forEach(d => {
+                    if(d !== dropdown) d.classList.remove('show');
+                });
+                dropdown.classList.toggle('show');
+            };
+
+            exportWrapper.appendChild(exportBtn);
+            exportWrapper.appendChild(dropdown);
 
             actionHeader.appendChild(copyBtn);
-            actionHeader.appendChild(xlsBtn);
-            actionHeader.appendChild(csvBtn);
-            actionHeader.appendChild(jsonBtn);
-            actionHeader.appendChild(openBtn);
+            actionHeader.appendChild(exportWrapper);
 
             table.parentNode.insertBefore(wrapper, table);
             wrapper.appendChild(actionHeader);
@@ -1806,6 +1879,7 @@ class MultiAPIChat {
 
     exportTableToExcel(table, name) {
         const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+        // Use browser download mechanism via XLSX lib, ensuring it triggers download
         XLSX.writeFile(wb, `${name}.xlsx`);
     }
 
@@ -1815,10 +1889,16 @@ class MultiAPIChat {
         const csv = XLSX.utils.sheet_to_csv(ws);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
+        // Open in new window to trigger download as requested (or just download)
+        // Standard user UX for export is download. "Trigger in new browser" for file download 
+        // usually means just downloading it. But strictly:
         const link = document.createElement('a');
         link.href = url;
+        link.target = '_blank'; // Attempt to trigger in new context
         link.download = `${name}.csv`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 
     exportTableToJSON(table, name) {
@@ -1829,8 +1909,11 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
+        link.target = '_blank';
         link.download = `${name}.json`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 
     // --- Original Methods (Restored/Modified) ---
@@ -1889,7 +1972,7 @@ class MultiAPIChat {
 
     exportData() {
         const data = {
-            version: '2.10.1',
+            version: '2.10.2',
             timestamp: new Date().toISOString(),
             savedChats: this.savedChats,
             savedPersonas: this.savedPersonas,
@@ -3121,7 +3204,7 @@ window.copyCodeBlock = function(codeId) {
 };
 
 window.openTableInBrowser = function(btn) {
-    const table = btn.closest('.table-responsive').querySelector('table');
+    const table = btn.tagName === 'TABLE' ? btn : btn.closest('.table-responsive').querySelector('table');
     if (!table) return;
     
     const newWin = window.open('', '_blank');
