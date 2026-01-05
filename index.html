@@ -581,7 +581,7 @@ input[type="range"] {
 .input-area { border-top: 1px solid var(--color-border); background-color: var(--color-surface); padding: var(--space-12); }
 
 /* New Input Toolbar */
-.input-controls {
+.input-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -593,19 +593,19 @@ input[type="range"] {
 }
 
 .input-wrapper {
-  display: block; /* Changed from flex to block */
+  display: block;
   width: 100%;
   background-color: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-8) var(--space-12); /* Adjusted padding */
+  padding: var(--space-8) var(--space-12);
   transition: border-color var(--duration-fast) var(--ease-standard);
 }
 .input-wrapper:focus-within { border-color: var(--color-primary); }
 
 #messageInput {
   display: block;
-  width: 100%; /* Full width */
+  width: 100%;
   border: none; outline: none; resize: none; background: transparent;
   font-family: var(--font-family-base); font-size: var(--font-size-sm);
   line-height: var(--line-height-normal); color: var(--color-text);
@@ -945,7 +945,7 @@ input[type="range"] {
                 </div>
 
                 <!-- Input Controls Toolbar (Icons moved here) -->
-                <div class="input-controls">
+                <div class="input-toolbar">
                     <div class="input-tools">
                         <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
                             <span>📝</span>
@@ -1721,9 +1721,8 @@ class MultiAPIChat {
     exportMessageToWord(content, index) {
         const htmlContent = this.converter.makeHtml(content);
         const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>`;
-        const footer = "<script type="module" src="/index.tsx"></script>
-</body></html>";
+        <head><meta charset='utf-8'><title>Export HTML To Doc</title></head>` + `<` + `body>`;
+        const footer = `<` + `/body>` + `<` + `/html>`;
         const sourceHTML = header + htmlContent + footer;
         
         const blob = new Blob(['\ufeff', sourceHTML], {
@@ -3156,5 +3155,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.chatApp = new MultiAPIChat();
 });
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
