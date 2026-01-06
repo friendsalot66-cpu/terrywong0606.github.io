@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.11.1-beta)</title>
+    <title>Multi-API Chat Interface (v2.11.2)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -350,16 +350,26 @@ input[type="range"] {
   background-color: var(--color-background);
 }
 
+/* Chat Wrapper (Groups Chat and FABs) */
+.chat-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Ensures absolute children are contained */
+}
+
 /* Header */
 .header {
   background: linear-gradient(135deg, var(--color-bg-1), var(--color-bg-8));
   border-bottom: 1px solid var(--color-border);
   padding: 2px var(--space-12); /* Ultra-slim padding */
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start; /* Changed for left notification */
   align-items: center;
   z-index: 50;
   min-height: auto;
+  gap: 12px;
 }
 .header-info { display: flex; flex-direction: column; gap: 0; align-items: flex-start; }
 .header-info h1 { font-size: 12px; font-weight: 600; margin: 0; line-height: 1.2; color: var(--color-text); }
@@ -477,6 +487,17 @@ input[type="range"] {
 .message-role { font-weight: var(--font-weight-medium); text-transform: uppercase; letter-spacing: 0.5px; }
 .message-content { font-size: 13px; line-height: 1.4; color: var(--color-text); position: relative; z-index: 1; }
 .message-image { max-width: 100%; height: auto; border-radius: var(--radius-base); margin: var(--space-8) 0; border: 1px solid var(--color-border); }
+
+/* Streaming Cursor Effect */
+.streaming-cursor::after {
+    content: '▋';
+    display: inline-block;
+    vertical-align: baseline;
+    animation: blink 1s step-start infinite;
+    color: var(--color-primary);
+    margin-left: 2px;
+}
+@keyframes blink { 50% { opacity: 0; } }
 
 /* Copy/Export Buttons in Message Header */
 .msg-actions { display: flex; gap: 4px; }
@@ -610,15 +631,49 @@ input[type="range"] {
 }
 .send-btn:hover:not(:disabled) { background-color: var(--color-primary-hover); transform: translateY(-1px); }
 
-/* New Topic Button Icon */
-#newTopicBtn {
-    padding: 0;
-    width: 24px; 
-    height: 24px; 
-    border-radius: 4px;
+/* Floating Action Buttons Area */
+.fab-area {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    z-index: 20;
+    pointer-events: none; /* Allows clicks to pass through empty space */
+    transition: opacity 0.3s ease;
+}
+.fab-area > * {
+    pointer-events: auto; /* Re-enable clicks on buttons */
+}
+
+/* Main FAB */
+.fab-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    color: var(--color-btn-primary-text);
+    border: none;
+    box-shadow: var(--shadow-lg);
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.2; /* Faint by default */
+}
+
+.fab-area:hover .fab-btn {
+    opacity: 1; /* Fully opaque on hover area */
+}
+
+.fab-btn:hover { 
+    transform: translateY(-2px) scale(1.05); 
+    background-color: var(--color-primary-hover);
+    opacity: 1 !important;
 }
 
 /* Partial Mode (Prefill) */
@@ -730,24 +785,22 @@ input[type="range"] {
 .history-actions { display: flex; gap: var(--space-4); }
 
 /* Status Indicator */
-.status-container { 
-    position: fixed; 
-    top: 60px; /* Moved down to avoid covering New Topic */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1001; 
-}
+/* Moved status styling to fit in header */
 .status {
-  display: inline-flex; align-items: center; padding: var(--space-6) var(--space-12);
-  border-radius: var(--radius-full); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);
-  transition: all var(--duration-normal) var(--ease-standard);
-  box-shadow: var(--shadow-md);
+  display: none; 
+  align-items: center; 
+  padding: 2px 8px;
+  border-radius: var(--radius-sm); 
+  font-size: 11px; 
+  font-weight: var(--font-weight-medium);
+  transition: opacity var(--duration-normal) var(--ease-standard);
+  white-space: nowrap;
 }
-.status.hidden { display: none; }
-.status.show { display: inline-flex !important; }
+.status.show { display: inline-flex !important; animation: fadeIn 0.2s; }
 .status--success { background-color: var(--color-surface); color: var(--color-success); border: 1px solid var(--color-success); }
 .status--error { background-color: var(--color-surface); color: var(--color-error); border: 1px solid var(--color-error); }
 .status--info { background-color: var(--color-surface); color: var(--color-info); border: 1px solid var(--color-info); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Selection Tooltip */
 .selection-tooltip {
@@ -880,11 +933,22 @@ input[type="range"] {
 .key-section ul { padding-left: 20px; margin-bottom: 0; }
 .key-section li { margin-bottom: 4px; }
 
+/* Settings Popup Styles */
+.settings-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.settings-row:last-child { border-bottom: none; }
+.toggle-switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--color-secondary); transition: .4s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--color-primary); }
+input:checked + .slider:before { transform: translateX(16px); }
+
 /* Mobile */
 @media (max-width: 768px) {
   .sidebar { width: 45px; }
   .main-content { margin-left: 45px; width: calc(100vw - 45px); }
   .popup-content { max-width: calc(100vw - 32px); margin: 16px; }
+  .fab-btn { width: 40px; height: 40px; font-size: 20px; }
 }
     </style>
 <link rel="stylesheet" href="/index.css">
@@ -893,7 +957,7 @@ input[type="range"] {
     <div class="app-container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-icon" id="settingsToggle" title="Settings (Theme & Streaming)">
+            <div class="sidebar-icon" id="settingsToggle" title="Settings">
                 <span class="icon">⚙️</span>
             </div>
             <div class="sidebar-icon" id="personaToggle" title="Persona">
@@ -926,18 +990,15 @@ input[type="range"] {
         <div class="main-content">
             <!-- Header -->
             <div class="header" id="header">
+                <!-- Status Indicator moved to header left -->
+                <div class="status hidden" id="statusIndicator"></div>
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface<small>v2.11.1-beta</small></h1>
+                    <h1>Multi-API Chat Interface<small>v2.11.2</small></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
                         <span class="status-item" id="personaStatus">Persona: All-rounder</span>
                     </div>
-                </div>
-                <div class="header-actions" style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn btn--secondary btn--sm" id="newTopicBtn" title="Start New Topic">
-                        <span>＋</span>
-                    </button>
                 </div>
             </div>
 
@@ -946,12 +1007,22 @@ input[type="range"] {
                 <!-- Tabs will be dynamically added here -->
             </div>
 
-            <!-- Chat Container -->
-            <div class="chat-container" id="chatContainer">
-                <div class="messages-wrapper">
-                    <div class="messages" id="messages">
-                        <!-- Messages will be dynamically added here -->
+            <!-- Chat Wrapper (Isolates Conversation Window for positioning) -->
+            <div class="chat-wrapper">
+                <!-- Chat Container -->
+                <div class="chat-container" id="chatContainer">
+                    <div class="messages-wrapper">
+                        <div class="messages" id="messages">
+                            <!-- Messages will be dynamically added here -->
+                        </div>
                     </div>
+                </div>
+
+                <!-- Floating Action Buttons Area (Relative to Chat Wrapper) -->
+                <div class="fab-area">
+                    <button class="fab-btn" id="newTopicBtn" title="Start New Topic">
+                        <span>＋</span>
+                    </button>
                 </div>
             </div>
 
@@ -975,7 +1046,7 @@ input[type="range"] {
                     </button>
                 </div>
 
-                <!-- Input Controls Toolbar (Icons moved below) -->
+                <!-- Input Controls Toolbar -->
                 <div class="input-tools">
                     <button class="action-btn hidden" id="togglePartialMode" title="Partial / Prefill Mode (Kimi/Moonshot)">
                         <span>📝</span>
@@ -996,10 +1067,7 @@ input[type="range"] {
         </div>
     </div>
 
-    <!-- Status Indicator -->
-    <div class="status-container">
-        <div class="status hidden" id="statusIndicator"></div>
-    </div>
+    <!-- Removed old Status Indicator container from body bottom -->
 
     <!-- Selection Tooltip -->
     <button class="selection-tooltip hidden" id="selectionTooltip">
@@ -1011,21 +1079,22 @@ input[type="range"] {
         <div class="popup-content">
             <h3>Settings</h3>
             
-            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 8px;">Appearance</h4>
-            <div class="theme-options">
-                <button class="theme-option" data-theme="light">
-                    <span>☀️</span> Light Theme
-                </button>
-                <button class="theme-option" data-theme="dark">
-                    <span>🌙</span> Dark Theme  
-                </button>
+            <div class="settings-row">
+                <span>Dark Mode</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="themeToggle">
+                    <span class="slider"></span>
+                </label>
             </div>
 
-            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-secondary); margin: 16px 0 8px 0;">Behavior</h4>
-            <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; background: var(--color-secondary); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border);">
-                <label class="form-label" style="margin:0; font-weight: 500;">Enable Streaming</label>
-                <input type="checkbox" id="streamingToggle" style="width:auto; cursor: pointer; transform: scale(1.2);">
+            <div class="settings-row">
+                <span>Streaming Responses</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="streamToggle">
+                    <span class="slider"></span>
+                </label>
             </div>
+            <p style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">Enable typing effect for faster perceived speed.</p>
         </div>
     </div>
 
@@ -1209,7 +1278,7 @@ input[type="range"] {
             </p>
             
             <div style="margin-top: 20px; text-align: center; font-size: 11px; color: var(--color-text-secondary);">
-                v2.11.1-beta | Created for personal productivity.
+                v2.11.2 | Created for personal productivity.
             </div>
         </div>
     </div>
@@ -1333,7 +1402,9 @@ class MultiAPIChat {
         this.references = {};
         this.currentReference = { num: '', url: '' };
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
-        this.streamingEnabled = localStorage.getItem('streaming') !== 'false'; // Default true
+        // Streaming Default
+        this.streamMode = localStorage.getItem('streamMode') !== 'false'; // Default to true if not set
+        
         this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
         this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
         this.uploadedImage = null;
@@ -1426,7 +1497,7 @@ class MultiAPIChat {
         this.readmeToggle = document.getElementById('readmeToggle');
 
         this.header = document.getElementById('header');
-        this.newTopicBtn = document.getElementById('newTopicBtn');
+        this.newTopicBtn = document.getElementById('newTopicBtn'); // FAB
         this.tabsBar = document.getElementById('tabsBar');
         this.chatContainer = document.getElementById('chatContainer');
         this.messagesContainer = document.getElementById('messages');
@@ -1454,7 +1525,6 @@ class MultiAPIChat {
         this.imagePreview = document.getElementById('imagePreview');
 
         this.settingsPopup = document.getElementById('settingsPopup');
-        this.themePopup = document.getElementById('themePopup');
         this.personaPopup = document.getElementById('personaPopup');
         this.modelPopup = document.getElementById('modelPopup');
         this.apiKeyPopup = document.getElementById('apiKeyPopup');
@@ -1463,9 +1533,6 @@ class MultiAPIChat {
         this.toolsPopup = document.getElementById('toolsPopup');
         this.readmePopup = document.getElementById('readmePopup');
         
-        // Settings Elements
-        this.streamingToggle = document.getElementById('streamingToggle');
-
         // Persona Elements
         this.savedPersonasContainer = document.getElementById('savedPersonasContainer');
         this.saveAsNewPersonaBtn = document.getElementById('saveAsNewPersona');
@@ -1496,6 +1563,10 @@ class MultiAPIChat {
         this.maxTokensSlider = document.getElementById('maxTokensSlider');
         this.maxTokensInput = document.getElementById('maxTokensInput');
         this.maxTokensValue = document.getElementById('maxTokensValue');
+        
+        // Settings Elements
+        this.themeToggle = document.getElementById('themeToggle'); // Updated for toggle
+        this.streamToggle = document.getElementById('streamToggle');
     }
 
     attachEventListeners() {
@@ -1516,12 +1587,6 @@ class MultiAPIChat {
             this.togglePopup('history');
         });
         
-        this.streamingToggle.addEventListener('change', (e) => {
-            this.streamingEnabled = e.target.checked;
-            localStorage.setItem('streaming', this.streamingEnabled);
-            this.showStatus(this.streamingEnabled ? 'Streaming enabled' : 'Streaming disabled', 'info');
-        });
-
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
@@ -1545,10 +1610,18 @@ class MultiAPIChat {
 
         this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
 
-        document.querySelectorAll('.theme-option').forEach(btn => {
-            btn.addEventListener('click', (e) => this.setTheme(e.target.dataset.theme));
+        // Theme Toggle Event
+        this.themeToggle.addEventListener('change', (e) => {
+            const newTheme = e.target.checked ? 'dark' : 'light';
+            this.setTheme(newTheme);
         });
         
+        this.streamToggle.addEventListener('change', (e) => {
+            this.streamMode = e.target.checked;
+            localStorage.setItem('streamMode', this.streamMode);
+            this.showStatus(`Streaming ${this.streamMode ? 'Enabled' : 'Disabled'}`, 'info');
+        });
+
         // Standard Persona Buttons
         document.querySelectorAll('#personaPopup .persona-options button.persona-option').forEach(btn => {
             if(btn.dataset.persona) {
@@ -1623,6 +1696,7 @@ class MultiAPIChat {
     closeSession(id, e) {
         if(e) e.stopPropagation();
         if (Object.keys(this.sessions).length <= 1) {
+            // If it's the last session, just clear it
             this.sessions[id].messages = [];
             this.sessions[id].references = {};
             this.sessions[id].name = `Topic ${this.sessionCounter++}`;
@@ -1632,6 +1706,7 @@ class MultiAPIChat {
 
         delete this.sessions[id];
         
+        // If we closed the active session, switch to the last available one
         if (this.activeSessionId === id) {
             const remainingIds = Object.keys(this.sessions);
             this.switchSession(remainingIds[remainingIds.length - 1]);
@@ -1643,13 +1718,22 @@ class MultiAPIChat {
     saveTabName(id, newName) {
         const name = newName.trim();
         if(!name) {
-            this.renderTabs(); 
+            this.renderTabs(); // Revert
             return;
         }
         
         this.sessions[id].name = name;
-        this.saveCurrentChat(name); 
+        
+        // Update saved chat if exists, or create new save
+        if(this.savedChats[id]) {
+            this.savedChats[id].name = name;
+            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+        } else {
+            // Create initial save for this chat with the new name
+            this.saveCurrentChat(name);
+        }
         this.renderTabs();
+        this.renderChatHistory(); // Ensure history list is updated immediately
     }
 
     startTabRenaming(sessionId, containerElement) {
@@ -1719,6 +1803,7 @@ class MultiAPIChat {
 
     // --- Message & API Logic ---
 
+    // Updated renderMessages to pull from current session state
     renderMessages() {
         this.messagesContainer.innerHTML = '';
         this.messages.forEach((message, index) => {
@@ -1752,6 +1837,7 @@ class MultiAPIChat {
             actionsEl.appendChild(editBtn);
         }
 
+        // Word Export Button
         if (message.content) {
             const wordBtn = document.createElement('button');
             wordBtn.className = 'msg-btn';
@@ -1789,6 +1875,13 @@ class MultiAPIChat {
             const renderedContent = this.renderEnhancedMarkdown(message.content);
             contentEl.innerHTML += renderedContent;
             
+            // Streaming cursor
+            if (message.isStreaming) {
+                contentEl.classList.add('streaming-cursor');
+            } else {
+                contentEl.classList.remove('streaming-cursor');
+            }
+            
             if (message.role === 'assistant') {
                 this.attachReferenceHandlers(contentEl);
                 this.processHighcharts(contentEl);
@@ -1817,8 +1910,10 @@ class MultiAPIChat {
         const container = this.messagesContainer.children[index];
         const contentEl = container.querySelector('.message-content');
         
+        // Hide existing content
         contentEl.style.display = 'none';
         
+        // Check if edit area already exists
         if (container.querySelector('.msg-edit-area')) return;
 
         const editArea = document.createElement('div');
@@ -1857,59 +1952,23 @@ class MultiAPIChat {
     async submitEditedMessage(index, newContent) {
         if (!newContent.trim()) return;
         
+        // Truncate messages after this index
         this.messages = this.messages.slice(0, index + 1);
         
+        // Update user message
         this.messages[index].content = newContent;
         this.messages[index].timestamp = new Date();
         
+        // Re-render to remove old messages and show updated user message
         this.renderMessages();
         
+        // Trigger API call with updated history
         this.setLoading(true);
-
-        if (this.streamingEnabled) {
-            const assistantMessageIndex = this.messages.length;
-            const assistantMessage = {
-                role: 'assistant',
-                content: '',
-                timestamp: new Date(),
-                tokenUsage: {},
-                searchResults: [],
-                citations: []
-            };
-            this.messages.push(assistantMessage);
-            this.renderMessages();
-
-            await this.callAPIStream(
-                newContent, 
-                '', 
-                (partialContent) => {
-                    this.messages[assistantMessageIndex].content = partialContent;
-                    this.updateLastMessageContent(partialContent);
-                },
-                (finalContent, metaData) => {
-                    this.messages[assistantMessageIndex].content = finalContent;
-                    this.messages[assistantMessageIndex].tokenUsage = metaData.tokenUsage;
-                    this.messages[assistantMessageIndex].citations = metaData.citations;
-                    if (metaData.citations && metaData.citations.length > 0) {
-                         const msgReferences = this.extractReferencesFromResponse(this.messages[assistantMessageIndex]);
-                         Object.assign(this.references, msgReferences);
-                    }
-                    this.setLoading(false);
-                    this.renderMessages();
-                    this.autoSaveChat();
-                },
-                (error) => {
-                    this.showStatus('Error: ' + error.message, 'error');
-                    this.messages[assistantMessageIndex].content += "\n\n[Error: Connection failed]";
-                    this.setLoading(false);
-                    this.renderMessages();
-                }
-            );
-        } else {
-            // Non-streaming fallback logic
-            try {
-                const response = await this.callAPINonStream(newContent, '');
-                
+        try {
+            if (this.streamMode) {
+                await this.streamResponse(newContent, '');
+            } else {
+                const response = await this.callAPI(newContent, '');
                 const assistantMessage = {
                     role: 'assistant',
                     content: response.content,
@@ -1921,29 +1980,11 @@ class MultiAPIChat {
                 this.messages.push(assistantMessage);
                 this.renderMessages();
                 this.autoSaveChat();
-            } catch (error) {
-                this.showStatus('Error: ' + error.message, 'error');
-                const fallbackResponse = {
-                    role: 'assistant',
-                    content: "I'm sorry, I encountered an error. Please check your API key and connection.",
-                    timestamp: new Date(),
-                    tokenUsage: {}
-                };
-                this.messages.push(fallbackResponse);
-                this.renderMessages();
-            } finally {
-                this.setLoading(false);
             }
-        }
-    }
-
-    updateLastMessageContent(content) {
-        const messageEls = this.messagesContainer.querySelectorAll('.message');
-        const lastMsgEl = messageEls[messageEls.length - 1];
-        if (lastMsgEl && lastMsgEl.classList.contains('assistant')) {
-            const contentEl = lastMsgEl.querySelector('.message-content');
-            contentEl.innerHTML = this.renderEnhancedMarkdown(content);
-            this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+        } catch (error) {
+            this.showStatus('Error: ' + error.message, 'error');
+        } finally {
+            this.setLoading(false);
         }
     }
 
@@ -1958,8 +1999,8 @@ class MultiAPIChat {
         const htmlContent = this.converter.makeHtml(processedContent);
         
         const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='utf-8'><title>Export HTML To Doc</title></head>` + `<` + `body>`;
-        const footer = `<` + `/body>` + `<` + `/html>`;
+        <head><meta charset='utf-8'><title>Export HTML To Doc</title></head>` + '\x3C' + `body>`;
+        const footer = '\x3C' + `/body>` + '\x3C' + `/html>`;
         const sourceHTML = header + htmlContent + footer;
         
         const blob = new Blob(['\ufeff', sourceHTML], {
@@ -1969,6 +2010,8 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
+        // Updated to act as a download in a new context
+        link.target = '_blank';
         link.download = `response_${index + 1}.doc`;
         document.body.appendChild(link);
         link.click();
@@ -1986,11 +2029,13 @@ class MultiAPIChat {
             const actionHeader = document.createElement('div');
             actionHeader.className = 'table-actions';
             
+            // "Copy" Button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'btn btn--secondary btn--sm';
             copyBtn.innerHTML = '📋 Copy';
             copyBtn.onclick = () => this.copyTableToClipboard(table);
 
+            // "Export" Button with Dropdown
             const exportWrapper = document.createElement('div');
             exportWrapper.style.position = 'relative';
             
@@ -2022,6 +2067,7 @@ class MultiAPIChat {
 
             exportBtn.onclick = (e) => {
                 e.stopPropagation();
+                // Close others
                 document.querySelectorAll('.export-dropdown').forEach(d => {
                     if(d !== dropdown) d.classList.remove('show');
                 });
@@ -2063,6 +2109,7 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
+        link.target = '_blank';
         link.download = `${name}.csv`;
         document.body.appendChild(link);
         link.click();
@@ -2077,6 +2124,7 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
+        link.target = '_blank';
         link.download = `${name}.json`;
         document.body.appendChild(link);
         link.click();
@@ -2088,8 +2136,10 @@ class MultiAPIChat {
     saveImageInput() {
         let input = this.imageInputString.value.trim();
         if (input) {
+            // Updated strict regex validation
             const base64Pattern = /^data:image\/(png|jpg|jpeg|gif|webp|bmp);base64,[A-Za-z0-9+/=]+$/;
             
+            // Check if it looks like raw base64 (no header)
             const isRawBase64 = /^[A-Za-z0-9+/=]+$/.test(input) && input.length > 50;
             if (isRawBase64) {
                 input = `data:image/png;base64,${input}`;
@@ -2110,10 +2160,8 @@ class MultiAPIChat {
         }
     }
     
-    // --- Rest of standard methods ---
-
     togglePopup(type) {
-        const popups = ['settings', 'theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
+        const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -2132,17 +2180,12 @@ class MultiAPIChat {
                 document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity;
                 document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
             }
-            if (type === 'settings') {
-                // Sync settings state
-                this.streamingToggle.checked = this.streamingEnabled;
-                this.updateThemeOptions();
-            }
         }
     }
 
     exportData() {
         const data = {
-            version: '2.11.1-beta',
+            version: '2.11.2',
             timestamp: new Date().toISOString(),
             savedChats: this.savedChats,
             savedPersonas: this.savedPersonas,
@@ -2152,8 +2195,7 @@ class MultiAPIChat {
             maxTokens: this.maxTokens,
             showReferences: this.showReferences,
             customPrompt: this.customPrompt,
-            customPersonaName: this.customPersonaName,
-            streamingEnabled: this.streamingEnabled
+            customPersonaName: this.customPersonaName
         };
 
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
@@ -2196,10 +2238,6 @@ class MultiAPIChat {
                     if(data.showReferences !== undefined) localStorage.setItem('showReferences', data.showReferences);
                     if(data.customPrompt) localStorage.setItem('customPrompt', data.customPrompt);
                     if(data.customPersonaName) localStorage.setItem('customPersonaName', data.customPersonaName);
-                    if(data.streamingEnabled !== undefined) {
-                        this.streamingEnabled = data.streamingEnabled;
-                        localStorage.setItem('streaming', this.streamingEnabled);
-                    }
 
                     this.loadSettings();
                     Object.assign(this.personas, this.savedPersonas);
@@ -2648,23 +2686,30 @@ class MultiAPIChat {
 
     saveCurrentChat(nameOverride = null) {
         const name = nameOverride || this.chatNameInput.value.trim();
-        if (!name) {
-            this.showStatus('Please enter a chat name', 'warning');
+        if (!name && !nameOverride) {
+            // For floating export, auto-generate name if empty
+            const dateStr = new Date().toISOString().slice(0, 10);
+            this.saveCurrentChat(`Chat ${dateStr}`);
             return;
         }
+        
         if (this.messages.length === 0) {
             this.showStatus('No messages to save', 'warning');
             return;
         }
+        
         const id = this.currentChatId;
+        const finalName = name || this.sessions[id].name;
+        
         this.savedChats[id] = {
             id: id,
-            name: name,
+            name: finalName,
             date: new Date().toISOString(),
             messages: this.messages,
             references: this.references
         };
         localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
+        
         if(!nameOverride) {
             this.chatNameInput.value = '';
         }
@@ -2672,7 +2717,7 @@ class MultiAPIChat {
         this.showStatus('Chat saved', 'success');
         
         if(this.sessions[this.activeSessionId]) {
-            this.sessions[this.activeSessionId].name = name;
+            this.sessions[this.activeSessionId].name = finalName;
             this.renderTabs();
         }
     }
@@ -2833,12 +2878,6 @@ class MultiAPIChat {
         return model ? model.name : this.currentModel;
     }
 
-    toggleHeader() {
-        this.header.classList.toggle('collapsed');
-        const btn = this.collapseHeader.querySelector('span');
-        btn.textContent = this.header.classList.contains('collapsed') ? '+' : '−';
-    }
-
     autoResizeTextarea() {
         this.messageInput.style.height = 'auto';
         this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
@@ -2859,15 +2898,14 @@ class MultiAPIChat {
     setTheme(theme) {
         document.documentElement.setAttribute('data-color-scheme', theme);
         localStorage.setItem('theme', theme);
-        this.togglePopup('theme'); // Not used much if merged, but keeping for compatibility if popup exists
         this.updateThemeOptions();
     }
 
     updateThemeOptions() {
         const currentTheme = document.documentElement.getAttribute('data-color-scheme') || 'light';
-        document.querySelectorAll('.theme-option').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.theme === currentTheme);
-        });
+        if (this.themeToggle) {
+            this.themeToggle.checked = currentTheme === 'dark';
+        }
     }
 
     setModel(model, api) {
@@ -2930,6 +2968,7 @@ class MultiAPIChat {
         this.customPrompt = localStorage.getItem('customPrompt') || '';
         this.apiKeys.moonshot = localStorage.getItem('moonshot_api_key') || '';
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true';
+        this.streamToggle.checked = this.streamMode;
     }
 
     updateUI() {
@@ -2978,53 +3017,12 @@ class MultiAPIChat {
 
         this.setLoading(true);
 
-        if (this.streamingEnabled) {
-            const assistantMessageIndex = this.messages.length;
-            const assistantMessage = {
-                role: 'assistant',
-                content: prefill || '',
-                timestamp: new Date(),
-                tokenUsage: {},
-                searchResults: [],
-                citations: []
-            };
-            this.messages.push(assistantMessage);
-            this.renderMessages();
-
-            await this.callAPIStream(
-                message, 
-                prefill,
-                (partialContent) => {
-                    this.messages[assistantMessageIndex].content = partialContent;
-                    this.updateLastMessageContent(partialContent);
-                },
-                (finalContent, metaData) => {
-                    this.messages[assistantMessageIndex].content = finalContent;
-                    this.messages[assistantMessageIndex].tokenUsage = metaData.tokenUsage;
-                    this.messages[assistantMessageIndex].citations = metaData.citations;
-                    
-                    if (metaData.citations && metaData.citations.length > 0) {
-                         const msgReferences = this.extractReferencesFromResponse(this.messages[assistantMessageIndex]);
-                         Object.assign(this.references, msgReferences);
-                    }
-                    
-                    this.setLoading(false);
-                    this.renderMessages();
-                    this.autoSaveChat();
-                },
-                (error) => {
-                    this.showStatus('Error: ' + error.message, 'error');
-                    this.messages[assistantMessageIndex].content += "\n\n[Error: Connection failed]";
-                    this.setLoading(false);
-                    this.renderMessages();
-                }
-            );
-        } else {
-            // Non-streaming logic
-            try {
-                const response = await this.callAPINonStream(message, prefill);
+        try {
+            if (this.streamMode) {
+                await this.streamResponse(message, prefill);
+            } else {
+                const response = await this.callAPI(message, prefill);
                 const finalContent = prefill ? (prefill + response.content) : response.content;
-                
                 const assistantMessage = {
                     role: 'assistant',
                     content: finalContent,
@@ -3036,19 +3034,19 @@ class MultiAPIChat {
                 this.messages.push(assistantMessage);
                 this.renderMessages();
                 this.autoSaveChat();
-            } catch (error) {
-                this.showStatus('Error: ' + error.message, 'error');
-                const fallbackResponse = {
-                    role: 'assistant',
-                    content: "I'm sorry, I encountered an error. Please check your API key and connection.",
-                    timestamp: new Date(),
-                    tokenUsage: {}
-                };
-                this.messages.push(fallbackResponse);
-                this.renderMessages();
-            } finally {
-                this.setLoading(false);
             }
+        } catch (error) {
+            this.showStatus('Error: ' + error.message, 'error');
+            const fallbackResponse = {
+                role: 'assistant',
+                content: "I'm sorry, I encountered an error. Please check your API key and connection.",
+                timestamp: new Date(),
+                tokenUsage: {}
+            };
+            this.messages.push(fallbackResponse);
+            this.renderMessages();
+        } finally {
+            this.setLoading(false);
         }
     }
 
@@ -3098,7 +3096,109 @@ class MultiAPIChat {
         return apiMessages;
     }
 
-    async callAPINonStream(message, prefill) {
+    // New Streaming Implementation
+    async streamResponse(message, prefill) {
+        const messages = this.buildMessagesForAPI(prefill);
+        const endpoint = this.apiEndpoints[this.currentAPI];
+        const apiKey = this.apiKeys[this.currentAPI];
+        
+        const requestBody = {
+            model: this.currentModel,
+            messages: messages,
+            max_tokens: this.maxTokens, 
+            temperature: 0.2,
+            stream: true // Enable streaming
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Initialize empty assistant message for streaming
+        const assistantMessage = {
+            role: 'assistant',
+            content: prefill || "",
+            timestamp: new Date(),
+            tokenUsage: {},
+            searchResults: [],
+            citations: [],
+            isStreaming: true
+        };
+        this.messages.push(assistantMessage);
+        
+        // Initial render
+        this.renderMessages();
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let done = false;
+        
+        // Find the message element to update directly for performance
+        const msgIndex = this.messages.length - 1;
+        const msgElement = this.messagesContainer.children[msgIndex];
+        const contentDiv = msgElement.querySelector('.message-content');
+
+        try {
+            while (!done) {
+                const { value, done: doneReading } = await reader.read();
+                done = doneReading;
+                const chunkValue = decoder.decode(value, { stream: !done });
+                const lines = chunkValue.split('\n');
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6);
+                        if (dataStr.trim() === '[DONE]') continue;
+                        try {
+                            const data = JSON.parse(dataStr);
+                            const delta = data.choices[0]?.delta?.content || "";
+                            if (delta) {
+                                assistantMessage.content += delta;
+                                // Simple update strategy: Render full Markdown on every chunk.
+                                // For very long messages, this could be optimized, but modern browsers handle it well up to a point.
+                                contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content);
+                                contentDiv.classList.add('streaming-cursor');
+                                
+                                // Keep scroll at bottom
+                                this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+                            }
+                            
+                            // Capture usage if provided in stream (Perplexity sometimes sends it at the end)
+                            if (data.usage) {
+                                assistantMessage.tokenUsage = data.usage;
+                            }
+                            // Capture citations/search results if provided
+                            if (data.citations) assistantMessage.citations = data.citations;
+                        } catch (e) {
+                            // Ignore parse errors for partial chunks
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Stream error', e);
+            assistantMessage.content += "\n[Error reading stream]";
+        } finally {
+            assistantMessage.isStreaming = false;
+            contentDiv.classList.remove('streaming-cursor');
+            // Finalize processing (charts, tables, etc)
+            this.renderMessages(); // Full re-render to attach event listeners and process complex blocks
+            this.autoSaveChat();
+        }
+    }
+
+    async callAPI(message, prefill) {
         const messages = this.buildMessagesForAPI(prefill);
         const endpoint = this.apiEndpoints[this.currentAPI];
         const apiKey = this.apiKeys[this.currentAPI];
@@ -3134,79 +3234,7 @@ class MultiAPIChat {
         return { content, tokenUsage, searchResults, citations };
     }
 
-    async callAPIStream(message, prefill, onUpdate, onComplete, onError) {
-        const messages = this.buildMessagesForAPI(prefill);
-        const endpoint = this.apiEndpoints[this.currentAPI];
-        const apiKey = this.apiKeys[this.currentAPI];
-        
-        const requestBody = {
-            model: this.currentModel,
-            messages: messages,
-            max_tokens: this.maxTokens, 
-            temperature: 0.2,
-            stream: true
-        };
-
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder("utf-8");
-            let accumulatedContent = prefill || "";
-            let finalData = { tokenUsage: {}, searchResults: [], citations: [] };
-            let buffer = "";
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || "";
-                
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
-                    
-                    if (trimmedLine.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(trimmedLine.slice(6));
-                            
-                            const delta = data.choices?.[0]?.delta?.content;
-                            if (delta) {
-                                accumulatedContent += delta;
-                                onUpdate(accumulatedContent);
-                            }
-                            
-                            if (data.usage) finalData.tokenUsage = data.usage;
-                            if (data.citations) finalData.citations = data.citations;
-                            
-                        } catch (e) {
-                            console.warn('Stream parse error:', e);
-                        }
-                    }
-                }
-            }
-            
-            onComplete(accumulatedContent, finalData);
-
-        } catch (error) {
-            onError(error);
-        }
-    }
-
+    // ... (References extraction logic remains same) ...
     extractReferencesFromResponse(message) {
         const references = {};
         if (message.searchResults && message.searchResults.length > 0) {
@@ -3447,6 +3475,16 @@ class MultiAPIChat {
     setLoading(loading) {
         this.isLoading = loading;
         this.sendMessage.disabled = loading;
+        if (loading && !this.streamMode) {
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'message assistant loading-message';
+            loadingEl.innerHTML = '<div class="loading">Loading response...</div>';
+            this.messagesContainer.appendChild(loadingEl);
+            this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+        } else if (!loading) {
+            const loadingMsg = document.querySelector('.loading-message');
+            if (loadingMsg) loadingMsg.remove();
+        }
     }
 
     showStatus(message, type = 'info') {
@@ -3479,8 +3517,10 @@ window.openTableInBrowser = function(btn) {
     const table = btn.tagName === 'TABLE' ? btn : btn.closest('.table-responsive').querySelector('table');
     if (!table) return;
     
+    // Updated to open in a popup window
     const newWin = window.open('', '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
     if (newWin) {
+        // Prevent parser issues by splitting tags
         const htmlContent = `
             <!DOCTYPE html>
             <html>
@@ -3492,13 +3532,13 @@ window.openTableInBrowser = function(btn) {
                     th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
                     th { background-color: #f2f2f2; font-weight: 600; }
                     tr:hover { background-color: #f5f5f5; }
-                ` + `<` + `/style>
+                ` + '\x3C' + `/style>
             </head>
             <body>
                 <h2>Table Export</h2>
                 ${table.outerHTML}
-            ` + `<` + `/body>
-            ` + `<` + `/html>
+            ` + '\x3C' + `/body>
+            ` + '\x3C' + `/html>
         `;
         newWin.document.write(htmlContent);
         newWin.document.close();
