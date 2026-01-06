@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.10.2)</title>
+    <title>Multi-API Chat Interface (v2.11.1-beta)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -498,6 +498,31 @@ input[type="range"] {
   color: var(--color-text);
 }
 
+/* Edit Mode for Message */
+.msg-edit-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+.msg-edit-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid var(--color-primary);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    background-color: var(--color-background);
+    color: var(--color-text);
+}
+.msg-edit-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
 /* Code Blocks */
 .message-content pre {
   background-color: var(--color-secondary);
@@ -868,8 +893,8 @@ input[type="range"] {
     <div class="app-container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-icon" id="themeToggle" title="Theme">
-                <span class="icon">☀️</span>
+            <div class="sidebar-icon" id="settingsToggle" title="Settings (Theme & Streaming)">
+                <span class="icon">⚙️</span>
             </div>
             <div class="sidebar-icon" id="personaToggle" title="Persona">
                 <span class="icon">👤</span>
@@ -902,7 +927,7 @@ input[type="range"] {
             <!-- Header -->
             <div class="header" id="header">
                 <div class="header-info">
-                    <h1>Multi-API Chat Interface<small>v2.10.2</small></h1>
+                    <h1>Multi-API Chat Interface<small>v2.11.1-beta</small></h1>
                     <div class="status-line">
                         <span class="status-item" id="modelStatus">Model: Sonar</span>
                         <span class="status-divider"> | </span>
@@ -981,10 +1006,12 @@ input[type="range"] {
         <span>✏️</span> Improve
     </button>
 
-    <!-- Theme Popup -->
-    <div class="popup hidden" id="themePopup">
+    <!-- Settings Popup -->
+    <div class="popup hidden" id="settingsPopup">
         <div class="popup-content">
-            <h3>Choose Theme</h3>
+            <h3>Settings</h3>
+            
+            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 8px;">Appearance</h4>
             <div class="theme-options">
                 <button class="theme-option" data-theme="light">
                     <span>☀️</span> Light Theme
@@ -992,6 +1019,12 @@ input[type="range"] {
                 <button class="theme-option" data-theme="dark">
                     <span>🌙</span> Dark Theme  
                 </button>
+            </div>
+
+            <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-secondary); margin: 16px 0 8px 0;">Behavior</h4>
+            <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; background: var(--color-secondary); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <label class="form-label" style="margin:0; font-weight: 500;">Enable Streaming</label>
+                <input type="checkbox" id="streamingToggle" style="width:auto; cursor: pointer; transform: scale(1.2);">
             </div>
         </div>
     </div>
@@ -1176,7 +1209,7 @@ input[type="range"] {
             </p>
             
             <div style="margin-top: 20px; text-align: center; font-size: 11px; color: var(--color-text-secondary);">
-                v2.10.2 | Created for personal productivity.
+                v2.11.1-beta | Created for personal productivity.
             </div>
         </div>
     </div>
@@ -1300,6 +1333,7 @@ class MultiAPIChat {
         this.references = {};
         this.currentReference = { num: '', url: '' };
         this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
+        this.streamingEnabled = localStorage.getItem('streaming') !== 'false'; // Default true
         this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
         this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
         this.uploadedImage = null;
@@ -1381,7 +1415,7 @@ class MultiAPIChat {
     }
 
     initializeElements() {
-        this.themeToggle = document.getElementById('themeToggle');
+        this.settingsToggle = document.getElementById('settingsToggle');
         this.personaToggle = document.getElementById('personaToggle');
         this.apiKeyToggle = document.getElementById('apiKeyToggle');
         this.oneShotToggle = document.getElementById('oneShotToggle');
@@ -1392,7 +1426,6 @@ class MultiAPIChat {
         this.readmeToggle = document.getElementById('readmeToggle');
 
         this.header = document.getElementById('header');
-        // Removed collapseHeader element init
         this.newTopicBtn = document.getElementById('newTopicBtn');
         this.tabsBar = document.getElementById('tabsBar');
         this.chatContainer = document.getElementById('chatContainer');
@@ -1420,6 +1453,7 @@ class MultiAPIChat {
 
         this.imagePreview = document.getElementById('imagePreview');
 
+        this.settingsPopup = document.getElementById('settingsPopup');
         this.themePopup = document.getElementById('themePopup');
         this.personaPopup = document.getElementById('personaPopup');
         this.modelPopup = document.getElementById('modelPopup');
@@ -1429,6 +1463,9 @@ class MultiAPIChat {
         this.toolsPopup = document.getElementById('toolsPopup');
         this.readmePopup = document.getElementById('readmePopup');
         
+        // Settings Elements
+        this.streamingToggle = document.getElementById('streamingToggle');
+
         // Persona Elements
         this.savedPersonasContainer = document.getElementById('savedPersonasContainer');
         this.saveAsNewPersonaBtn = document.getElementById('saveAsNewPersona');
@@ -1462,7 +1499,7 @@ class MultiAPIChat {
     }
 
     attachEventListeners() {
-        this.themeToggle.addEventListener('click', () => this.togglePopup('theme'));
+        this.settingsToggle.addEventListener('click', () => this.togglePopup('settings'));
         this.personaToggle.addEventListener('click', () => this.togglePopup('persona'));
         this.newTopicBtn.addEventListener('click', () => this.startNewTopic());
         this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
@@ -1479,7 +1516,11 @@ class MultiAPIChat {
             this.togglePopup('history');
         });
         
-        // Removed toggleHeader listener
+        this.streamingToggle.addEventListener('change', (e) => {
+            this.streamingEnabled = e.target.checked;
+            localStorage.setItem('streaming', this.streamingEnabled);
+            this.showStatus(this.streamingEnabled ? 'Streaming enabled' : 'Streaming disabled', 'info');
+        });
 
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
@@ -1582,7 +1623,6 @@ class MultiAPIChat {
     closeSession(id, e) {
         if(e) e.stopPropagation();
         if (Object.keys(this.sessions).length <= 1) {
-            // If it's the last session, just clear it
             this.sessions[id].messages = [];
             this.sessions[id].references = {};
             this.sessions[id].name = `Topic ${this.sessionCounter++}`;
@@ -1592,7 +1632,6 @@ class MultiAPIChat {
 
         delete this.sessions[id];
         
-        // If we closed the active session, switch to the last available one
         if (this.activeSessionId === id) {
             const remainingIds = Object.keys(this.sessions);
             this.switchSession(remainingIds[remainingIds.length - 1]);
@@ -1604,20 +1643,12 @@ class MultiAPIChat {
     saveTabName(id, newName) {
         const name = newName.trim();
         if(!name) {
-            this.renderTabs(); // Revert
+            this.renderTabs(); 
             return;
         }
         
         this.sessions[id].name = name;
-        
-        // If this chat is already saved, update it
-        if(this.savedChats[id]) {
-            this.savedChats[id].name = name;
-            localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-        } else {
-            // Treat renaming as a save trigger per user request
-            this.saveCurrentChat(); 
-        }
+        this.saveCurrentChat(name); 
         this.renderTabs();
     }
 
@@ -1659,7 +1690,6 @@ class MultiAPIChat {
             const nameSpan = document.createElement('span');
             nameSpan.className = 'tab-name';
             nameSpan.textContent = session.name;
-            // Removed double click event per request
             
             const editBtn = document.createElement('span');
             editBtn.className = 'tab-edit';
@@ -1689,7 +1719,6 @@ class MultiAPIChat {
 
     // --- Message & API Logic ---
 
-    // Updated renderMessages to pull from current session state
     renderMessages() {
         this.messagesContainer.innerHTML = '';
         this.messages.forEach((message, index) => {
@@ -1714,7 +1743,15 @@ class MultiAPIChat {
         const actionsEl = document.createElement('div');
         actionsEl.className = 'msg-actions';
 
-        // Word Export Button
+        if (message.role === 'user') {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'msg-btn';
+            editBtn.innerHTML = '✎';
+            editBtn.title = 'Edit';
+            editBtn.onclick = () => this.enableMessageEditing(index);
+            actionsEl.appendChild(editBtn);
+        }
+
         if (message.content) {
             const wordBtn = document.createElement('button');
             wordBtn.className = 'msg-btn';
@@ -1775,17 +1812,149 @@ class MultiAPIChat {
         return messageEl;
     }
 
+    enableMessageEditing(index) {
+        const message = this.messages[index];
+        const container = this.messagesContainer.children[index];
+        const contentEl = container.querySelector('.message-content');
+        
+        contentEl.style.display = 'none';
+        
+        if (container.querySelector('.msg-edit-area')) return;
+
+        const editArea = document.createElement('div');
+        editArea.className = 'msg-edit-area';
+        
+        const textarea = document.createElement('textarea');
+        textarea.className = 'msg-edit-textarea';
+        textarea.value = message.content;
+        
+        const controls = document.createElement('div');
+        controls.className = 'msg-edit-controls';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn--primary btn--sm';
+        saveBtn.textContent = 'Save & Submit';
+        saveBtn.onclick = () => this.submitEditedMessage(index, textarea.value);
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn--secondary btn--sm';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+            editArea.remove();
+            contentEl.style.display = 'block';
+        };
+        
+        controls.appendChild(cancelBtn);
+        controls.appendChild(saveBtn);
+        
+        editArea.appendChild(textarea);
+        editArea.appendChild(controls);
+        
+        container.appendChild(editArea);
+        textarea.focus();
+    }
+
+    async submitEditedMessage(index, newContent) {
+        if (!newContent.trim()) return;
+        
+        this.messages = this.messages.slice(0, index + 1);
+        
+        this.messages[index].content = newContent;
+        this.messages[index].timestamp = new Date();
+        
+        this.renderMessages();
+        
+        this.setLoading(true);
+
+        if (this.streamingEnabled) {
+            const assistantMessageIndex = this.messages.length;
+            const assistantMessage = {
+                role: 'assistant',
+                content: '',
+                timestamp: new Date(),
+                tokenUsage: {},
+                searchResults: [],
+                citations: []
+            };
+            this.messages.push(assistantMessage);
+            this.renderMessages();
+
+            await this.callAPIStream(
+                newContent, 
+                '', 
+                (partialContent) => {
+                    this.messages[assistantMessageIndex].content = partialContent;
+                    this.updateLastMessageContent(partialContent);
+                },
+                (finalContent, metaData) => {
+                    this.messages[assistantMessageIndex].content = finalContent;
+                    this.messages[assistantMessageIndex].tokenUsage = metaData.tokenUsage;
+                    this.messages[assistantMessageIndex].citations = metaData.citations;
+                    if (metaData.citations && metaData.citations.length > 0) {
+                         const msgReferences = this.extractReferencesFromResponse(this.messages[assistantMessageIndex]);
+                         Object.assign(this.references, msgReferences);
+                    }
+                    this.setLoading(false);
+                    this.renderMessages();
+                    this.autoSaveChat();
+                },
+                (error) => {
+                    this.showStatus('Error: ' + error.message, 'error');
+                    this.messages[assistantMessageIndex].content += "\n\n[Error: Connection failed]";
+                    this.setLoading(false);
+                    this.renderMessages();
+                }
+            );
+        } else {
+            // Non-streaming fallback logic
+            try {
+                const response = await this.callAPINonStream(newContent, '');
+                
+                const assistantMessage = {
+                    role: 'assistant',
+                    content: response.content,
+                    timestamp: new Date(),
+                    tokenUsage: response.tokenUsage,
+                    searchResults: response.searchResults || [],
+                    citations: response.citations || []
+                };
+                this.messages.push(assistantMessage);
+                this.renderMessages();
+                this.autoSaveChat();
+            } catch (error) {
+                this.showStatus('Error: ' + error.message, 'error');
+                const fallbackResponse = {
+                    role: 'assistant',
+                    content: "I'm sorry, I encountered an error. Please check your API key and connection.",
+                    timestamp: new Date(),
+                    tokenUsage: {}
+                };
+                this.messages.push(fallbackResponse);
+                this.renderMessages();
+            } finally {
+                this.setLoading(false);
+            }
+        }
+    }
+
+    updateLastMessageContent(content) {
+        const messageEls = this.messagesContainer.querySelectorAll('.message');
+        const lastMsgEl = messageEls[messageEls.length - 1];
+        if (lastMsgEl && lastMsgEl.classList.contains('assistant')) {
+            const contentEl = lastMsgEl.querySelector('.message-content');
+            contentEl.innerHTML = this.renderEnhancedMarkdown(content);
+            this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+        }
+    }
+
     // --- Export Logic ---
 
     exportMessageToWord(content, index) {
-        // Pre-process content to remove references if hidden
         let processedContent = content;
         if (!this.showReferences) {
             processedContent = processedContent.replace(/\[\d+\]/g, '');
         }
 
-        // We use the markdown converter, but standard one might not handle the complex thinking blocks well for Word.
-        // For Word export, we keep it simple.
         const htmlContent = this.converter.makeHtml(processedContent);
         
         const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -1800,7 +1969,6 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.target = '_blank'; // Force new context for download
         link.download = `response_${index + 1}.doc`;
         document.body.appendChild(link);
         link.click();
@@ -1818,13 +1986,11 @@ class MultiAPIChat {
             const actionHeader = document.createElement('div');
             actionHeader.className = 'table-actions';
             
-            // "Copy" Button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'btn btn--secondary btn--sm';
             copyBtn.innerHTML = '📋 Copy';
             copyBtn.onclick = () => this.copyTableToClipboard(table);
 
-            // "Export" Button with Dropdown
             const exportWrapper = document.createElement('div');
             exportWrapper.style.position = 'relative';
             
@@ -1839,7 +2005,7 @@ class MultiAPIChat {
                 { name: '📊 Excel', action: () => this.exportTableToExcel(table, `table_${index}`) },
                 { name: '📄 CSV', action: () => this.exportTableToCSV(table, `table_${index}`) },
                 { name: '{} JSON', action: () => this.exportTableToJSON(table, `table_${index}`) },
-                { name: '↗ Open in Tab', action: () => window.openTableInBrowser(table) }
+                { name: '↗ Open in Window', action: () => window.openTableInBrowser(table) }
             ];
 
             formats.forEach(fmt => {
@@ -1856,7 +2022,6 @@ class MultiAPIChat {
 
             exportBtn.onclick = (e) => {
                 e.stopPropagation();
-                // Close others
                 document.querySelectorAll('.export-dropdown').forEach(d => {
                     if(d !== dropdown) d.classList.remove('show');
                 });
@@ -1887,7 +2052,6 @@ class MultiAPIChat {
 
     exportTableToExcel(table, name) {
         const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
-        // Use browser download mechanism via XLSX lib, ensuring it triggers download
         XLSX.writeFile(wb, `${name}.xlsx`);
     }
 
@@ -1897,10 +2061,8 @@ class MultiAPIChat {
         const csv = XLSX.utils.sheet_to_csv(ws);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        // Open in new window to trigger download as requested (or just download)
         const link = document.createElement('a');
         link.href = url;
-        link.target = '_blank'; // Attempt to trigger in new context
         link.download = `${name}.csv`;
         document.body.appendChild(link);
         link.click();
@@ -1915,7 +2077,6 @@ class MultiAPIChat {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.target = '_blank'; // Attempt to trigger in new context
         link.download = `${name}.json`;
         document.body.appendChild(link);
         link.click();
@@ -1927,10 +2088,8 @@ class MultiAPIChat {
     saveImageInput() {
         let input = this.imageInputString.value.trim();
         if (input) {
-            // Updated strict regex validation
             const base64Pattern = /^data:image\/(png|jpg|jpeg|gif|webp|bmp);base64,[A-Za-z0-9+/=]+$/;
             
-            // Check if it looks like raw base64 (no header)
             const isRawBase64 = /^[A-Za-z0-9+/=]+$/.test(input) && input.length > 50;
             if (isRawBase64) {
                 input = `data:image/png;base64,${input}`;
@@ -1954,7 +2113,7 @@ class MultiAPIChat {
     // --- Rest of standard methods ---
 
     togglePopup(type) {
-        const popups = ['theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
+        const popups = ['settings', 'theme', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
         popups.forEach(popupType => {
             if (popupType !== type) {
                 const popup = document.getElementById(`${popupType}Popup`);
@@ -1973,12 +2132,17 @@ class MultiAPIChat {
                 document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity;
                 document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
             }
+            if (type === 'settings') {
+                // Sync settings state
+                this.streamingToggle.checked = this.streamingEnabled;
+                this.updateThemeOptions();
+            }
         }
     }
 
     exportData() {
         const data = {
-            version: '2.10.2',
+            version: '2.11.1-beta',
             timestamp: new Date().toISOString(),
             savedChats: this.savedChats,
             savedPersonas: this.savedPersonas,
@@ -1988,7 +2152,8 @@ class MultiAPIChat {
             maxTokens: this.maxTokens,
             showReferences: this.showReferences,
             customPrompt: this.customPrompt,
-            customPersonaName: this.customPersonaName
+            customPersonaName: this.customPersonaName,
+            streamingEnabled: this.streamingEnabled
         };
 
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
@@ -2031,6 +2196,10 @@ class MultiAPIChat {
                     if(data.showReferences !== undefined) localStorage.setItem('showReferences', data.showReferences);
                     if(data.customPrompt) localStorage.setItem('customPrompt', data.customPrompt);
                     if(data.customPersonaName) localStorage.setItem('customPersonaName', data.customPersonaName);
+                    if(data.streamingEnabled !== undefined) {
+                        this.streamingEnabled = data.streamingEnabled;
+                        localStorage.setItem('streaming', this.streamingEnabled);
+                    }
 
                     this.loadSettings();
                     Object.assign(this.personas, this.savedPersonas);
@@ -2477,8 +2646,8 @@ class MultiAPIChat {
         }
     }
 
-    saveCurrentChat() {
-        const name = this.chatNameInput.value.trim();
+    saveCurrentChat(nameOverride = null) {
+        const name = nameOverride || this.chatNameInput.value.trim();
         if (!name) {
             this.showStatus('Please enter a chat name', 'warning');
             return;
@@ -2496,11 +2665,12 @@ class MultiAPIChat {
             references: this.references
         };
         localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-        this.chatNameInput.value = '';
+        if(!nameOverride) {
+            this.chatNameInput.value = '';
+        }
         this.renderChatHistory();
         this.showStatus('Chat saved', 'success');
         
-        // Update session name if matches
         if(this.sessions[this.activeSessionId]) {
             this.sessions[this.activeSessionId].name = name;
             this.renderTabs();
@@ -2510,7 +2680,6 @@ class MultiAPIChat {
     clearChatHistory() {
         this.messages = [];
         this.references = {};
-        // Don't change ID here if working with tabs, just clear active session content
         if(this.sessions[this.activeSessionId]) {
             this.sessions[this.activeSessionId].messages = [];
             this.sessions[this.activeSessionId].references = {};
@@ -2522,7 +2691,6 @@ class MultiAPIChat {
     loadChat(id) {
         const chat = this.savedChats[id];
         if (chat) {
-            // Check if already open
             if(this.sessions[id]) {
                 this.switchSession(id);
             } else {
@@ -2691,14 +2859,8 @@ class MultiAPIChat {
     setTheme(theme) {
         document.documentElement.setAttribute('data-color-scheme', theme);
         localStorage.setItem('theme', theme);
-        this.updateThemeIcon(theme);
-        this.togglePopup('theme');
+        this.togglePopup('theme'); // Not used much if merged, but keeping for compatibility if popup exists
         this.updateThemeOptions();
-    }
-
-    updateThemeIcon(theme) {
-        const icon = this.themeToggle.querySelector('.icon');
-        icon.textContent = theme === 'dark' ? '🌙' : '☀️';
     }
 
     updateThemeOptions() {
@@ -2759,7 +2921,6 @@ class MultiAPIChat {
     loadTheme() {
         const theme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-color-scheme', theme);
-        this.updateThemeIcon(theme);
     }
 
     loadSettings() {
@@ -2786,7 +2947,6 @@ class MultiAPIChat {
         if (!message && !this.uploadedImage) return;
         if (this.isLoading) return;
 
-        // If in one-shot mode, clear current context
         if (this.oneShotMode && this.messages.length > 0) {
             this.messages = [];
             this.references = {};
@@ -2818,34 +2978,77 @@ class MultiAPIChat {
 
         this.setLoading(true);
 
-        try {
-            const response = await this.callAPI(message, prefill);
-            
-            const finalContent = prefill ? (prefill + response.content) : response.content;
-            
+        if (this.streamingEnabled) {
+            const assistantMessageIndex = this.messages.length;
             const assistantMessage = {
                 role: 'assistant',
-                content: finalContent,
+                content: prefill || '',
                 timestamp: new Date(),
-                tokenUsage: response.tokenUsage,
-                searchResults: response.searchResults || [],
-                citations: response.citations || []
+                tokenUsage: {},
+                searchResults: [],
+                citations: []
             };
             this.messages.push(assistantMessage);
             this.renderMessages();
-            this.autoSaveChat();
-        } catch (error) {
-            this.showStatus('Error: ' + error.message, 'error');
-            const fallbackResponse = {
-                role: 'assistant',
-                content: "I'm sorry, I encountered an error. Please check your API key and connection.",
-                timestamp: new Date(),
-                tokenUsage: {}
-            };
-            this.messages.push(fallbackResponse);
-            this.renderMessages();
-        } finally {
-            this.setLoading(false);
+
+            await this.callAPIStream(
+                message, 
+                prefill,
+                (partialContent) => {
+                    this.messages[assistantMessageIndex].content = partialContent;
+                    this.updateLastMessageContent(partialContent);
+                },
+                (finalContent, metaData) => {
+                    this.messages[assistantMessageIndex].content = finalContent;
+                    this.messages[assistantMessageIndex].tokenUsage = metaData.tokenUsage;
+                    this.messages[assistantMessageIndex].citations = metaData.citations;
+                    
+                    if (metaData.citations && metaData.citations.length > 0) {
+                         const msgReferences = this.extractReferencesFromResponse(this.messages[assistantMessageIndex]);
+                         Object.assign(this.references, msgReferences);
+                    }
+                    
+                    this.setLoading(false);
+                    this.renderMessages();
+                    this.autoSaveChat();
+                },
+                (error) => {
+                    this.showStatus('Error: ' + error.message, 'error');
+                    this.messages[assistantMessageIndex].content += "\n\n[Error: Connection failed]";
+                    this.setLoading(false);
+                    this.renderMessages();
+                }
+            );
+        } else {
+            // Non-streaming logic
+            try {
+                const response = await this.callAPINonStream(message, prefill);
+                const finalContent = prefill ? (prefill + response.content) : response.content;
+                
+                const assistantMessage = {
+                    role: 'assistant',
+                    content: finalContent,
+                    timestamp: new Date(),
+                    tokenUsage: response.tokenUsage,
+                    searchResults: response.searchResults || [],
+                    citations: response.citations || []
+                };
+                this.messages.push(assistantMessage);
+                this.renderMessages();
+                this.autoSaveChat();
+            } catch (error) {
+                this.showStatus('Error: ' + error.message, 'error');
+                const fallbackResponse = {
+                    role: 'assistant',
+                    content: "I'm sorry, I encountered an error. Please check your API key and connection.",
+                    timestamp: new Date(),
+                    tokenUsage: {}
+                };
+                this.messages.push(fallbackResponse);
+                this.renderMessages();
+            } finally {
+                this.setLoading(false);
+            }
         }
     }
 
@@ -2895,7 +3098,7 @@ class MultiAPIChat {
         return apiMessages;
     }
 
-    async callAPI(message, prefill) {
+    async callAPINonStream(message, prefill) {
         const messages = this.buildMessagesForAPI(prefill);
         const endpoint = this.apiEndpoints[this.currentAPI];
         const apiKey = this.apiKeys[this.currentAPI];
@@ -2929,6 +3132,79 @@ class MultiAPIChat {
         const citations = data.citations || [];
 
         return { content, tokenUsage, searchResults, citations };
+    }
+
+    async callAPIStream(message, prefill, onUpdate, onComplete, onError) {
+        const messages = this.buildMessagesForAPI(prefill);
+        const endpoint = this.apiEndpoints[this.currentAPI];
+        const apiKey = this.apiKeys[this.currentAPI];
+        
+        const requestBody = {
+            model: this.currentModel,
+            messages: messages,
+            max_tokens: this.maxTokens, 
+            temperature: 0.2,
+            stream: true
+        };
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let accumulatedContent = prefill || "";
+            let finalData = { tokenUsage: {}, searchResults: [], citations: [] };
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || "";
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+                    
+                    if (trimmedLine.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(trimmedLine.slice(6));
+                            
+                            const delta = data.choices?.[0]?.delta?.content;
+                            if (delta) {
+                                accumulatedContent += delta;
+                                onUpdate(accumulatedContent);
+                            }
+                            
+                            if (data.usage) finalData.tokenUsage = data.usage;
+                            if (data.citations) finalData.citations = data.citations;
+                            
+                        } catch (e) {
+                            console.warn('Stream parse error:', e);
+                        }
+                    }
+                }
+            }
+            
+            onComplete(accumulatedContent, finalData);
+
+        } catch (error) {
+            onError(error);
+        }
     }
 
     extractReferencesFromResponse(message) {
@@ -3171,16 +3447,6 @@ class MultiAPIChat {
     setLoading(loading) {
         this.isLoading = loading;
         this.sendMessage.disabled = loading;
-        if (loading) {
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'message assistant loading-message';
-            loadingEl.innerHTML = '<div class="loading">Loading response...</div>';
-            this.messagesContainer.appendChild(loadingEl);
-            this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
-        } else {
-            const loadingMsg = document.querySelector('.loading-message');
-            if (loadingMsg) loadingMsg.remove();
-        }
     }
 
     showStatus(message, type = 'info') {
@@ -3213,9 +3479,8 @@ window.openTableInBrowser = function(btn) {
     const table = btn.tagName === 'TABLE' ? btn : btn.closest('.table-responsive').querySelector('table');
     if (!table) return;
     
-    const newWin = window.open('', '_blank');
+    const newWin = window.open('', '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
     if (newWin) {
-        // Prevent parser issues by splitting tags
         const htmlContent = `
             <!DOCTYPE html>
             <html>
