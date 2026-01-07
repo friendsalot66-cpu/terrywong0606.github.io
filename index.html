@@ -16,6 +16,14 @@
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+    <script>
+        // Immediately apply theme to avoid flash
+        try {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-color-scheme', theme);
+        } catch(e) {}
+    </script>
+
     <!-- Embedded CSS -->
     <style>
 :root {
@@ -340,6 +348,16 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 .preview-image { max-height: 80px; border-radius: 4px; }
 .remove-image-btn { position: absolute; top: -8px; right: -8px; background: var(--color-error); color: white; border-radius: 50%; width: 20px; height: 20px; border: 2px solid var(--color-surface); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
+/* Readme / About Popup Styles */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
+.feature-card { background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 12px; transition: transform 0.2s; }
+.feature-card:hover { border-color: var(--color-primary); }
+.feature-icon { font-size: 20px; margin-bottom: 8px; }
+.feature-title { font-weight: 600; margin-bottom: 4px; color: var(--color-text); font-size: 13px; }
+.feature-desc { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.4; }
+.key-section { background-color: var(--color-bg-1); border: 1px solid var(--color-primary); border-radius: var(--radius-base); padding: 16px; margin: 16px 0; }
+.readme-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--color-border); text-align: center; color: var(--color-text-secondary); font-size: 11px; }
+
 @media (max-width: 768px) {
     .sidebar { width: 0; overflow: hidden; padding: 0; border: none; }
     .main-content { margin-left: 0; width: 100%; }
@@ -518,11 +536,71 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
     </div>
 
     <div class="popup hidden" id="readmePopup">
-        <div class="popup-content">
-            <h3>About</h3>
-            <p>Version 2.11.1</p>
-            <p>Multi-API Chat Interface.</p>
-            <a href="readme.html" target="_blank" style="color:var(--color-primary);">View Full Documentation</a>
+        <div class="popup-content" style="max-width: 800px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:12px;">
+                <h3 style="margin:0; border:none; padding:0;">About Multi-API Chat</h3>
+                <button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+            
+            <p>A versatile, static web application designed for power users who need access to multiple advanced LLMs like Perplexity (Sonar) and Moonshot (Kimi) in a single, unified interface.</p>
+
+            <h4 style="margin-top:20px;">Key Features</h4>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-title">Perplexity API</div>
+                    <p class="feature-desc">Access Sonar models (including Pro, Reasoning, and Deep Research) for real-time web search capabilities.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-title">Moonshot API</div>
+                    <p class="feature-desc">Utilize Kimi models (k2 preview, turbo, and thinking) for high-performance Chinese language processing.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👁️</div>
+                    <div class="feature-title">Vision Capabilities</div>
+                    <p class="feature-desc">Upload images or paste image URLs/Base64 strings for analysis using vision-capable models like Sonar Pro.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔁</div>
+                    <div class="feature-title">Feedback Loop</div>
+                    <p class="feature-desc">Teach the model your style by correcting its responses. The app remembers your preferences.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👤</div>
+                    <div class="feature-title">Personas</div>
+                    <p class="feature-desc">Switch between different assistant roles or create your own custom system prompts.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Data Visualization</div>
+                    <p class="feature-desc">Automatic rendering of Highcharts for data visualization and interactive HTML tables.</p>
+                </div>
+            </div>
+
+            <h4 style="margin-top:20px;">Getting Started</h4>
+            <p style="font-size:13px;">Since this is a client-side application, your API keys are stored locally in your browser and are never sent to any intermediate server.</p>
+            
+            <div class="key-section">
+                <h4 style="margin:0 0 8px 0;">🔑 API Keys Required</h4>
+                <p style="font-size:13px; margin:0;">To use this application, you need to obtain API keys from the respective providers:</p>
+                <ul style="font-size:13px; margin-top:8px;">
+                    <li><strong>Perplexity:</strong> <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Get API Key</a></li>
+                    <li><strong>Moonshot AI:</strong> <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Get API Key</a></li>
+                </ul>
+                <p style="font-size: 12px; margin-top: 8px; opacity:0.8;">Click the Key icon in the sidebar to enter your credentials.</p>
+            </div>
+
+            <h4 style="margin-top:20px;">Advanced Usage</h4>
+            <ul style="font-size:13px;">
+                <li><strong>Local Tools (🛠️):</strong> Define shortcuts to local file paths or frequently visited websites.</li>
+                <li><strong>One-Shot Mode (🔥):</strong> When active, every new message clears previous context to save tokens.</li>
+                <li><strong>Partial Mode (📝):</strong> (Moonshot only) Prefill the assistant's response to force specific formats or tones.</li>
+            </ul>
+
+            <div class="readme-footer">
+                <p style="margin:0;">Multi-API Chat Interface v2.11.1</p>
+            </div>
         </div>
     </div>
 
@@ -1009,46 +1087,51 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const win = window.open('', '_blank');
                 if(!win) return;
                 
-                // Write HTML structure
-                win.document.write(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head><title>Conversation Export</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
-                        table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
-                        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
-                        th { background-color: #f8f9fa; }
-                        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
-                        blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
-                        .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }
-                    </style>
-                    </head><body>
-                    <button class="btn" id="exportBtn">Download as .doc</button>
-                    <hr>
-                    <div id="content">${htmlContent}</div>
-                    <script type="module" src="/index.tsx"></script>
-</body></html>`);
+                win.document.title = "Conversation Export";
                 
-                win.document.close();
+                // Reset document content securely
+                while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
+                while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
 
-                // Inject script safely via DOM manipulation
-                const script = win.document.createElement('script');
-                script.textContent = `
-                    document.getElementById('exportBtn').onclick = function() {
-                        var header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
-                        var footer = "</body></html>";
-                        var sourceHTML = header + document.getElementById("content").innerHTML + footer;
-                        var source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-                        var fileDownload = document.createElement("a");
-                        document.body.appendChild(fileDownload);
-                        fileDownload.href = source;
-                        fileDownload.download = 'export.doc';
-                        fileDownload.click();
-                        document.body.removeChild(fileDownload);
-                    };
+                // Style
+                const style = win.document.createElement('style');
+                style.textContent = `
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
+                    table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
+                    th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+                    th { background-color: #f8f9fa; }
+                    pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+                    blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
+                    .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }
                 `;
-                win.document.body.appendChild(script);
+                win.document.head.appendChild(style);
+
+                // Export Button
+                const exportBtn = win.document.createElement('button');
+                exportBtn.className = 'btn';
+                exportBtn.id = 'exportBtn';
+                exportBtn.textContent = 'Download as .doc';
+                exportBtn.onclick = () => {
+                    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
+                    const footer = "</body></html>";
+                    const sourceHTML = header + win.document.getElementById("content").innerHTML + footer;
+                    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+                    const link = win.document.createElement("a");
+                    win.document.body.appendChild(link);
+                    link.href = source;
+                    link.download = 'export.doc';
+                    link.click();
+                    win.document.body.removeChild(link);
+                };
+                win.document.body.appendChild(exportBtn);
+
+                win.document.body.appendChild(win.document.createElement('hr'));
+
+                // Content
+                const contentDiv = win.document.createElement('div');
+                contentDiv.id = 'content';
+                contentDiv.innerHTML = htmlContent;
+                win.document.body.appendChild(contentDiv);
             }
 
             loadTheme() {
@@ -1509,8 +1592,22 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
         window.openTableInBrowser = function(btn) {
             const table = btn.closest('.table-responsive').querySelector('table');
             const win = window.open('', '_blank');
-            win.document.write(`<html><head><title>Table</title><style>body{font-family:sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f2f2f2;}</style></head><body>${table.outerHTML}</body></html>`);
-            win.document.close();
+            if(!win) return;
+            
+            win.document.title = "Table Export";
+            
+            // Reset
+            while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
+            while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
+
+            // Style
+            const style = win.document.createElement('style');
+            style.textContent = `body{font-family:sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f2f2f2;}`;
+            win.document.head.appendChild(style);
+
+            // Table (Clone to avoid moving the original)
+            const tableClone = table.cloneNode(true);
+            win.document.body.appendChild(tableClone);
         };
         
         window.copyCodeBlock = function(id) {
