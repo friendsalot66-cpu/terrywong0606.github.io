@@ -162,7 +162,7 @@ body { margin: 0; padding: 0; }
 
 /* Sidebar */
 .sidebar { 
-    width: 48px; /* Width to accommodate 32px icon + padding */
+    width: 48px; 
     min-width: 48px; 
     flex-shrink: 0; 
     background-color: var(--color-surface); 
@@ -284,12 +284,12 @@ body { margin: 0; padding: 0; }
     margin-top: 4px; 
     padding: 0 4px; 
 }
-/* Enlarged bottom icons (approx 30% larger than 11px) */
+/* Enlarged bottom icons (26px, ~30% larger than 20px) */
 .action-btn { 
     background: none; 
     border: none; 
     cursor: pointer; 
-    font-size: 15px; 
+    font-size: 26px; 
     color: var(--color-text-secondary); 
     opacity: 0.8; 
     transition: all 0.2s; 
@@ -1007,46 +1007,48 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 if (!this.showReferences) processedContent = processedContent.replace(/\[\d+\]/g, '');
                 const htmlContent = this.converter.makeHtml(processedContent);
                 const win = window.open('', '_blank');
-                if(win) {
-                    // Safe injection of script to prevent parser breaking
-                    const scriptStart = '<sc' + 'ript>';
-                    const scriptEnd = '</sc' + 'ript>';
-                    win.document.write(`
-                        <!DOCTYPE html><html><head><title>Conversation Export</title>
-                        <style>
-                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
-                            table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
-                            th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
-                            th { background-color: #f8f9fa; }
-                            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
-                            blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
-                            .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }
-                        </style>
-                        </head><body>
-                        <button class="btn" onclick="saveAsWord()">Download as .doc</button>
-                        <hr>
-                        <div id="content">${htmlContent}</div>
-                        ${scriptStart}
-                            function saveAsWord() {
-                                var header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
-                                     "xmlns:w='urn:schemas-microsoft-com:office:word' "+
-                                     "xmlns='http://www.w3.org/TR/REC-html40'>"+
-                                     "<head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
-                                var footer = "<script type="module" src="/index.tsx"></script>
-</body></html>";
-                                var sourceHTML = header+document.getElementById("content").innerHTML+footer;
-                                var source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-                                var fileDownload = document.createElement("a");
-                                document.body.appendChild(fileDownload);
-                                fileDownload.href = source;
-                                fileDownload.download = 'export.doc';
-                                fileDownload.click();
-                                document.body.removeChild(fileDownload);
-                            }
-                        ${scriptEnd}
-                        </body></html>`);
-                    win.document.close();
-                }
+                if(!win) return;
+                
+                // Write HTML structure
+                win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>Conversation Export</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
+                        table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
+                        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+                        th { background-color: #f8f9fa; }
+                        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+                        blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
+                        .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+                    </style>
+                    </head><body>
+                    <button class="btn" id="exportBtn">Download as .doc</button>
+                    <hr>
+                    <div id="content">${htmlContent}</div>
+                    <script type="module" src="/index.tsx"></script>
+</body></html>`);
+                
+                win.document.close();
+
+                // Inject script safely via DOM manipulation
+                const script = win.document.createElement('script');
+                script.textContent = `
+                    document.getElementById('exportBtn').onclick = function() {
+                        var header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
+                        var footer = "</body></html>";
+                        var sourceHTML = header + document.getElementById("content").innerHTML + footer;
+                        var source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+                        var fileDownload = document.createElement("a");
+                        document.body.appendChild(fileDownload);
+                        fileDownload.href = source;
+                        fileDownload.download = 'export.doc';
+                        fileDownload.click();
+                        document.body.removeChild(fileDownload);
+                    };
+                `;
+                win.document.body.appendChild(script);
             }
 
             loadTheme() {
