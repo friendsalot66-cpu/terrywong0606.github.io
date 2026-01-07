@@ -3,12 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.11.2)</title>
+    <title>Multi-API Chat Interface (v2.12.2)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    
+    <!-- Mathematics (KaTeX) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Diagrams (Mermaid) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+
+    <!-- Documents (PDF.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     
     <!-- Highcharts & SheetJS Dependencies -->
     <script src="https://code.highcharts.com/highcharts.js"></script>
@@ -181,6 +195,7 @@ body { margin: 0; padding: 0; }
     padding: 56px 0 8px 0; 
     gap: var(--space-12); 
     z-index: 100;
+    transition: transform 0.3s ease;
 }
 .sidebar-icon { 
     width: 32px; 
@@ -211,6 +226,8 @@ body { margin: 0; padding: 0; }
   align-items: center;
   min-height: 40px;
 }
+.header-left { display: flex; align-items: center; gap: 8px; }
+.mobile-menu-btn { display: none; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-text); padding: 4px; }
 .header-info h1 { font-size: 14px; font-weight: 600; margin: 0; color: var(--color-text); }
 .header-info small { opacity: 0.7; margin-left: 6px; font-weight: 400; }
 .status-line { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
@@ -256,6 +273,23 @@ body { margin: 0; padding: 0; }
 .message-content { font-size: 14px; line-height: 1.6; color: var(--color-text); }
 .message-image { max-width: 100%; border-radius: var(--radius-base); margin-top: 8px; border: 1px solid var(--color-border); }
 
+/* Thinking Block */
+.thinking-details {
+    border-left: 3px solid var(--color-primary);
+    background-color: var(--color-bg-1);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--color-text-secondary);
+}
+.thinking-details summary { cursor: pointer; font-weight: 500; opacity: 0.8; margin-bottom: 4px; outline: none; }
+.thinking-content { margin-top: 8px; opacity: 0.9; }
+
+/* Mermaid & Math */
+.mermaid { text-align: center; margin: 12px 0; background: var(--color-surface); padding: 8px; border-radius: 4px; overflow-x: auto; }
+.katex { font-size: 1.1em; }
+
 /* Floating Export Button */
 .message-export-btn {
     position: absolute;
@@ -282,45 +316,60 @@ body { margin: 0; padding: 0; }
 .msg-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; padding: 2px; }
 .msg-btn:hover { opacity: 1; color: var(--color-primary); }
 
-/* Input Area */
+/* Input Area Consolidated */
 .input-area { 
     border-top: 1px solid var(--color-border); 
     background-color: var(--color-surface); 
     padding: 6px 12px; 
     position: relative; 
 }
-.input-wrapper { display: flex; background-color: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 8px 12px; align-items: flex-end; gap: 8px; transition: border-color 0.2s; }
-.input-wrapper:focus-within { border-color: var(--color-primary); }
-#messageInput { flex: 1; border: none; outline: none; background: transparent; resize: none; max-height: 150px; font-family: inherit; font-size: 14px; color: var(--color-text); }
-.send-btn { width: 28px; height: 28px; border-radius: 6px; background: var(--color-primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.input-tools { 
+.input-wrapper { 
     display: flex; 
-    gap: 10px; 
-    margin-top: 4px; 
-    padding: 0 4px; 
+    flex-direction: column;
+    background-color: var(--color-background); 
+    border: 1px solid var(--color-border); 
+    border-radius: var(--radius-lg); 
+    padding: 8px 12px; 
+    transition: border-color 0.2s; 
 }
-/* Resized bottom icons (14px, ~80% of 18px) */
+.input-wrapper:focus-within { border-color: var(--color-primary); }
+#messageInput { 
+    border: none; outline: none; background: transparent; resize: none; 
+    max-height: 150px; font-family: inherit; font-size: 14px; color: var(--color-text); 
+    width: 100%; margin-bottom: 4px;
+}
+.input-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.left-tools { display: flex; gap: 8px; }
+
+.send-btn { width: 28px; height: 28px; border-radius: 6px; background: var(--color-primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 .action-btn { 
-    background: none; 
-    border: none; 
-    cursor: pointer; 
-    font-size: 14px; 
-    color: var(--color-text-secondary); 
-    opacity: 0.8; 
-    transition: all 0.2s; 
+    background: none; border: none; cursor: pointer; font-size: 14px; 
+    color: var(--color-text-secondary); opacity: 0.8; transition: all 0.2s; 
+    padding: 4px;
 }
-.action-btn:hover { color: var(--color-primary); opacity: 1; transform: scale(1.1); }
+.action-btn:hover { color: var(--color-primary); opacity: 1; background: var(--color-secondary); border-radius: 4px; }
+
+/* Token Counter */
+.token-est { font-size: 10px; color: var(--color-text-secondary); margin-right: 8px; opacity: 0.7; }
 
 /* FAB */
 .fab-area { position: absolute; bottom: 20px; right: 24px; pointer-events: none; z-index: 20; }
 .fab-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--color-primary); color: white; border: none; box-shadow: var(--shadow-md); font-size: 24px; cursor: pointer; pointer-events: auto; opacity: 0.2; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
 .fab-area:hover .fab-btn, .fab-btn:hover { opacity: 1; transform: scale(1.05); }
 
-/* Popups */
+/* Popups & Drawer */
 .popup { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .popup-content { background: var(--color-surface); padding: 24px; border-radius: var(--radius-lg); width: 100%; max-width: 450px; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-md); border: 1px solid var(--color-border); }
 .popup h3 { margin-top: 0; font-size: 18px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 16px; color: var(--color-text); }
 .popup.hidden { display: none; }
+
+/* Drawer for History */
+#historyPopup { justify-content: flex-start; }
+#historyPopup .popup-content {
+    height: 100%; max-height: 100%; border-radius: 0; width: 300px; max-width: 80vw;
+    margin: 0; animation: slideInLeft 0.3s;
+}
+@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 
 /* Settings */
 .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
@@ -351,9 +400,10 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 .partial-mode-container { margin-bottom: 8px; background: var(--color-bg-1); border: 1px solid var(--color-primary); border-radius: 8px; padding: 8px; }
 .prefill-label { font-size: 11px; color: var(--color-primary); font-weight: 600; display: block; margin-bottom: 4px; }
 #prefillInput { width: 100%; border: none; background: transparent; font-size: 13px; color: var(--color-text); outline: none; resize: none; min-height: 40px; }
-.image-preview { margin-bottom: 8px; border: 1px solid var(--color-border); padding: 8px; border-radius: 8px; display: inline-block; position: relative; }
+.image-preview { margin-bottom: 8px; border: 1px solid var(--color-border); padding: 8px; border-radius: 8px; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--color-text-secondary); background: var(--color-bg-1); }
 .preview-image { max-height: 80px; border-radius: 4px; }
-.remove-image-btn { position: absolute; top: -8px; right: -8px; background: var(--color-error); color: white; border-radius: 50%; width: 20px; height: 20px; border: 2px solid var(--color-surface); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.file-preview-icon { font-size: 24px; margin-right: 4px; }
+.remove-image-btn { margin-left: auto; cursor: pointer; color: var(--color-error); font-weight: bold; padding: 4px; }
 
 /* Readme / About Popup Styles */
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
@@ -366,9 +416,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 .readme-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--color-border); text-align: center; color: var(--color-text-secondary); font-size: 11px; }
 
 @media (max-width: 768px) {
-    .sidebar { width: 0; overflow: hidden; padding: 0; border: none; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 64px; transform: translateX(-100%); transition: transform 0.3s; box-shadow: var(--shadow-md); }
+    .sidebar.open { transform: translateX(0); }
     .main-content { margin-left: 0; width: 100%; }
     .header { padding: 8px 12px; }
+    .mobile-menu-btn { display: block; }
     .popup-content { width: 90%; max-height: 90vh; }
 }
     </style>
@@ -377,7 +429,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 <body>
     <div class="app-container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-icon" id="settingsToggle" title="Settings"><span class="icon">⚙️</span></div>
             <div class="sidebar-icon" id="personaToggle" title="Persona"><span class="icon">👤</span></div>
             <div class="sidebar-icon" id="oneShotToggle" title="One-shot Mode"><span class="icon">🔥</span></div>
@@ -392,12 +444,15 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
         <div class="main-content">
             <!-- Header -->
             <div class="header" id="header">
-                <div class="header-info">
-                    <h1>Multi-API Chat Interface<small>v2.11.2</small></h1>
-                    <div class="status-line">
-                        <span id="modelStatus">Model: Sonar</span>
-                        <span>|</span>
-                        <span id="personaStatus">Persona: All-rounder</span>
+                <div class="header-left">
+                    <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                    <div class="header-info">
+                        <h1>Multi-API Chat Interface<small>v2.12.2</small></h1>
+                        <div class="status-line">
+                            <span id="modelStatus">Model: Sonar</span>
+                            <span>|</span>
+                            <span id="personaStatus">Persona: All-rounder</span>
+                        </div>
                     </div>
                 </div>
                 <!-- Right Side: Status & About -->
@@ -426,24 +481,29 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 
             <!-- Input Area -->
             <div class="input-area">
-                <div id="imagePreview" class="image-preview hidden"></div>
-                <div id="partialModeContainer" class="partial-mode-container hidden">
-                    <span class="prefill-label">Partial / Prefill Mode:</span>
-                    <textarea id="prefillInput" placeholder="Start the assistant's response..."></textarea>
-                </div>
-
                 <div class="input-wrapper">
+                    <div id="imagePreview" class="image-preview hidden"></div>
+                    <div id="partialModeContainer" class="partial-mode-container hidden">
+                        <span class="prefill-label">Partial / Prefill Mode:</span>
+                        <textarea id="prefillInput" placeholder="Start the assistant's response..."></textarea>
+                    </div>
+                    
                     <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
-                    <button class="send-btn" id="sendMessage" title="Send">→</button>
+                    
+                    <div class="input-footer">
+                        <div class="left-tools">
+                             <button class="action-btn hidden" id="togglePartialMode" title="Partial Mode">📝</button>
+                            <button class="action-btn" id="manualImageInput" title="Image URL">📥</button>
+                            <button class="action-btn" id="imageUpload" title="Upload Image/File" onclick="document.getElementById('fileInput').click()">📎</button>
+                            <button class="action-btn" id="modelToggle" title="Change Model">🧠</button>
+                        </div>
+                        <div style="display:flex; align-items:center;">
+                            <span id="tokenEst" class="token-est hidden">~0 toks</span>
+                            <button class="send-btn" id="sendMessage" title="Send">→</button>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="input-tools">
-                    <button class="action-btn hidden" id="togglePartialMode" title="Partial Mode">📝</button>
-                    <button class="action-btn" id="manualImageInput" title="Image URL">📥</button>
-                    <button class="action-btn" id="imageUpload" title="Upload Image">📷</button>
-                    <button class="action-btn" id="modelToggle" title="Change Model">🧠</button>
-                </div>
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.html" style="display: none;">
             </div>
         </div>
     </div>
@@ -566,9 +626,14 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                     <p class="feature-desc">Utilize Kimi models (k2 preview, turbo, and thinking) for high-performance Chinese language processing.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">👁️</div>
-                    <div class="feature-title">Vision Capabilities</div>
-                    <p class="feature-desc">Upload images or paste image URLs/Base64 strings for analysis using vision-capable models like Sonar Pro.</p>
+                    <div class="feature-icon">📄</div>
+                    <div class="feature-title">Document & Vision</div>
+                    <p class="feature-desc">Upload Images, PDFs, and Text files. The app parses documents locally and adds them to context.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Visualization</div>
+                    <p class="feature-desc">Renders Highcharts, interactive Tables, Mermaid diagrams, and LaTeX math equations.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔁</div>
@@ -579,11 +644,6 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                     <div class="feature-icon">👤</div>
                     <div class="feature-title">Personas</div>
                     <p class="feature-desc">Switch between different assistant roles or create your own custom system prompts.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-title">Data Visualization</div>
-                    <p class="feature-desc">Automatic rendering of Highcharts for data visualization and interactive HTML tables.</p>
                 </div>
             </div>
 
@@ -602,13 +662,14 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 
             <h4 style="margin-top:20px;">Advanced Usage</h4>
             <ul style="font-size:13px;">
+                <li><strong>Mermaid Diagrams:</strong> Ask the model to "draw a flowchart" using markdown code blocks.</li>
+                <li><strong>Math Rendering:</strong> Supports LaTeX equations ($E=mc^2$).</li>
                 <li><strong>Local Tools (🛠️):</strong> Define shortcuts to local file paths or frequently visited websites.</li>
                 <li><strong>One-Shot Mode (🔥):</strong> When active, every new message clears previous context to save tokens.</li>
-                <li><strong>Partial Mode (📝):</strong> (Moonshot only) Prefill the assistant's response to force specific formats or tones.</li>
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.11.2</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.2</p>
             </div>
         </div>
     </div>
@@ -619,7 +680,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 <h3 id="referenceTitle" style="margin:0;">Reference</h3>
                 <button id="closeReferencePopup" style="border:none; background:none; font-size:18px; cursor:pointer;">&times;</button>
             </div>
-            <div class="reference-body"><p id="referenceUrl"></p></div>
+            <div class="reference-body"><p id="referenceUrl" style="word-break: break-all; font-size: 13px; color: var(--color-primary);"></p></div>
             <div class="reference-actions" style="margin-top:12px; display:flex; gap:8px;">
                 <button class="btn btn--secondary btn--sm" id="copyReference">Copy URL</button>
                 <button class="btn btn--primary btn--sm" id="openReference">Open Link</button>
@@ -643,17 +704,21 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
     <div class="popup hidden" id="historyPopup">
         <div class="popup-content">
             <h3>Chat History</h3>
+            <div class="form-group">
+                <input type="text" id="historySearch" class="form-control" placeholder="Search chats..." style="margin-bottom:8px;">
+            </div>
             <div class="form-group" style="display: flex; gap: 8px;">
-                <input type="text" id="chatNameInput" class="form-control" placeholder="Chat Name">
+                <input type="text" id="chatNameInput" class="form-control" placeholder="Current Chat Name">
                 <button class="btn btn--primary btn--sm" id="saveChatBtn">Save</button>
             </div>
-            <h4>Saved Chats</h4>
-            <div class="history-list" id="historyList" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
-            <hr style="margin: 16px 0; border:0; border-top:1px solid var(--color-border);">
-            <h4>Data Backup</h4>
-            <div style="display: flex; gap: 8px;">
-                <button class="btn btn--secondary btn--sm" id="exportDataBtn" style="flex:1;">Export All</button>
-                <button class="btn btn--secondary btn--sm" id="importDataBtn" style="flex:1;">Import</button>
+            <div class="history-list" id="historyList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+            
+            <div style="border-top:1px solid var(--color-border); padding-top:16px;">
+                <h4>Data Backup</h4>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn--secondary btn--sm" id="exportDataBtn" style="flex:1;">Export All</button>
+                    <button class="btn btn--secondary btn--sm" id="importDataBtn" style="flex:1;">Import</button>
+                </div>
             </div>
             <input type="file" id="importFileInput" accept=".json" style="display: none;">
         </div>
@@ -709,7 +774,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 
                 this.savedChats = JSON.parse(localStorage.getItem('saved_chats') || '{}');
                 this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
-                this.uploadedImage = null;
+                
+                this.uploadedImage = null; // Stores Base64 for images
+                this.uploadedTextContext = null; // Stores text content for documents
+                this.uploadedFileName = null; // Stores filename for display
+
                 this.sessions = {};
                 this.activeSessionId = null;
                 this.sessionCounter = 1;
@@ -718,6 +787,9 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 this.savedPersonas = JSON.parse(localStorage.getItem('saved_personas') || '{}');
                 this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
                 this.feedbackLoops = JSON.parse(localStorage.getItem('feedback_loops') || '{}');
+
+                // Initialize Mermaid
+                if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'default' });
 
                 this.converter = new showdown.Converter({
                     tables: true, strikethrough: true, tasklists: true, ghCodeBlocks: true, openLinksInNewWindow: true, emoji: true
@@ -752,6 +824,8 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
 
             initializeElements() {
                 // UI Elements
+                this.sidebar = document.getElementById('sidebar');
+                this.mobileMenuBtn = document.getElementById('mobileMenuBtn');
                 this.settingsToggle = document.getElementById('settingsToggle');
                 this.personaToggle = document.getElementById('personaToggle');
                 this.apiKeyToggle = document.getElementById('apiKeyToggle');
@@ -760,8 +834,6 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 this.historyToggle = document.getElementById('historyToggle');
                 this.refToggle = document.getElementById('refToggle');
                 this.toolsToggle = document.getElementById('toolsToggle');
-                // Removed from sidebar: this.readmeToggle = document.getElementById('readmeToggle'); 
-                // Now in header:
                 this.readmeToggle = document.getElementById('readmeToggle');
 
                 this.header = document.getElementById('header');
@@ -786,6 +858,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 this.cancelImageInputBtn = document.getElementById('cancelImageInput');
                 this.imagePreview = document.getElementById('imagePreview');
                 this.statusIndicator = document.getElementById('statusIndicator');
+                this.tokenEst = document.getElementById('tokenEst');
                 
                 // Popups
                 this.settingsPopup = document.getElementById('settingsPopup');
@@ -809,6 +882,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 this.chatNameInput = document.getElementById('chatNameInput');
                 this.saveChatBtn = document.getElementById('saveChatBtn');
                 this.historyList = document.getElementById('historyList');
+                this.historySearch = document.getElementById('historySearch');
                 this.exportDataBtn = document.getElementById('exportDataBtn');
                 this.importDataBtn = document.getElementById('importDataBtn');
                 this.importFileInput = document.getElementById('importFileInput');
@@ -821,6 +895,19 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             }
 
             attachEventListeners() {
+                this.mobileMenuBtn.addEventListener('click', () => {
+                    this.sidebar.classList.toggle('open');
+                });
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', (e) => {
+                    if (window.innerWidth <= 768 && 
+                        this.sidebar.classList.contains('open') && 
+                        !this.sidebar.contains(e.target) && 
+                        e.target !== this.mobileMenuBtn) {
+                        this.sidebar.classList.remove('open');
+                    }
+                });
+
                 this.settingsToggle.addEventListener('click', () => this.togglePopup('settings'));
                 this.personaToggle.addEventListener('click', () => this.togglePopup('persona'));
                 this.apiKeyToggle.addEventListener('click', () => this.togglePopup('apiKey'));
@@ -832,7 +919,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 this.readmeToggle.addEventListener('click', () => this.togglePopup('readme'));
                 
                 this.newTopicBtn.addEventListener('click', () => this.startNewTopic());
-                this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
+                this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
                 this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
                 this.sendMessage.addEventListener('click', () => this.sendUserMessage());
                 this.togglePartialModeBtn.addEventListener('click', () => {
@@ -840,7 +927,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                     if(!this.partialModeContainer.classList.contains('hidden')) this.prefillInput.focus();
                 });
                 
-                this.imageUpload.addEventListener('click', () => this.fileInput.click());
+                // this.imageUpload.addEventListener('click', () => this.fileInput.click()); // Inline onclick used instead
                 this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
                 this.manualImageInput.addEventListener('click', () => this.togglePopup('imageInput'));
                 this.saveImageInputBtn.addEventListener('click', () => this.saveImageInput());
@@ -853,6 +940,8 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                     localStorage.setItem('streamMode', this.streamMode);
                     this.showStatus(`Streaming ${this.streamMode ? 'Enabled' : 'Disabled'}`, 'info');
                 });
+
+                this.historySearch.addEventListener('input', () => this.renderChatHistory());
 
                 document.querySelectorAll('.model-option').forEach(btn => {
                     btn.addEventListener('click', (e) => this.setModel(e.target.dataset.model, e.target.dataset.api));
@@ -885,7 +974,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 document.querySelectorAll('.popup-content').forEach(c => c.addEventListener('click', e => e.stopPropagation()));
             }
 
-            renderSavedPersonas() {
+            renderSavedPersonas() { /* ... existing ... */
                 this.savedPersonasContainer.innerHTML = '';
                 const ids = Object.keys(this.savedPersonas);
                 if (ids.length === 0) {
@@ -902,45 +991,30 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                     const delBtn = document.createElement('span');
                     delBtn.innerHTML = '×';
                     delBtn.style.marginLeft = 'auto'; delBtn.style.padding = '2px 6px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'var(--color-text-secondary)';
-                    
-                    delBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        if (confirm('Delete persona?')) this.deleteSavedPersona(id);
-                    };
-
+                    delBtn.onclick = (e) => { e.stopPropagation(); if (confirm('Delete persona?')) this.deleteSavedPersona(id); };
                     btn.appendChild(delBtn);
-                    btn.onclick = (e) => {
-                        if (e.target === delBtn) return;
-                        this.setPersona(id);
-                    }
+                    btn.onclick = (e) => { if (e.target === delBtn) return; this.setPersona(id); }
                     this.savedPersonasContainer.appendChild(btn);
                 });
             }
 
+            /* ... existing methods ... */
             saveAsNewPersona() {
                 const name = document.getElementById('customPersonaName').value.trim();
                 const prompt = document.getElementById('customPrompt').value;
                 if(!name) return this.showStatus('Name required', 'warning');
-                
                 const id = 'custom_' + Date.now();
                 const newPersona = { name, prompt };
-                this.savedPersonas[id] = newPersona;
-                this.personas[id] = newPersona;
+                this.savedPersonas[id] = newPersona; this.personas[id] = newPersona;
                 localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
-                
-                this.renderSavedPersonas();
-                this.setPersona(id);
-                this.showStatus('Persona Saved', 'success');
+                this.renderSavedPersonas(); this.setPersona(id); this.showStatus('Persona Saved', 'success');
             }
-
             deleteSavedPersona(id) {
-                delete this.savedPersonas[id];
-                delete this.personas[id];
+                delete this.savedPersonas[id]; delete this.personas[id];
                 localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
                 if (this.currentPersona === id) this.setPersona('allrounder');
                 else this.renderSavedPersonas();
             }
-
             createNewSession() {
                 const id = Date.now().toString();
                 this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {} };
@@ -948,29 +1022,17 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             }
             switchSession(id) {
                 if (!this.sessions[id]) return;
-                this.activeSessionId = id;
-                this.messages = this.sessions[id].messages;
-                this.references = this.sessions[id].references;
-                this.currentChatId = id;
-                this.renderTabs();
-                this.renderMessages();
+                this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
+                this.renderTabs(); this.renderMessages();
             }
             closeSession(id, e) {
                 if(e) e.stopPropagation();
                 if (Object.keys(this.sessions).length <= 1) {
-                    this.sessions[id].messages = [];
-                    this.sessions[id].references = {};
-                    this.sessions[id].name = `Topic ${this.sessionCounter++}`;
-                    this.switchSession(id);
-                    return;
+                    this.sessions[id].messages = []; this.sessions[id].references = {}; this.sessions[id].name = `Topic ${this.sessionCounter++}`;
+                    this.switchSession(id); return;
                 }
                 delete this.sessions[id];
-                if (this.activeSessionId === id) {
-                    const remainingIds = Object.keys(this.sessions);
-                    this.switchSession(remainingIds[remainingIds.length - 1]);
-                } else {
-                    this.renderTabs();
-                }
+                if (this.activeSessionId === id) { const remainingIds = Object.keys(this.sessions); this.switchSession(remainingIds[remainingIds.length - 1]); } else { this.renderTabs(); }
             }
             renderTabs() {
                 this.tabsBar.innerHTML = '';
@@ -981,23 +1043,17 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                         if(e.target.classList.contains('tab-close') || e.target.classList.contains('tab-edit') || e.target.tagName === 'INPUT') return;
                         this.switchSession(session.id);
                     };
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'tab-name';
-                    nameSpan.textContent = session.name;
-                    const editBtn = document.createElement('span');
-                    editBtn.className = 'tab-edit'; editBtn.innerHTML = '✎';
+                    const nameSpan = document.createElement('span'); nameSpan.className = 'tab-name'; nameSpan.textContent = session.name;
+                    const editBtn = document.createElement('span'); editBtn.className = 'tab-edit'; editBtn.innerHTML = '✎';
                     editBtn.onclick = (e) => { e.stopPropagation(); this.startTabRenaming(session.id, nameSpan); };
-                    const closeBtn = document.createElement('span');
-                    closeBtn.className = 'tab-close'; closeBtn.innerHTML = '×';
+                    const closeBtn = document.createElement('span'); closeBtn.className = 'tab-close'; closeBtn.innerHTML = '×';
                     closeBtn.onclick = (e) => this.closeSession(session.id, e);
                     tab.append(nameSpan, editBtn, closeBtn);
                     this.tabsBar.appendChild(tab);
                 });
             }
             startTabRenaming(id, el) {
-                const input = document.createElement('input');
-                input.className = 'tab-name-input';
-                input.value = this.sessions[id].name;
+                const input = document.createElement('input'); input.className = 'tab-name-input'; input.value = this.sessions[id].name;
                 input.onblur = () => this.saveTabName(id, input.value);
                 input.onkeydown = (e) => { if(e.key === 'Enter') input.blur(); };
                 el.innerHTML = ''; el.appendChild(input); input.focus();
@@ -1006,22 +1062,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const name = newName.trim();
                 if(name) {
                     this.sessions[id].name = name;
-                    
-                    // Create or update saved chat entry for sync
-                    if (!this.savedChats[id]) {
-                         this.savedChats[id] = { 
-                            id: id, 
-                            name: name, 
-                            messages: this.sessions[id].messages, 
-                            references: this.sessions[id].references 
-                         };
-                    } else {
-                        this.savedChats[id].name = name;
-                    }
+                    if (!this.savedChats[id]) { this.savedChats[id] = { id: id, name: name, messages: this.sessions[id].messages, references: this.sessions[id].references }; } 
+                    else { this.savedChats[id].name = name; }
                     localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
                 }
-                this.renderTabs();
-                this.renderChatHistory();
+                this.renderTabs(); this.renderChatHistory();
             }
 
             renderMessages() {
@@ -1046,15 +1091,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const actionsEl = document.createElement('div');
                 actionsEl.className = 'msg-actions';
                 if (message.role === 'user') {
-                    const editBtn = document.createElement('button');
-                    editBtn.className = 'msg-btn'; editBtn.innerHTML = '✎'; editBtn.title = 'Edit Prompt';
-                    editBtn.onclick = () => this.enableMessageEditing(index);
-                    actionsEl.appendChild(editBtn);
+                    const editBtn = document.createElement('button'); editBtn.className = 'msg-btn'; editBtn.innerHTML = '✎'; editBtn.title = 'Edit Prompt';
+                    editBtn.onclick = () => this.enableMessageEditing(index); actionsEl.appendChild(editBtn);
                 }
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'msg-btn'; copyBtn.innerHTML = '📋'; copyBtn.title = 'Copy';
-                copyBtn.onclick = () => this.copyMessage(message.content);
-                actionsEl.appendChild(copyBtn);
+                const copyBtn = document.createElement('button'); copyBtn.className = 'msg-btn'; copyBtn.innerHTML = '📋'; copyBtn.title = 'Copy';
+                copyBtn.onclick = () => this.copyMessage(message.content); actionsEl.appendChild(copyBtn);
                 headerEl.appendChild(actionsEl);
 
                 const contentEl = document.createElement('div');
@@ -1074,11 +1115,22 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                         this.processHighcharts(contentEl);
                         this.processTables(contentEl);
                         
+                        // NEW: Initialize Mermaid and Math
+                        if (window.mermaid) mermaid.init(undefined, contentEl.querySelectorAll('.mermaid'));
+                        if (window.renderMathInElement) {
+                            renderMathInElement(contentEl, {
+                                delimiters: [
+                                    {left: '$$', right: '$$', display: true},
+                                    {left: '$', right: '$', display: false},
+                                    {left: '\\(', right: '\\)', display: false},
+                                    {left: '\\[', right: '\\]', display: true}
+                                ],
+                                throwOnError: false
+                            });
+                        }
+
                         // Floating Export Button
-                        const exportBtn = document.createElement('button');
-                        exportBtn.className = 'message-export-btn';
-                        exportBtn.innerHTML = '📄';
-                        exportBtn.title = 'Open in New Window';
+                        const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📄'; exportBtn.title = 'Open in New Window';
                         exportBtn.onclick = () => this.exportMessageToWindow(message.content);
                         messageEl.appendChild(exportBtn);
                     }
@@ -1098,62 +1150,20 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const htmlContent = this.converter.makeHtml(processedContent);
                 const win = window.open('', '_blank');
                 if(!win) return;
-                
                 win.document.title = "Conversation Export";
-                
-                // Reset document content securely
                 while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
                 while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
-
-                // Style
                 const style = win.document.createElement('style');
-                style.textContent = `
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
-                    table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
-                    th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
-                    th { background-color: #f8f9fa; }
-                    pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
-                    blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
-                    .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }
-                `;
+                style.textContent = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; } table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; } th, td { padding: 12px; border: 1px solid #ddd; text-align: left; } th { background-color: #f8f9fa; } pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; } blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; } .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }`;
                 win.document.head.appendChild(style);
-
-                // Export Button
-                const exportBtn = win.document.createElement('button');
-                exportBtn.className = 'btn';
-                exportBtn.id = 'exportBtn';
-                exportBtn.textContent = 'Download as .doc';
-                exportBtn.onclick = () => {
-                    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
-                    const footer = "</body></html>";
-                    const sourceHTML = header + win.document.getElementById("content").innerHTML + footer;
-                    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-                    const link = win.document.createElement("a");
-                    win.document.body.appendChild(link);
-                    link.href = source;
-                    link.download = 'export.doc';
-                    link.click();
-                    win.document.body.removeChild(link);
-                };
-                win.document.body.appendChild(exportBtn);
-
-                win.document.body.appendChild(win.document.createElement('hr'));
-
-                // Content
                 const contentDiv = win.document.createElement('div');
-                contentDiv.id = 'content';
-                contentDiv.innerHTML = htmlContent;
+                contentDiv.id = 'content'; contentDiv.innerHTML = htmlContent;
                 win.document.body.appendChild(contentDiv);
             }
 
             loadTheme() {
                 const savedTheme = localStorage.getItem('theme');
-                if (savedTheme) {
-                    this.setTheme(savedTheme);
-                } else {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    this.setTheme(prefersDark ? 'dark' : 'light');
-                }
+                if (savedTheme) { this.setTheme(savedTheme); } else { const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; this.setTheme(prefersDark ? 'dark' : 'light'); }
             }
 
             setTheme(theme) {
@@ -1163,12 +1173,9 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             }
             
             updateUI() {
-                // Update toggle states
                 if(this.themeToggle) this.themeToggle.checked = (localStorage.getItem('theme') === 'dark');
                 if(this.streamToggle) this.streamToggle.checked = this.streamMode;
-                
-                this.updatePersonaOptions();
-                this.updateModelOptions();
+                this.updatePersonaOptions(); this.updateModelOptions();
                 if(this.oneShotToggle) this.oneShotToggle.classList.toggle('active', this.oneShotMode);
                 if(this.refToggle) this.refToggle.classList.toggle('active', this.showReferences);
                 if(this.feedbackToggle) this.feedbackToggle.classList.toggle('active', this.feedbackMode);
@@ -1177,13 +1184,22 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             renderEnhancedMarkdown(text) {
                 if (!text) return '';
                 let processedText = String(text);
+                
+                // Pre-process Mermaid Blocks to avoid Markdown Parser messing them up
+                processedText = processedText.replace(/<pre><code class="mermaid">([\s\S]*?)<\/code><\/pre>/g, '<div class="mermaid">$1</div>');
+                // Also catch ```mermaid
+                processedText = processedText.replace(/```mermaid([\s\S]*?)```/g, '<div class="mermaid">$1</div>');
+
                 const thinkBlocks = new Map();
                 processedText = processedText.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
                     const id = `THINKBLOCKTOKEN${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
                     thinkBlocks.set(id, content.trim());
                     return id;
                 });
+                
+                // Normalize numbered lists
                 processedText = processedText.replace(/(^|\n)(\d+)\.\s/gm, '$1$2. ');
+                
                 let html;
                 try { html = this.converter.makeHtml(processedText); } 
                 catch (e) { html = processedText.replace(/\n/g, '<br>'); }
@@ -1197,6 +1213,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 });
 
                 html = html.replace(/<pre><code class="([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
+                    if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
                     const language = langClass ? langClass.replace('language-', '') : 'text';
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
                     return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}')">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
@@ -1262,7 +1279,12 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 });
             }
             renderChatHistory() {
-                this.renderGenericList(Object.keys(this.savedChats).sort((a,b)=>b-a), 'historyList', (id) => {
+                const query = this.historySearch.value.toLowerCase();
+                const ids = Object.keys(this.savedChats).sort((a,b)=>b-a).filter(id => {
+                    const chat = this.savedChats[id];
+                    return !query || chat.name.toLowerCase().includes(query);
+                });
+                this.renderGenericList(ids, 'historyList', (id) => {
                     const chat = this.savedChats[id];
                     return `<div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px;"><span class="history-name">${chat.name}</span><div class="history-actions" style="display:flex; gap:4px;"><button class="btn btn--primary btn--sm" onclick="window.chatApp.loadChat('${id}')">Load</button><button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteChat('${id}')">🗑️</button></div></div>`;
                 });
@@ -1271,18 +1293,12 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const container = document.getElementById(containerId);
                 container.innerHTML = items.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);">Empty</p>';
                 items.forEach(item => {
-                    const el = document.createElement('div');
-                    el.innerHTML = mapFn(item);
-                    container.appendChild(el.firstChild);
+                    const el = document.createElement('div'); el.innerHTML = mapFn(item); container.appendChild(el.firstChild);
                 });
             }
             showStatus(msg, type='info') {
-                this.statusIndicator.textContent = msg;
-                this.statusIndicator.className = `status status--${type} show`;
-                setTimeout(() => {
-                    this.statusIndicator.classList.remove('show');
-                    this.statusIndicator.classList.add('hidden');
-                }, 3000);
+                this.statusIndicator.textContent = msg; this.statusIndicator.className = `status status--${type} show`;
+                setTimeout(() => { this.statusIndicator.classList.remove('show'); this.statusIndicator.classList.add('hidden'); }, 3000);
             }
             setModel(m, a) { 
                 if(!m || !a) return; 
@@ -1301,20 +1317,32 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             async sendUserMessage() {
                 const msg = this.messageInput.value.trim();
                 const pre = this.prefillInput.value.trim();
-                if (!msg && !this.uploadedImage) return;
+                if (!msg && !this.uploadedImage && !this.uploadedTextContext) return;
                 if (this.isLoading) return;
                 if (this.oneShotMode && this.messages.length > 0) { this.messages = []; this.references = {}; }
                 
-                this.messages.push({ role: 'user', content: msg, image: this.uploadedImage, timestamp: new Date() });
+                // Construct message with attachments
+                let fullContent = msg;
+                if (this.uploadedTextContext) {
+                    fullContent = `[Attached File: ${this.uploadedFileName}]\n\n${this.uploadedTextContext}\n\n[End of File]\n\n${msg}`;
+                }
+
+                this.messages.push({ role: 'user', content: fullContent, image: this.uploadedImage, timestamp: new Date() });
+                
+                // Reset inputs
                 this.messageInput.value = ''; this.prefillInput.value = ''; this.partialModeContainer.classList.add('hidden');
-                this.resetTextareaSize(); this.removeImagePreview(); this.uploadedImage = null; this.renderMessages();
+                this.resetTextareaSize(); this.removeImagePreview(); 
+                this.uploadedImage = null; this.uploadedTextContext = null; this.uploadedFileName = null;
+                this.updateTokenEstimate(); // Reset count
+
+                this.renderMessages();
                 
                 if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); return; }
                 this.setLoading(true);
                 try {
-                    if (this.streamMode) await this.streamResponse(msg, pre);
+                    if (this.streamMode) await this.streamResponse(fullContent, pre);
                     else {
-                        const res = await this.callAPI(msg, pre);
+                        const res = await this.callAPI(fullContent, pre);
                         const content = pre ? pre + res.content : res.content;
                         this.messages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations });
                         this.renderMessages(); this.autoSaveChat();
@@ -1323,13 +1351,9 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 finally { this.setLoading(false); }
             }
             
-            startNewTopic() {
-                this.createNewSession();
-                this.showStatus('New Topic Started', 'success');
-            }
-
+            startNewTopic() { this.createNewSession(); this.showStatus('New Topic Started', 'success'); }
             resetTextareaSize() { this.messageInput.style.height = 'auto'; this.messageInput.rows = 1; }
-            removeImagePreview() { if (this.imagePreview) { this.imagePreview.classList.add('hidden'); this.imagePreview.innerHTML = ''; } this.uploadedImage = null; this.fileInput.value = ''; }
+            removeImagePreview() { if (this.imagePreview) { this.imagePreview.classList.add('hidden'); this.imagePreview.innerHTML = ''; } this.uploadedImage = null; this.uploadedTextContext = null; this.fileInput.value = ''; this.updateTokenEstimate(); }
             setLoading(l) { this.isLoading = l; this.sendMessage.disabled = l; if(l && !this.streamMode) { const div = document.createElement('div'); div.className='message assistant loading'; div.textContent='Loading...'; this.messagesContainer.appendChild(div); } else { const l = this.messagesContainer.querySelector('.loading'); if(l) l.remove(); } }
 
             async callAPI(msg, pre) {
@@ -1345,14 +1369,30 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             
             buildMessagesForAPI(pre) {
                 let sys = this.personas[this.currentPersona]?.prompt || '';
-                // Feedback injection
                 if(this.feedbackLoops[this.currentChatId]?.length) {
                     sys += '\n\nUser corrections to learn from:\n' + this.feedbackLoops[this.currentChatId].map((f,i)=>`${i+1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
                 }
                 const msgs = [{ role: 'system', content: sys }];
                 const recent = this.messages.slice(-15);
+                
                 recent.forEach(m => {
-                    if(m.role==='user') msgs.push({ role: 'user', content: m.image ? [{type:'text', text:m.content||" "},{type:'image_url', image_url:{url:m.image}}] : m.content });
+                    if(m.role==='user') {
+                        // SMART CONTENT HANDLING:
+                        // If model is Perplexity/Sonar (Text Only), send content as string, ignore image.
+                        // If model is Moonshot (Kimi), keep image structure.
+                        let contentPayload = m.content;
+                        
+                        if (m.image) {
+                             if (this.currentAPI === 'moonshot') {
+                                 // Vision Supported
+                                 contentPayload = [{type:'text', text:m.content||" "},{type:'image_url', image_url:{url:m.image}}];
+                             } else {
+                                 // Text Only (Perplexity) - append a note about the missing image
+                                 contentPayload = (m.content || "") + "\n\n[System Note: Image attachment was stripped as this model does not support vision]";
+                             }
+                        }
+                        msgs.push({ role: 'user', content: contentPayload });
+                    }
                     else if(m.role==='assistant' && m.content) msgs.push({ role: 'assistant', content: m.content });
                 });
                 if(pre && this.currentAPI === 'moonshot') msgs.push({ role: 'assistant', content: pre });
@@ -1375,8 +1415,6 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const decoder = new TextDecoder();
                 let done = false;
                 
-                const msgIndex = this.messages.length - 1;
-                await new Promise(r => setTimeout(r, 0)); 
                 const msgElement = this.messagesContainer.lastElementChild;
                 const contentDiv = msgElement.querySelector('.message-content');
 
@@ -1395,6 +1433,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                                     if(delta) {
                                         assistantMessage.content += delta;
                                         contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                        
+                                        // Dynamic post-processing for streaming content
+                                        if (window.renderMathInElement) renderMathInElement(contentDiv, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError:false});
+                                        if (window.mermaid) mermaid.init(undefined, contentDiv.querySelectorAll('.mermaid'));
+                                        
                                         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
                                     }
                                 } catch(e){}
@@ -1405,6 +1448,108 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 finally { assistantMessage.isStreaming = false; this.renderMessages(); this.autoSaveChat(); }
             }
             
+            saveImageInput() {
+                const val = document.getElementById('imageInputString').value;
+                if(val) { this.uploadedImage = val; this.showStatus('Image Set', 'success'); this.togglePopup('imageInput'); }
+            }
+            
+            async handleFileUpload(e) {
+                const f = e.target.files[0];
+                if (!f) return;
+                
+                this.uploadedFileName = f.name;
+                const preview = document.getElementById('imagePreview');
+                preview.classList.remove('hidden');
+                
+                if (f.type.startsWith('image/')) {
+                    const r = new FileReader();
+                    r.onload = (ev) => { 
+                        this.uploadedImage = ev.target.result; 
+                        preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('Image Ready', 'success');
+                        this.updateTokenEstimate();
+                    };
+                    r.readAsDataURL(f);
+                } else if (f.type === 'application/pdf') {
+                    // PDF Parsing using pdf.js
+                    try {
+                        const arrayBuffer = await f.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                        let fullText = "";
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+                        }
+                        this.uploadedTextContext = fullText.trim();
+                        preview.innerHTML = `<span class="file-preview-icon">📄</span> <span>${f.name} (PDF, ${pdf.numPages} pg)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('PDF Parsed', 'success');
+                        this.updateTokenEstimate();
+                    } catch (err) {
+                        this.showStatus('PDF Error: ' + err.message, 'error');
+                        console.error(err);
+                    }
+                } else {
+                    // Text / Code / CSV
+                    const r = new FileReader();
+                    r.onload = (ev) => {
+                        this.uploadedTextContext = ev.target.result;
+                        let icon = '📄';
+                        if (f.name.endsWith('.csv')) icon = '📊';
+                        if (f.name.endsWith('.json')) icon = '{ }';
+                        if (f.name.endsWith('.js') || f.name.endsWith('.py')) icon = '💻';
+                        
+                        preview.innerHTML = `<span class="file-preview-icon">${icon}</span> <span>${f.name} (${Math.round(f.size/1024)}KB)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('File Read', 'success');
+                        this.updateTokenEstimate();
+                    };
+                    r.readAsText(f);
+                }
+            }
+
+            updateTokenEstimate() {
+                let text = this.messageInput.value || "";
+                if (this.uploadedTextContext) text += this.uploadedTextContext;
+                // Rough estimate: 1 token ~= 4 chars (English) or 0.7 chars (Chinese/Unicode)
+                // We'll use a mixed heuristic
+                const len = text.length;
+                const estTokens = Math.ceil(len / 3.5); // Conservative average
+                
+                this.tokenEst.textContent = `~${estTokens} toks`;
+                this.tokenEst.classList.remove('hidden');
+                if (estTokens > 100000) this.tokenEst.style.color = 'var(--color-error)';
+                else this.tokenEst.style.color = 'var(--color-text-secondary)';
+            }
+            
+            /* ... Rest of existing methods ... */
+            extractReferencesFromResponse(msg) { 
+                if (!msg.citations || !Array.isArray(msg.citations)) return {};
+                const refs = {};
+                msg.citations.forEach((url, idx) => {
+                    refs[idx + 1] = url; // Perplexity uses 1-based indexing for citations
+                });
+                return refs;
+            } 
+            createTokenUsageCornerElement(u) { const d = document.createElement('div'); d.className='token-usage-corner'; d.style.fontSize='10px'; d.style.opacity='0.5'; d.style.position='absolute'; d.style.top='8px'; d.style.right='36px'; d.textContent = u.total_tokens ? u.total_tokens+'T' : ''; return d; }
+            attachReferenceHandlers(el) { 
+                el.querySelectorAll('.reference-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        const refNum = e.target.dataset.ref;
+                        const url = this.references[refNum];
+                        if (url) {
+                            this.currentReference = { num: refNum, url: url };
+                            document.getElementById('referenceTitle').textContent = `Source [${refNum}]`;
+                            document.getElementById('referenceUrl').textContent = url;
+                            this.referencePopup.classList.remove('hidden');
+                        } else {
+                            this.showStatus('Reference URL not found', 'warning');
+                        }
+                    });
+                });
+            }
+            processHighcharts(el) { /* ... */ }
+
             processTables(container) {
                 container.querySelectorAll('table').forEach((table, idx) => {
                     if(table.parentNode.classList.contains('table-responsive')) return;
@@ -1421,7 +1566,6 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 document.execCommand('copy'); window.getSelection().removeAllRanges();
                 this.showStatus('Table copied', 'success');
             }
-            
             openTool(path) { window.open(path.startsWith('http') ? path : 'https://' + path, '_blank'); }
             deleteChat(id) { delete this.savedChats[id]; localStorage.setItem('saved_chats', JSON.stringify(this.savedChats)); this.renderChatHistory(); }
             loadChat(id) { 
@@ -1432,18 +1576,11 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             }
             deleteTool(id) { this.localTools = this.localTools.filter(t=>t.id!==id); localStorage.setItem('localTools', JSON.stringify(this.localTools)); this.renderToolsList(); }
             addTool() {
-                const name = document.getElementById('toolNameInput').value;
-                const path = document.getElementById('toolPathInput').value;
-                if(name && path) {
-                    this.localTools.push({ id:Date.now(), name, path });
-                    localStorage.setItem('localTools', JSON.stringify(this.localTools));
-                    this.renderToolsList();
-                }
+                const name = document.getElementById('toolNameInput').value; const path = document.getElementById('toolPathInput').value;
+                if(name && path) { this.localTools.push({ id:Date.now(), name, path }); localStorage.setItem('localTools', JSON.stringify(this.localTools)); this.renderToolsList(); }
             }
-            
             importData(e) {
-                const file = e.target.files[0];
-                if(!file) return;
+                const file = e.target.files[0]; if(!file) return;
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
@@ -1451,8 +1588,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                         if(data.savedChats) { this.savedChats = data.savedChats; localStorage.setItem('saved_chats', JSON.stringify(this.savedChats)); }
                         if(data.savedPersonas) { this.savedPersonas = data.savedPersonas; localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas)); }
                         if(data.localTools) { this.localTools = data.localTools; localStorage.setItem('localTools', JSON.stringify(this.localTools)); }
-                        this.showStatus('Import Successful', 'success');
-                        setTimeout(() => location.reload(), 1000);
+                        this.showStatus('Import Successful', 'success'); setTimeout(() => location.reload(), 1000);
                     } catch(err) { this.showStatus('Invalid File', 'error'); }
                 };
                 reader.readAsText(file);
@@ -1463,12 +1599,8 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = 'chat_backup.json'; a.click();
             }
-            
             saveApiKeys() { this.apiKeys.perplexity = document.getElementById('perplexityApiKey').value; this.apiKeys.moonshot = document.getElementById('moonshotApiKey').value; localStorage.setItem('perplexity_api_key', this.apiKeys.perplexity); localStorage.setItem('moonshot_api_key', this.apiKeys.moonshot); this.togglePopup('apiKey'); this.showStatus('Keys saved', 'success'); }
             toggleApiKeysVisibility() { const p = document.getElementById('perplexityApiKey'); p.type = p.type==='password'?'text':'password'; document.getElementById('moonshotApiKey').type = p.type; }
-            extractReferencesFromResponse(msg) { return {}; } 
-            createTokenUsageCornerElement(u) { const d = document.createElement('div'); d.className='token-usage-corner'; d.style.fontSize='10px'; d.style.opacity='0.5'; d.style.position='absolute'; d.style.top='8px'; d.style.right='36px'; d.textContent = u.total_tokens ? u.total_tokens+'T' : ''; return d; }
-            attachReferenceHandlers(el) { /* ... */ }
             processHighcharts(el) { /* ... */ }
             handleTextSelection(e) {
                 const sel = window.getSelection();
@@ -1506,80 +1638,39 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 }
             }
             updateMaxTokens(v) { this.maxTokens = parseInt(v); this.maxTokensValue.textContent = v; localStorage.setItem('maxTokens', v); }
-            saveImageInput() {
-                const val = document.getElementById('imageInputString').value;
-                if(val) { this.uploadedImage = val; this.showStatus('Image Set', 'success'); this.togglePopup('imageInput'); }
-            }
-            handleFileUpload(e) {
-                const f = e.target.files[0];
-                if(f) {
-                    const r = new FileReader();
-                    r.onload = (ev) => { this.uploadedImage = ev.target.result; this.showStatus('Image Uploaded', 'success'); };
-                    r.readAsDataURL(f);
-                }
-            }
             copyMessage(text) { navigator.clipboard.writeText(text).then(() => this.showStatus('Copied', 'success')); }
-            
             enableMessageEditing(index) {
                 const msg = this.messages[index];
                 const msgEl = this.messagesContainer.children[index];
                 if (!msgEl) return;
-                
                 const contentEl = msgEl.querySelector('.message-content');
-                if (contentEl.querySelector('.msg-edit-textarea')) return; // Already editing
-
+                if (contentEl.querySelector('.msg-edit-textarea')) return; 
                 const currentText = msg.content;
                 const originalHTML = contentEl.innerHTML;
                 contentEl.innerHTML = '';
-                
-                const editArea = document.createElement('div');
-                editArea.className = 'msg-edit-area';
-                
-                const textarea = document.createElement('textarea');
-                textarea.className = 'msg-edit-textarea';
-                textarea.value = currentText;
-                
-                const controls = document.createElement('div');
-                controls.className = 'msg-edit-controls';
-                
-                const saveBtn = document.createElement('button');
-                saveBtn.className = 'btn btn--primary btn--sm';
-                saveBtn.textContent = 'Save & Regenerate';
+                const editArea = document.createElement('div'); editArea.className = 'msg-edit-area';
+                const textarea = document.createElement('textarea'); textarea.className = 'msg-edit-textarea'; textarea.value = currentText;
+                const controls = document.createElement('div'); controls.className = 'msg-edit-controls';
+                const saveBtn = document.createElement('button'); saveBtn.className = 'btn btn--primary btn--sm'; saveBtn.textContent = 'Save & Regenerate';
                 saveBtn.onclick = () => {
                     const newText = textarea.value.trim();
                     if (newText) {
                         this.messages[index].content = newText;
                         this.messages = this.messages.slice(0, index + 1);
-                        
-                        this.renderMessages();
-                        this.setLoading(true);
-                        
-                        if (this.streamMode) {
-                            this.streamResponse(null, null); 
-                        } else {
+                        this.renderMessages(); this.setLoading(true);
+                        if (this.streamMode) { this.streamResponse(null, null); } 
+                        else {
                             this.callAPI(null, null).then(res => {
                                 this.messages.push({ role: 'assistant', content: res.content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations });
-                                this.renderMessages(); 
-                                this.autoSaveChat();
-                                this.setLoading(false);
-                            }).catch(e => {
-                                this.showStatus('Error: ' + e.message, 'error');
-                                this.setLoading(false);
-                            });
+                                this.renderMessages(); this.autoSaveChat(); this.setLoading(false);
+                            }).catch(e => { this.showStatus('Error: ' + e.message, 'error'); this.setLoading(false); });
                         }
                     }
                 };
-                
-                const cancelBtn = document.createElement('button');
-                cancelBtn.className = 'btn btn--secondary btn--sm';
-                cancelBtn.textContent = 'Cancel';
+                const cancelBtn = document.createElement('button'); cancelBtn.className = 'btn btn--secondary btn--sm'; cancelBtn.textContent = 'Cancel';
                 cancelBtn.onclick = () => { contentEl.innerHTML = originalHTML; };
-                
-                controls.append(cancelBtn, saveBtn);
-                editArea.append(textarea, controls);
-                contentEl.appendChild(editArea);
+                controls.append(cancelBtn, saveBtn); editArea.append(textarea, controls); contentEl.appendChild(editArea);
             }
-
             handleOutsideClick(e) { if(e.target.classList.contains('popup')) e.target.classList.add('hidden'); }
             copyReference() { navigator.clipboard.writeText(document.getElementById('referenceUrl').textContent); }
             openReference() { window.open(document.getElementById('referenceUrl').textContent, '_blank'); }
@@ -1588,8 +1679,7 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
                 const name = document.getElementById('chatNameInput').value || this.sessions[this.currentChatId].name;
                 this.savedChats[this.currentChatId] = { id: this.currentChatId, name, messages: this.messages, references: this.references };
                 localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
-                this.renderChatHistory();
-                this.showStatus('Chat Saved', 'success');
+                this.renderChatHistory(); this.showStatus('Chat Saved', 'success');
             }
         }
 
@@ -1597,16 +1687,12 @@ pre { background: var(--color-secondary); padding: 12px; border-radius: 6px; ove
             const table = btn.closest('.table-responsive').querySelector('table');
             const win = window.open('', '_blank');
             if(!win) return;
-            
             win.document.title = "Table Export";
-            
             while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
             while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
-
             const style = win.document.createElement('style');
             style.textContent = `body{font-family:sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#f2f2f2;}`;
             win.document.head.appendChild(style);
-
             const tableClone = table.cloneNode(true);
             win.document.body.appendChild(tableClone);
         };
