@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.5)</title>
+    <title>Multi-API Chat Interface (v2.12.6)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -367,7 +367,8 @@ body { margin: 0; padding: 0; }
 #messageInput { 
     border: none; outline: none; background: transparent; resize: none; 
     max-height: 150px; font-family: inherit; font-size: 14px; color: var(--color-text); 
-    width: 100%; margin-bottom: 4px;
+    width: 100%; margin-bottom: 4px; padding-bottom: 4px; /* Ensure content isn't cut off */
+    line-height: 1.5;
 }
 .input-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
 .left-tools { display: flex; gap: 8px; }
@@ -393,6 +394,17 @@ body { margin: 0; padding: 0; }
     transition: all 0.2s; display: flex; align-items: center; justify-content: center; 
 }
 .fab-area:hover .fab-btn, .fab-btn:hover { opacity: 1; background: var(--color-error); color: white; border-color: var(--color-error); }
+.fab-btn.confirm-state { background: var(--color-error); color: white; opacity: 1; border-color: var(--color-error); animation: pulse 0.5s; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+/* Code Block Buttons */
+.code-copy-btn {
+    background: transparent; border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7); font-size: 10px; padding: 2px 6px;
+    border-radius: 4px; cursor: pointer; transition: all 0.2s;
+}
+.code-copy-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+.code-copy-btn.success { border-color: var(--color-success); color: var(--color-success); background: var(--color-bg-3); }
 
 /* Popups & Drawer */
 .popup { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -486,7 +498,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.5</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.6</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -717,7 +729,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.5</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.6</p>
             </div>
         </div>
     </div>
@@ -838,6 +850,8 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.savedPersonas = JSON.parse(localStorage.getItem('saved_personas') || '{}');
                 this.feedbackMode = localStorage.getItem('feedbackMode') === 'true' || false;
                 this.feedbackLoops = JSON.parse(localStorage.getItem('feedback_loops') || '{}');
+                
+                this.clearConfirmTimer = null; // For FAB double click logic
 
                 // Initialize Mermaid
                 if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'default' });
@@ -971,7 +985,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.historyToggle.addEventListener('click', () => { this.renderChatHistory(); this.togglePopup('history'); });
                 this.readmeToggle.addEventListener('click', () => this.togglePopup('readme'));
                 
-                this.clearChatBtn.addEventListener('click', () => this.clearCurrentSessionMessages());
+                this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
                 this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
                 this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
                 this.sendMessage.addEventListener('click', () => this.sendUserMessage());
@@ -1078,18 +1092,45 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
                 this.renderTabs(); this.renderMessages();
             }
-            clearCurrentSessionMessages() {
-                if (!this.activeSessionId || !this.sessions[this.activeSessionId]) return;
-                if(confirm('Clear all messages in this tab?')) {
-                    this.sessions[this.activeSessionId].messages = [];
-                    this.sessions[this.activeSessionId].references = {};
-                    this.messages = [];
-                    this.references = {};
-                    this.renderMessages();
-                    this.autoSaveChat();
-                    this.showStatus('Chat Cleared', 'info');
+            
+            // Replaced clear function with FAB logic
+            handleFabClick() {
+                if(this.clearConfirmTimer) {
+                    // Confirmed (Second Click)
+                    clearTimeout(this.clearConfirmTimer);
+                    this.clearConfirmTimer = null;
+                    this.resetFab();
+                    this.performClear();
+                } else {
+                    // First Click
+                    this.clearChatBtn.textContent = '❌?';
+                    this.clearChatBtn.classList.add('confirm-state');
+                    this.clearConfirmTimer = setTimeout(() => this.resetFab(), 3000);
                 }
             }
+            
+            resetFab() {
+                this.clearChatBtn.textContent = '🗑️';
+                this.clearChatBtn.classList.remove('confirm-state');
+                this.clearConfirmTimer = null;
+            }
+
+            performClear() {
+                if (!this.activeSessionId || !this.sessions[this.activeSessionId]) return;
+                this.sessions[this.activeSessionId].messages = [];
+                this.sessions[this.activeSessionId].references = {};
+                this.messages = [];
+                this.references = {};
+                this.renderMessages();
+                this.autoSaveChat();
+                this.showStatus('Chat Cleared', 'info');
+            }
+            
+            clearCurrentSessionMessages() {
+                // Deprecated direct call, now handled by handleFabClick
+                this.handleFabClick();
+            }
+
             closeSession(id, e) {
                 if(e) e.stopPropagation();
                 if (Object.keys(this.sessions).length <= 1) {
@@ -1315,7 +1356,8 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
                     const language = langClass ? langClass.replace('language-', '') : 'text';
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
-                    return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}')">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
+                    // Pass 'this' to copyCodeBlock
+                    return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
                 });
                 
                 if (this.showReferences) html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
@@ -1324,7 +1366,18 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 return html;
             }
 
-            autoResizeTextarea() { this.messageInput.style.height = 'auto'; this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px'; }
+            autoResizeTextarea() { 
+                // Reset height to auto to get correct scrollHeight if text deleted
+                this.messageInput.style.height = 'auto'; 
+                // Set height based on scrollHeight + extra buffer for lower border/padding
+                const newHeight = Math.min(this.messageInput.scrollHeight, 150);
+                this.messageInput.style.height = (newHeight + 2) + 'px';
+                
+                // If text is long, ensure we stay scrolled to the bottom while typing
+                if(this.messageInput.value.length > 0) {
+                    this.messageInput.scrollTop = this.messageInput.scrollHeight;
+                }
+            }
             handleKeyDown(e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.sendUserMessage(); } }
             
             updateHeaderStatus() {
@@ -1559,6 +1612,12 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     preview.classList.remove('hidden');
                     preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
                     this.updateTokenEstimate();
+                    
+                    // Auto switch model if using Perplexity
+                    if(this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
+                        this.setModel('sonar-pro', 'perplexity');
+                        this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
+                    }
                 }
             }
             
@@ -1577,6 +1636,12 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
                         this.showStatus('Image Ready', 'success');
                         this.updateTokenEstimate();
+                        
+                        // Auto switch model if using Perplexity
+                        if(this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
+                            this.setModel('sonar-pro', 'perplexity');
+                            this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
+                        }
                     };
                     r.readAsDataURL(f);
                 } else if (f.type === 'application/pdf') {
@@ -1761,7 +1826,6 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 }
             }
             updateMaxTokens(v) { this.maxTokens = parseInt(v); this.maxTokensValue.textContent = v; localStorage.setItem('maxTokens', v); }
-            copyMessage(text) { navigator.clipboard.writeText(text).then(() => this.showStatus('Copied', 'success')); }
             enableMessageEditing(index) {
                 const msg = this.messages[index];
                 const msgEl = this.messagesContainer.children[index];
@@ -1804,6 +1868,8 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 localStorage.setItem('saved_chats', JSON.stringify(this.savedChats));
                 this.renderChatHistory(); this.showStatus('Chat Saved', 'success');
             }
+            // Removed legacy copyMessage, using inline or logic in createMessageElement
+            copyMessage(text) { navigator.clipboard.writeText(text).then(() => this.showStatus('Copied', 'success')); }
         }
 
         window.exportTable = function(btn) {
@@ -1870,9 +1936,17 @@ input[type=range] { width: 100%; } /* Fix slider width */
             win.document.close();
         };
         
-        window.copyCodeBlock = function(id) {
+        window.copyCodeBlock = function(id, btn) {
             const txt = document.getElementById(id).textContent;
-            navigator.clipboard.writeText(txt).then(() => alert('Copied!'));
+            navigator.clipboard.writeText(txt).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✔ OK';
+                btn.classList.add('success');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('success');
+                }, 2000);
+            });
         };
 
         document.addEventListener('DOMContentLoaded', () => {
