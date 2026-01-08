@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.10)</title>
+    <title>Multi-API Chat Interface (v2.12.12)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -37,6 +37,9 @@
             document.documentElement.setAttribute('data-color-scheme', theme);
         } catch(e) {}
     </script>
+
+    <!-- External CSS (Loaded before embedded to allow overrides) -->
+    <link rel="stylesheet" href="/index.css">
 
     <!-- Embedded CSS -->
     <style>
@@ -256,14 +259,23 @@ body { margin: 0; padding: 0; }
 .tabs-container { 
     display: flex; 
     background-color: transparent; 
-    padding: 4px 8px 0; 
+    padding: 4px 8px 6px; /* Added bottom padding for scrollbar */
     overflow-x: auto; 
     overflow-y: hidden; /* Prevent vertical scroll */
     flex-wrap: nowrap; /* Force single row */
-    height: 32px; 
+    height: 40px; /* Increased height to accommodate scrollbar */
     align-items: flex-end; 
-    border-bottom: 1px solid var(--color-border); 
+    border-bottom: 1px solid var(--color-border);
+    /* Custom Scrollbar for Firefox */
+    scrollbar-width: thin; 
+    scrollbar-color: var(--color-border) transparent;
 }
+/* Custom Scrollbar for Webkit (Edge, Chrome, Safari) */
+.tabs-container::-webkit-scrollbar { height: 4px !important; }
+.tabs-container::-webkit-scrollbar-track { background: transparent; }
+.tabs-container::-webkit-scrollbar-thumb { background-color: var(--color-border); border-radius: 4px; }
+.tabs-container::-webkit-scrollbar-thumb:hover { background-color: var(--color-text-secondary); }
+
 .tab { 
     display: flex; 
     align-items: center; 
@@ -500,7 +512,6 @@ input[type=range] { width: 100%; } /* Fix slider width */
     .popup-content { width: 90%; max-height: 90vh; }
 }
     </style>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div class="app-container">
@@ -523,7 +534,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.10</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.12</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -754,7 +765,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.10</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.12</p>
             </div>
         </div>
     </div>
