@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.3)</title>
+    <title>Multi-API Chat Interface (v2.12.4)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -289,6 +289,8 @@ body { margin: 0; padding: 0; }
 .tab-edit { opacity: 0; font-size: 10px; margin: 0 4px; }
 .tab:hover .tab-edit { opacity: 0.5; }
 .tab-name-input { border: none; background: transparent; width: 100%; font-size: inherit; outline: 2px solid var(--color-primary); color: var(--color-text); }
+.tab-add-btn { min-width: 32px; max-width: 32px; padding: 0; justify-content: center; color: var(--color-text-secondary); font-size: 18px; font-weight: bold; }
+.tab-add-btn:hover { background: var(--color-secondary); color: var(--color-primary); }
 
 /* Chat Area */
 .chat-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
@@ -383,8 +385,14 @@ body { margin: 0; padding: 0; }
 
 /* FAB */
 .fab-area { position: absolute; bottom: 20px; right: 24px; pointer-events: none; z-index: 20; }
-.fab-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--color-primary); color: white; border: none; box-shadow: var(--shadow-md); font-size: 24px; cursor: pointer; pointer-events: auto; opacity: 0.2; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-.fab-area:hover .fab-btn, .fab-btn:hover { opacity: 1; transform: scale(1.05); }
+.fab-btn { 
+    width: 32px; height: 32px; 
+    border-radius: 50%; background: var(--color-surface); color: var(--color-text-secondary); 
+    border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); 
+    font-size: 16px; cursor: pointer; pointer-events: auto; opacity: 0.6; 
+    transition: all 0.2s; display: flex; align-items: center; justify-content: center; 
+}
+.fab-area:hover .fab-btn, .fab-btn:hover { opacity: 1; background: var(--color-error); color: white; border-color: var(--color-error); }
 
 /* Popups & Drawer */
 .popup { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -478,7 +486,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.3</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.4</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -504,9 +512,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     </div>
                 </div>
 
-                <!-- FAB: New Topic (Lower corner) -->
+                <!-- FAB: Clear Chat (Lower corner) -->
                 <div class="fab-area">
-                    <button class="fab-btn" id="newTopicBtn" title="New Topic">＋</button>
+                    <button class="fab-btn" id="clearChatBtn" title="Clear Current Chat">🗑️</button>
                 </div>
             </div>
 
@@ -709,7 +717,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.3</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.4</p>
             </div>
         </div>
     </div>
@@ -880,7 +888,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.readmeToggle = document.getElementById('readmeToggle');
 
                 this.header = document.getElementById('header');
-                this.newTopicBtn = document.getElementById('newTopicBtn');
+                this.newTopicBtn = document.getElementById('newTopicBtn'); // Reused for FAB
                 this.tabsBar = document.getElementById('tabsBar');
                 this.chatContainer = document.getElementById('chatContainer');
                 this.messagesContainer = document.getElementById('messages');
@@ -935,6 +943,8 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.maxTokensValue = document.getElementById('maxTokensValue');
                 this.themeToggle = document.getElementById('themeToggle');
                 this.streamToggle = document.getElementById('streamToggle');
+                
+                this.clearChatBtn = document.getElementById('clearChatBtn');
             }
 
             attachEventListeners() {
@@ -961,7 +971,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.historyToggle.addEventListener('click', () => { this.renderChatHistory(); this.togglePopup('history'); });
                 this.readmeToggle.addEventListener('click', () => this.togglePopup('readme'));
                 
-                this.newTopicBtn.addEventListener('click', () => this.startNewTopic());
+                this.clearChatBtn.addEventListener('click', () => this.clearCurrentSessionMessages());
                 this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
                 this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
                 this.sendMessage.addEventListener('click', () => this.sendUserMessage());
@@ -1068,6 +1078,18 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
                 this.renderTabs(); this.renderMessages();
             }
+            clearCurrentSessionMessages() {
+                if (!this.activeSessionId || !this.sessions[this.activeSessionId]) return;
+                if(confirm('Clear all messages in this tab?')) {
+                    this.sessions[this.activeSessionId].messages = [];
+                    this.sessions[this.activeSessionId].references = {};
+                    this.messages = [];
+                    this.references = {};
+                    this.renderMessages();
+                    this.autoSaveChat();
+                    this.showStatus('Chat Cleared', 'info');
+                }
+            }
             closeSession(id, e) {
                 if(e) e.stopPropagation();
                 if (Object.keys(this.sessions).length <= 1) {
@@ -1094,6 +1116,13 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     tab.append(nameSpan, editBtn, closeBtn);
                     this.tabsBar.appendChild(tab);
                 });
+                
+                // Add New Tab Button (+)
+                const addBtn = document.createElement('div');
+                addBtn.className = 'tab tab-add-btn';
+                addBtn.innerHTML = '+';
+                addBtn.onclick = () => this.createNewSession();
+                this.tabsBar.appendChild(addBtn);
             }
             startTabRenaming(id, el) {
                 const input = document.createElement('input'); input.className = 'tab-name-input'; input.value = this.sessions[id].name;
@@ -1197,8 +1226,17 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
                 while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
                 const style = win.document.createElement('style');
-                style.textContent = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; } table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; } th, td { padding: 12px; border: 1px solid #ddd; text-align: left; } th { background-color: #f8f9fa; } pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; } blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; } .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; }`;
+                style.textContent = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; } table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; } th, td { padding: 12px; border: 1px solid #ddd; text-align: left; } th { background-color: #f8f9fa; } pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; } blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; } .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; } @media print { .btn { display: none; } }`;
                 win.document.head.appendChild(style);
+                
+                const btnContainer = win.document.createElement('div');
+                const printBtn = win.document.createElement('button');
+                printBtn.className = 'btn';
+                printBtn.textContent = 'Print / Save as PDF';
+                printBtn.onclick = () => win.print();
+                btnContainer.appendChild(printBtn);
+                win.document.body.appendChild(btnContainer);
+
                 const contentDiv = win.document.createElement('div');
                 contentDiv.id = 'content'; contentDiv.innerHTML = htmlContent;
                 win.document.body.appendChild(contentDiv);
@@ -1569,11 +1607,13 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 if (!msg.citations || !Array.isArray(msg.citations)) return {};
                 const refs = {};
                 msg.citations.forEach((url, idx) => {
+                    // Try to find matching metadata in searchResults, if available
                     const searchResult = msg.searchResults ? msg.searchResults.find(res => res.url === url) : null;
                     refs[idx + 1] = {
                         url: url,
-                        title: searchResult?.name || searchResult?.title || 'Unknown Source',
-                        snippet: searchResult?.snippet || ''
+                        // Fallback logic: Use title if present, otherwise use URL
+                        title: searchResult?.name || searchResult?.title || url,
+                        snippet: searchResult?.snippet || 'No snippet available.'
                     };
                 });
                 return refs;
@@ -1586,7 +1626,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         const data = this.references[refNum];
                         if (data && data.url) {
                             this.currentReference = data;
-                            document.getElementById('referenceTitle').textContent = data.title || `Source [${refNum}]`;
+                            document.getElementById('referenceTitle').textContent = data.title.length > 50 ? 'Source ['+refNum+']' : data.title;
                             document.getElementById('referenceUrl').textContent = data.url;
                             const snippetEl = document.getElementById('referenceSnippet');
                             if (data.snippet) {
@@ -1754,44 +1794,51 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 .btn:hover { background: #0056b3; }
             `;
             
-            win.document.head.innerHTML = `<style>${style}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>`;
-            
-            win.document.body.innerHTML = `
-                <div class="btn-group">
-                    <button class="btn" onclick="exportToCSV()">Download CSV</button>
-                    <button class="btn" onclick="exportToExcel()">Download Excel</button>
-                    <button class="btn" onclick="exportToJSON()">Download JSON</button>
-                </div>
-                <div id="tableContainer">${tableHtml}</div>
-            `;
-            
-            // Inject functions into the new window context
-            const script = win.document.createElement('script');
-            script.textContent = `
-                function exportToCSV() {
-                    const table = document.querySelector("table");
-                    const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
-                    XLSX.writeFile(wb, "table_export.csv");
-                }
-                function exportToExcel() {
-                    const table = document.querySelector("table");
-                    const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
-                    XLSX.writeFile(wb, "table_export.xlsx");
-                }
-                function exportToJSON() {
-                    const table = document.querySelector("table");
-                    const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
-                    const ws = wb.Sheets["Sheet1"];
-                    const data = XLSX.utils.sheet_to_json(ws);
-                    const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "table_export.json";
-                    a.click();
-                }
-            `;
-            win.document.body.appendChild(script);
+            // Rewrite: Inject Script dynamically in the new window and wait for load
+            win.document.write(`
+                <html>
+                <head>
+                    <style>${style}</style>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
+                </head>
+                <body>
+                    <div class="btn-group">
+                        <button class="btn" onclick="exportToCSV()">Download CSV</button>
+                        <button class="btn" onclick="exportToExcel()">Download Excel</button>
+                        <button class="btn" onclick="exportToJSON()">Download JSON</button>
+                    </div>
+                    <div id="tableContainer">${tableHtml}</div>
+                    <script>
+                        function exportToCSV() {
+                            if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; }
+                            const table = document.querySelector("table");
+                            const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+                            XLSX.writeFile(wb, "table_export.csv");
+                        }
+                        function exportToExcel() {
+                            if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; }
+                            const table = document.querySelector("table");
+                            const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+                            XLSX.writeFile(wb, "table_export.xlsx");
+                        }
+                        function exportToJSON() {
+                            if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; }
+                            const table = document.querySelector("table");
+                            const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"});
+                            const ws = wb.Sheets["Sheet1"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = "table_export.json";
+                            a.click();
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
         };
         
         window.copyCodeBlock = function(id) {
