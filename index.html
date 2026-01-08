@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.12)</title>
+    <title>Multi-API Chat Interface (v2.12.14)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -373,6 +373,49 @@ body { margin: 0; padding: 0; }
 .message:hover .message-export-btn, .message:hover .message-fork-btn { opacity: 1; }
 .message-export-btn:hover, .message-fork-btn:hover { background: var(--color-secondary); color: var(--color-primary); border-color: var(--color-primary); }
 
+/* Token Info Icon & Tooltip */
+.token-info-icon {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: help;
+    opacity: 0.6;
+    z-index: 5;
+}
+.token-info-icon:hover { opacity: 1; border-color: var(--color-primary); color: var(--color-primary); background: var(--color-bg-1); }
+
+.token-tooltip {
+    visibility: hidden;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    text-align: left;
+    border-radius: 6px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 20;
+    bottom: 24px;
+    left: 0;
+    border: 1px solid var(--color-primary);
+    box-shadow: var(--shadow-md);
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+.token-info-icon:hover .token-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
 .msg-actions { display: flex; gap: 4px; }
 .msg-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; padding: 2px; }
 .msg-btn:hover { opacity: 1; color: var(--color-primary); }
@@ -495,13 +538,25 @@ input[type=range] { width: 100%; } /* Fix slider width */
 
 /* Readme / About Popup Styles */
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
-.feature-card { background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 12px; transition: transform 0.2s; }
-.feature-card:hover { border-color: var(--color-primary); }
+.feature-card { background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 12px; transition: transform 0.2s; cursor: pointer; }
+.feature-card:hover { border-color: var(--color-primary); background-color: var(--color-bg-1); }
 .feature-icon { font-size: 20px; margin-bottom: 8px; }
 .feature-title { font-weight: 600; margin-bottom: 4px; color: var(--color-text); font-size: 13px; }
 .feature-desc { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.4; }
 .key-section { background-color: var(--color-bg-1); border: 1px solid var(--color-primary); border-radius: var(--radius-base); padding: 16px; margin: 16px 0; }
 .readme-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--color-border); text-align: center; color: var(--color-text-secondary); font-size: 11px; }
+
+/* Readme Details View */
+.feature-detail-view { display: none; animation: fadeIn 0.3s; }
+.feature-detail-view.active { display: block; }
+.detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; }
+.back-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-primary); padding: 4px; }
+.detail-content h4 { margin-top: 0; color: var(--color-text); }
+.detail-content p, .detail-content li { font-size: 13px; color: var(--color-text); line-height: 1.5; }
+.detail-content code { background: var(--color-secondary); padding: 2px 4px; border-radius: 4px; font-family: var(--font-family-mono); font-size: 0.9em; }
+
+/* Workspace Status */
+.workspace-status { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; padding: 4px 8px; background: var(--color-bg-1); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
 
 @media (max-width: 768px) {
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 64px; transform: translateX(-100%); transition: transform 0.3s; box-shadow: var(--shadow-md); }
@@ -534,7 +589,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.12</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.14</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -707,65 +762,57 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
             </div>
             
-            <p>A versatile, static web application designed for power users who need access to multiple advanced LLMs like Perplexity (Sonar) and Moonshot (Kimi) in a single, unified interface.</p>
+            <div id="readmeMainView">
+                <div class="key-section" style="margin-top:0;">
+                    <h4 style="margin:0 0 8px 0;">Getting Started</h4>
+                    <p style="font-size:13px; margin:0 0 8px 0;">This client-side application connects directly to Perplexity and Moonshot APIs. Your keys are stored locally.</p>
+                    <ul style="font-size:13px; margin:0; padding-left:20px;">
+                        <li><strong>Step 1:</strong> Obtain API keys from <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Perplexity</a> or <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Moonshot AI</a>.</li>
+                        <li><strong>Step 2:</strong> Click the Key icon (🔑) in the sidebar to save them.</li>
+                        <li><strong>Step 3:</strong> Select a model (🧠) and start chatting.</li>
+                    </ul>
+                </div>
 
-            <h4 style="margin-top:20px;">Key Features</h4>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <div class="feature-title">Perplexity API</div>
-                    <p class="feature-desc">Access Sonar models (including Pro, Reasoning, and Deep Research) for real-time web search capabilities.</p>
+                <h4 style="margin-top:20px;">Features (Click for Help)</h4>
+                <div class="feature-grid">
+                    <div class="feature-card" data-feature="partial">
+                        <div class="feature-title">⚡ Partial / Prefill Mode</div>
+                        <p class="feature-desc">Guide the AI's response by starting the sentence for it. Exclusive to Kimi models.</p>
+                    </div>
+                    <div class="feature-card" data-feature="feedback">
+                        <div class="feature-title">🔁 Feedback Loop</div>
+                        <p class="feature-desc">Teach the model your preferences by correcting its output text.</p>
+                    </div>
+                    <div class="feature-card" data-feature="image">
+                        <div class="feature-title">🖼️ Set Image / Vision</div>
+                        <p class="feature-desc">Analyze images or use them as context for Perplexity Sonar Pro.</p>
+                    </div>
+                    <div class="feature-card" data-feature="viz">
+                        <div class="feature-title">📊 Charts & Diagrams</div>
+                        <p class="feature-desc">Create Mermaids flowcharts, Highcharts visualizations, and Math equations.</p>
+                    </div>
+                    <div class="feature-card" data-feature="tools">
+                        <div class="feature-title">🛠️ Local File Tools</div>
+                        <p class="feature-desc">Securely link a local folder to read files directly into the chat context.</p>
+                    </div>
+                    <div class="feature-card" data-feature="branching">
+                        <div class="feature-title">🌿 Branching & Forking</div>
+                        <p class="feature-desc">Fork conversations to explore different outcomes without losing the original path.</p>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🚀</div>
-                    <div class="feature-title">Moonshot API</div>
-                    <p class="feature-desc">Utilize Kimi models (k2 preview, turbo, and thinking) for high-performance Chinese language processing.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📄</div>
-                    <div class="feature-title">Document & Vision</div>
-                    <p class="feature-desc">Upload Images, PDFs, and Text files. The app parses documents locally and adds them to context.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-title">Visualization</div>
-                    <p class="feature-desc">Renders Highcharts, interactive Tables, Mermaid diagrams, and LaTeX math equations.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔁</div>
-                    <div class="feature-title">Feedback Loop</div>
-                    <p class="feature-desc">Teach the model your style by correcting its responses. The app remembers your preferences.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">👤</div>
-                    <div class="feature-title">Personas</div>
-                    <p class="feature-desc">Switch between different assistant roles or create your own custom system prompts.</p>
+
+                <div class="readme-footer">
+                    <p style="margin:0;">Multi-API Chat Interface v2.12.14</p>
                 </div>
             </div>
 
-            <h4 style="margin-top:20px;">Getting Started</h4>
-            <p style="font-size:13px;">Since this is a client-side application, your API keys are stored locally in your browser and are never sent to any intermediate server.</p>
-            
-            <div class="key-section">
-                <h4 style="margin:0 0 8px 0;">🔑 API Keys Required</h4>
-                <p style="font-size:13px; margin:0;">To use this application, you need to obtain API keys from the respective providers:</p>
-                <ul style="font-size:13px; margin-top:8px;">
-                    <li><strong>Perplexity:</strong> <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Get API Key</a></li>
-                    <li><strong>Moonshot AI:</strong> <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Get API Key</a></li>
-                </ul>
-                <p style="font-size: 12px; margin-top: 8px; opacity:0.8;">Click the Key icon in the sidebar to enter your credentials.</p>
-            </div>
-
-            <h4 style="margin-top:20px;">Advanced Usage</h4>
-            <ul style="font-size:13px;">
-                <li><strong>Mermaid Diagrams:</strong> Ask the model to "draw a flowchart" using markdown code blocks.</li>
-                <li><strong>Math Rendering:</strong> Supports LaTeX equations ($E=mc^2$).</li>
-                <li><strong>Local Tools (🛠️):</strong> Define shortcuts to local file paths or frequently visited websites.</li>
-                <li><strong>One-Shot Mode (🔥):</strong> When active, every new message clears previous context to save tokens.</li>
-            </ul>
-
-            <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.12</p>
+            <!-- Details View -->
+            <div id="readmeDetailView" class="feature-detail-view">
+                <div class="detail-header">
+                    <button class="back-btn" id="readmeBackBtn">←</button>
+                    <h3 style="margin:0; font-size:16px;" id="detailTitle">Feature Name</h3>
+                </div>
+                <div class="detail-content" id="detailContent"></div>
             </div>
         </div>
     </div>
@@ -826,10 +873,13 @@ input[type=range] { width: 100%; } /* Fix slider width */
     <div class="popup hidden" id="toolsPopup">
         <div class="popup-content">
             <h3>My Tools</h3>
+            <div class="workspace-status" id="workspaceStatus">Workspace: Not Set</div>
+            <button class="btn btn--secondary btn--sm" id="setWorkspaceBtn" style="width:100%; margin-bottom:16px;">📂 Set Workspace Folder</button>
+            
             <div class="form-group">
-                <input type="text" id="toolNameInput" class="form-control" placeholder="Name" style="margin-bottom:4px;">
-                <input type="text" id="toolPathInput" class="form-control" placeholder="Path/URL" style="margin-bottom:4px;">
-                <input type="text" id="toolDescInput" class="form-control" placeholder="Desc" style="margin-bottom:4px;">
+                <input type="text" id="toolNameInput" class="form-control" placeholder="Tool Name" style="margin-bottom:4px;">
+                <input type="text" id="toolPathInput" class="form-control" placeholder="Relative Path (e.g., config.json)" style="margin-bottom:4px;">
+                <input type="text" id="toolDescInput" class="form-control" placeholder="Description" style="margin-bottom:4px;">
                 <button class="btn btn--primary btn--sm" id="addToolBtn">Add Tool</button>
             </div>
             <div class="history-list" id="toolsList" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -853,6 +903,107 @@ input[type=range] { width: 100%; } /* Fix slider width */
     </div>
 
     <script>
+        class LocalFileManager {
+            constructor() {
+                this.dbName = 'MultiAPIChatDB';
+                this.storeName = 'fileHandles';
+                this.rootHandle = null;
+                this.initDB();
+            }
+
+            initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName);
+                        }
+                    };
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async saveHandle(handle) {
+                const db = await this.initDB();
+                const tx = db.transaction(this.storeName, 'readwrite');
+                tx.objectStore(this.storeName).put(handle, 'root');
+                return tx.complete;
+            }
+
+            async loadHandle() {
+                const db = await this.initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readonly');
+                    const req = tx.objectStore(this.storeName).get('root');
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async selectRootDirectory() {
+                try {
+                    const handle = await window.showDirectoryPicker();
+                    this.rootHandle = handle;
+                    await this.saveHandle(handle);
+                    return handle.name;
+                } catch (err) {
+                    console.error("Directory selection cancelled or failed:", err);
+                    return null;
+                }
+            }
+
+            async restoreHandle() {
+                try {
+                    const handle = await this.loadHandle();
+                    if (!handle) return null;
+                    // Check permissions
+                    if ((await this.verifyPermission(handle, false)) === true) {
+                        this.rootHandle = handle;
+                        return handle.name;
+                    }
+                    return null;
+                } catch (err) {
+                    console.error("Failed to restore handle:", err);
+                    return null;
+                }
+            }
+
+            async verifyPermission(fileHandle, readWrite) {
+                const options = {};
+                if (readWrite) {
+                    options.mode = 'readwrite';
+                }
+                if ((await fileHandle.queryPermission(options)) === 'granted') {
+                    return true;
+                }
+                if ((await fileHandle.requestPermission(options)) === 'granted') {
+                    return true;
+                }
+                return false;
+            }
+
+            async readFile(relativePath) {
+                if (!this.rootHandle) throw new Error("No workspace selected.");
+                
+                const parts = relativePath.split('/').filter(p => p.trim() !== '');
+                const fileName = parts.pop();
+                
+                let currentHandle = this.rootHandle;
+                
+                // Traverse folders
+                for (const part of parts) {
+                    currentHandle = await currentHandle.getDirectoryHandle(part);
+                }
+                
+                // Get file
+                const fileHandle = await currentHandle.getFileHandle(fileName);
+                const file = await fileHandle.getFile();
+                return await file.text();
+            }
+        }
+
         class MultiAPIChat {
             constructor() {
                 this.apiKeys = {
@@ -889,6 +1040,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 
                 this.clearConfirmTimer = null; // For FAB double click logic
 
+                // Initialize File Manager
+                this.fileManager = new LocalFileManager();
+
                 // Initialize Mermaid
                 if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'default' });
 
@@ -911,6 +1065,53 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     perplexity: "https://api.perplexity.ai/chat/completions",
                     moonshot: "https://api.moonshot.cn/v1/chat/completions"
                 };
+                
+                // Feature Details Content
+                this.featureDetails = {
+                    partial: {
+                        title: "Partial / Prefill Mode",
+                        content: `<p>Available only on Moonshot (Kimi) models. This feature allows you to type the <em>beginning</em> of the assistant's response. The AI will then continue generation from where you left off.</p>
+                        <h4>How to use:</h4>
+                        <ol><li>Select a Kimi model (e.g., Kimi k2).</li><li>Click the 📝 icon next to the input box.</li><li>Type how you want the AI to start (e.g., "Here is a Python script that...").</li><li>Send your message.</li></ol>`
+                    },
+                    feedback: {
+                        title: "Feedback Loop",
+                        content: `<p>Improve the AI's future performance in the current chat session by correcting its mistakes.</p>
+                        <h4>How to use:</h4>
+                        <ol><li>Toggle the Feedback Loop (🔁) in the sidebar.</li><li>Select any text in the chat history that you want to correct.</li><li>Click the "Improve" tooltip that appears.</li><li>Enter the corrected version.</li></ol>
+                        <p>The system prompt will be dynamically updated with your corrections.</p>`
+                    },
+                    image: {
+                        title: "Set Image / Vision",
+                        content: `<p>Upload images for analysis. This feature automatically switches the model to <strong>Sonar Pro</strong> (Perplexity), which supports vision capabilities.</p>
+                        <h4>How to use:</h4>
+                        <ul><li>Click the 📎 icon to upload a file.</li><li>Click the 📥 icon to paste an image URL or Base64 string.</li></ul>`
+                    },
+                    viz: {
+                        title: "Charts & Diagrams",
+                        content: `<p>The interface renders various visualization formats automatically.</p>
+                        <ul>
+                            <li><strong>Mermaid:</strong> Ask for flowcharts, sequence diagrams, or gantt charts.</li>
+                            <li><strong>Math:</strong> Use LaTeX syntax (e.g., $E=mc^2$) for equations.</li>
+                            <li><strong>Tables:</strong> Tables can be exported to CSV/Excel/JSON using the buttons above them.</li>
+                        </ul>`
+                    },
+                    tools: {
+                        title: "Local File Tools",
+                        content: `<p>Securely connect a local folder to the chat interface. This allows you to "read" local config files or code snippets directly into the chat.</p>
+                        <h4>How to use:</h4>
+                        <ol><li>Open the Tools menu (🛠️).</li><li>Click "Set Workspace Folder" and authorize a directory.</li><li>Add a tool with the relative path (e.g., <code>src/config.js</code>).</li><li>Click "Open" to load the file content into your message input.</li></ol>`
+                    },
+                    branching: {
+                        title: "Branching & Forking",
+                        content: `<p>Experiment with different prompts without losing your original conversation flow.</p>
+                        <h4>How to use:</h4>
+                        <ul>
+                            <li><strong>Fork:</strong> Click the 🌿 icon on any assistant message to create a <em>new</em> chat starting from that point.</li>
+                            <li><strong>Export:</strong> Click the 📄 icon to open a specific message chain in a printer-friendly window.</li>
+                        </ul>`
+                    }
+                };
 
                 this.initializeElements();
                 this.attachEventListeners();
@@ -921,6 +1122,11 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.updateHeaderStatus();
                 this.updateTokenConfigUI();
                 this.updatePartialModeButton();
+                
+                // Initialize Workspace
+                this.fileManager.restoreHandle().then(name => {
+                    if(name) document.getElementById('workspaceStatus').textContent = "Workspace: " + name;
+                });
             }
 
             initializeElements() {
@@ -993,8 +1199,16 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.maxTokensValue = document.getElementById('maxTokensValue');
                 this.themeToggle = document.getElementById('themeToggle');
                 this.streamToggle = document.getElementById('streamToggle');
+                this.setWorkspaceBtn = document.getElementById('setWorkspaceBtn');
                 
                 this.clearChatBtn = document.getElementById('clearChatBtn');
+
+                // Readme Elements
+                this.readmeMainView = document.getElementById('readmeMainView');
+                this.readmeDetailView = document.getElementById('readmeDetailView');
+                this.readmeBackBtn = document.getElementById('readmeBackBtn');
+                this.detailTitle = document.getElementById('detailTitle');
+                this.detailContent = document.getElementById('detailContent');
             }
 
             attachEventListeners() {
@@ -1019,7 +1233,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.refToggle.addEventListener('click', () => this.toggleReferenceMode());
                 this.toolsToggle.addEventListener('click', () => { this.renderToolsList(); this.togglePopup('tools'); });
                 this.historyToggle.addEventListener('click', () => { this.renderChatHistory(); this.togglePopup('history'); });
-                this.readmeToggle.addEventListener('click', () => this.togglePopup('readme'));
+                this.readmeToggle.addEventListener('click', () => { this.showReadmeMain(); this.togglePopup('readme'); });
                 
                 this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
                 this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
@@ -1075,6 +1289,35 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.saveRevisionBtn.addEventListener('click', () => this.saveRevision());
                 document.addEventListener('click', (e) => this.handleOutsideClick(e));
                 document.querySelectorAll('.popup-content').forEach(c => c.addEventListener('click', e => e.stopPropagation()));
+
+                // Readme Interactions
+                document.querySelectorAll('.feature-card').forEach(card => {
+                    card.addEventListener('click', () => this.showReadmeDetail(card.dataset.feature));
+                });
+                this.readmeBackBtn.addEventListener('click', () => this.showReadmeMain());
+
+                // Tools Interaction
+                this.setWorkspaceBtn.addEventListener('click', async () => {
+                    const name = await this.fileManager.selectRootDirectory();
+                    if(name) {
+                        document.getElementById('workspaceStatus').textContent = "Workspace: " + name;
+                        this.showStatus('Workspace Set', 'success');
+                    }
+                });
+            }
+            
+            showReadmeDetail(featureKey) {
+                const data = this.featureDetails[featureKey];
+                if (!data) return;
+                this.detailTitle.textContent = data.title;
+                this.detailContent.innerHTML = data.content;
+                this.readmeMainView.style.display = 'none';
+                this.readmeDetailView.classList.add('active');
+            }
+
+            showReadmeMain() {
+                this.readmeDetailView.classList.remove('active');
+                this.readmeMainView.style.display = 'block';
             }
 
             renderSavedPersonas() { /* ... existing ... */
@@ -1293,7 +1536,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
 
                 messageEl.append(headerEl, contentEl);
                 if (message.role === 'assistant' && message.tokenUsage) {
-                    messageEl.appendChild(this.createTokenUsageCornerElement(message.tokenUsage));
+                    messageEl.appendChild(this.createTokenInfoElement(message.tokenUsage));
                 }
                 return messageEl;
             }
@@ -1513,9 +1756,11 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.statusIndicator.textContent = msg; this.statusIndicator.className = `status status--${type} show`;
                 setTimeout(() => { this.statusIndicator.classList.remove('show'); this.statusIndicator.classList.add('hidden'); }, 3000);
             }
-            setModel(m, a) { 
+            setModel(m, a, openPopup = true) { 
                 if(!m || !a) return; 
-                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton(); this.togglePopup('model'); this.updateModelOptions(); 
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton();
+                if(openPopup) this.togglePopup('model'); 
+                this.updateModelOptions(); 
             }
             updateModelOptions() { document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.currentModel)); }
             setPersona(p) { 
@@ -1684,9 +1929,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
                     this.updateTokenEstimate();
                     
-                    // Auto switch model if using Perplexity
+                    // Auto switch model if using Perplexity (Silent)
                     if(this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
-                        this.setModel('sonar-pro', 'perplexity');
+                        this.setModel('sonar-pro', 'perplexity', false);
                         this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
                     }
                 }
@@ -1708,9 +1953,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         this.showStatus('Image Ready', 'success');
                         this.updateTokenEstimate();
                         
-                        // Auto switch model if using Perplexity
+                        // Auto switch model if using Perplexity (Silent)
                         if(this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
-                            this.setModel('sonar-pro', 'perplexity');
+                            this.setModel('sonar-pro', 'perplexity', false);
                             this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
                         }
                     };
@@ -1795,7 +2040,23 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 return refs;
             } 
-            createTokenUsageCornerElement(u) { const d = document.createElement('div'); d.className='token-usage-corner'; d.style.fontSize='10px'; d.style.opacity='0.5'; d.style.position='absolute'; d.style.top='8px'; d.style.right='36px'; d.textContent = u.total_tokens ? u.total_tokens+'T' : ''; return d; }
+            createTokenInfoElement(u) {
+                const container = document.createElement('div');
+                container.className = 'token-info-icon';
+                container.textContent = '?';
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'token-tooltip';
+                tooltip.innerHTML = `
+                    <strong>Token Usage</strong><br>
+                    Input: ${u.prompt_tokens || 0}<br>
+                    Output: ${u.completion_tokens || 0}<br>
+                    Total: ${u.total_tokens || 0}
+                `;
+                
+                container.appendChild(tooltip);
+                return container;
+            }
             attachReferenceHandlers(el) { 
                 el.querySelectorAll('.reference-link').forEach(link => {
                     link.addEventListener('click', (e) => {
@@ -1837,7 +2098,29 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 document.execCommand('copy'); window.getSelection().removeAllRanges();
                 this.showStatus('Table copied', 'success');
             }
-            openTool(path) { window.open(path.startsWith('http') ? path : 'https://' + path, '_blank'); }
+            openTool(path) { 
+                // Check if it's a web link or a local file
+                if (path.startsWith('http')) {
+                    window.open(path, '_blank'); 
+                } else {
+                    // Try to read local file
+                    this.fileManager.readFile(path).then(content => {
+                        this.uploadedTextContext = content;
+                        this.uploadedFileName = path.split('/').pop();
+                        
+                        // Show preview similar to file upload
+                        const preview = document.getElementById('imagePreview');
+                        preview.classList.remove('hidden');
+                        preview.innerHTML = `<span class="file-preview-icon">🛠️</span> <span>${this.uploadedFileName} (Local Tool)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.updateTokenEstimate();
+                        this.togglePopup('tools'); // Close tools popup
+                        this.showStatus('File Loaded from Workspace', 'success');
+                    }).catch(err => {
+                        console.error(err);
+                        this.showStatus('Failed to read file: ' + err.message, 'error');
+                    });
+                }
+            }
             deleteChat(id) { delete this.savedChats[id]; localStorage.setItem('saved_chats', JSON.stringify(this.savedChats)); this.renderChatHistory(); }
             loadChat(id) { 
                 const chat = this.savedChats[id]; 
