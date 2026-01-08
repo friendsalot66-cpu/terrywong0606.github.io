@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.4)</title>
+    <title>Multi-API Chat Interface (v2.12.5)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -486,7 +486,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.4</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.5</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -717,7 +717,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.4</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.5</p>
             </div>
         </div>
     </div>
@@ -1226,7 +1226,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 while (win.document.head.firstChild) { win.document.head.removeChild(win.document.head.firstChild); }
                 while (win.document.body.firstChild) { win.document.body.removeChild(win.document.body.firstChild); }
                 const style = win.document.createElement('style');
-                style.textContent = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; } table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; } th, td { padding: 12px; border: 1px solid #ddd; text-align: left; } th { background-color: #f8f9fa; } pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; } blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; } .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; } @media print { .btn { display: none; } }`;
+                style.textContent = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; } table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; } th, td { padding: 12px; border: 1px solid #ddd; text-align: left; } th { background-color: #f8f9fa; } pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; } blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; } .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px; } .btn-secondary { background: #6c757d; } @media print { .btn { display: none; } }`;
                 win.document.head.appendChild(style);
                 
                 const btnContainer = win.document.createElement('div');
@@ -1234,7 +1234,25 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 printBtn.className = 'btn';
                 printBtn.textContent = 'Print / Save as PDF';
                 printBtn.onclick = () => win.print();
+                
+                const wordBtn = win.document.createElement('button');
+                wordBtn.className = 'btn btn-secondary';
+                wordBtn.textContent = 'Download as Word';
+                wordBtn.onclick = () => {
+                    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
+                    const footer = "</body></html>";
+                    const sourceHTML = header + contentDiv.innerHTML + footer;
+                    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+                    const fileDownload = document.createElement("a");
+                    document.body.appendChild(fileDownload);
+                    fileDownload.href = source;
+                    fileDownload.download = 'conversation.doc';
+                    fileDownload.click();
+                    document.body.removeChild(fileDownload);
+                };
+
                 btnContainer.appendChild(printBtn);
+                btnContainer.appendChild(wordBtn);
                 win.document.body.appendChild(btnContainer);
 
                 const contentDiv = win.document.createElement('div');
@@ -1445,7 +1463,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 if(!res.ok) throw new Error('API Error');
                 const d = await res.json();
-                return { content: d.choices[0]?.message?.content || '', tokenUsage: d.usage || {}, searchResults: d.search_results || [], citations: d.citations || [] };
+                return { content: d.choices[0]?.message?.content || '', tokenUsage: d.usage || {}, searchResults: d.choices[0]?.message?.search_results || d.search_results || [], citations: d.citations || [] };
             }
             
             buildMessagesForAPI(pre) {
@@ -1458,19 +1476,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 
                 recent.forEach(m => {
                     if(m.role==='user') {
-                        // SMART CONTENT HANDLING:
-                        // If model is Perplexity/Sonar (Text Only), send content as string, ignore image.
-                        // If model is Moonshot (Kimi), keep image structure.
                         let contentPayload = m.content;
-                        
                         if (m.image) {
-                             if (this.currentAPI === 'moonshot') {
-                                 // Vision Supported
-                                 contentPayload = [{type:'text', text:m.content||" "},{type:'image_url', image_url:{url:m.image}}];
-                             } else {
-                                 // Text Only (Perplexity) - append a note about the missing image
-                                 contentPayload = (m.content || "") + "\n\n[System Note: Image attachment was stripped as this model does not support vision]";
-                             }
+                             // Allow image for all APIs if present (assuming user knows model compatibility)
+                             contentPayload = [{type:'text', text:m.content||" "},{type:'image_url', image_url:{url:m.image}}];
                         }
                         msgs.push({ role: 'user', content: contentPayload });
                     }
@@ -1510,6 +1519,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                                 if(dataStr.trim() === '[DONE]') return;
                                 try {
                                     const data = JSON.parse(dataStr);
+                                    // Perplexity often sends citations in the last chunk or usage object
+                                    if(data.citations) assistantMessage.citations = data.citations;
+                                    
                                     const delta = data.choices[0]?.delta?.content || "";
                                     if(delta) {
                                         assistantMessage.content += delta;
@@ -1526,12 +1538,28 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         });
                     }
                 } catch(e){ assistantMessage.content += '\n[Error]'; }
-                finally { assistantMessage.isStreaming = false; this.renderMessages(); this.autoSaveChat(); }
+                finally { 
+                    assistantMessage.isStreaming = false;
+                    // Re-render to ensure citations processed if they arrived late
+                    if(assistantMessage.citations) Object.assign(this.references, this.extractReferencesFromResponse(assistantMessage));
+                    this.renderMessages(); 
+                    this.autoSaveChat(); 
+                }
             }
             
             saveImageInput() {
                 const val = document.getElementById('imageInputString').value;
-                if(val) { this.uploadedImage = val; this.showStatus('Image Set', 'success'); this.togglePopup('imageInput'); }
+                if(val) { 
+                    this.uploadedImage = val; 
+                    this.showStatus('Image Set', 'success'); 
+                    this.togglePopup('imageInput');
+                    
+                    // Show Preview for Manual Input
+                    const preview = document.getElementById('imagePreview');
+                    preview.classList.remove('hidden');
+                    preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                    this.updateTokenEstimate();
+                }
             }
             
             async handleFileUpload(e) {
@@ -1608,6 +1636,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 const refs = {};
                 msg.citations.forEach((url, idx) => {
                     // Try to find matching metadata in searchResults, if available
+                    // Use optional chaining carefully
                     const searchResult = msg.searchResults ? msg.searchResults.find(res => res.url === url) : null;
                     refs[idx + 1] = {
                         url: url,
