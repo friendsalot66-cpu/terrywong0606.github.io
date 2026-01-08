@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.12.6)</title>
+    <title>Multi-API Chat Interface (v2.12.10)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
@@ -231,7 +231,7 @@ body { margin: 0; padding: 0; }
 .header-left { display: flex; align-items: center; gap: 8px; }
 .mobile-menu-btn { display: none; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-text); padding: 4px; }
 .header-info h1 { font-size: 14px; font-weight: 600; margin: 0; color: var(--color-text); }
-.header-info small { opacity: 0.7; margin-left: 6px; font-weight: 400; }
+.header-info small { opacity: 0.7; margin-left: 6px; font-weight: 400; font-size: 10px; } /* Explicit 10px font size */
 .status-line { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 .header-icon { 
@@ -321,7 +321,7 @@ body { margin: 0; padding: 0; }
 .mermaid { text-align: center; margin: 12px 0; background: var(--color-surface); padding: 8px; border-radius: 4px; overflow-x: auto; }
 .katex { font-size: 1.1em; }
 
-/* Floating Export Button */
+/* Floating Message Buttons (Export/Fork) */
 .message-export-btn {
     position: absolute;
     bottom: 8px;
@@ -340,8 +340,26 @@ body { margin: 0; padding: 0; }
     z-index: 5;
     box-shadow: var(--shadow-sm);
 }
-.message:hover .message-export-btn { opacity: 1; }
-.message-export-btn:hover { background: var(--color-secondary); color: var(--color-primary); border-color: var(--color-primary); }
+.message-fork-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 40px; /* Positioned to the left of export button */
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
+    font-size: 12px;
+    z-index: 5;
+    box-shadow: var(--shadow-sm);
+}
+.message:hover .message-export-btn, .message:hover .message-fork-btn { opacity: 1; }
+.message-export-btn:hover, .message-fork-btn:hover { background: var(--color-secondary); color: var(--color-primary); border-color: var(--color-primary); }
 
 .msg-actions { display: flex; gap: 4px; }
 .msg-btn { background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; padding: 2px; }
@@ -394,7 +412,14 @@ body { margin: 0; padding: 0; }
     transition: all 0.2s; display: flex; align-items: center; justify-content: center; 
 }
 .fab-area:hover .fab-btn, .fab-btn:hover { opacity: 1; background: var(--color-error); color: white; border-color: var(--color-error); }
-.fab-btn.confirm-state { background: var(--color-error); color: white; opacity: 1; border-color: var(--color-error); animation: pulse 0.5s; }
+/* FAB CONFIRM STATE */
+.fab-btn.confirm-state { 
+    background: rgba(220, 53, 69, 0.6); 
+    color: white; opacity: 1; 
+    border-color: var(--color-error); 
+    animation: pulse 0.5s; 
+    font-size: 14px; /* Smaller X */
+}
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
 /* Code Block Buttons */
@@ -498,7 +523,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.12.6</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.12.10</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -729,7 +754,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </ul>
 
             <div class="readme-footer">
-                <p style="margin:0;">Multi-API Chat Interface v2.12.6</p>
+                <p style="margin:0;">Multi-API Chat Interface v2.12.10</p>
             </div>
         </div>
     </div>
@@ -1103,7 +1128,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     this.performClear();
                 } else {
                     // First Click
-                    this.clearChatBtn.textContent = '❌?';
+                    this.clearChatBtn.textContent = 'x';
                     this.clearChatBtn.classList.add('confirm-state');
                     this.clearConfirmTimer = setTimeout(() => this.resetFab(), 3000);
                 }
@@ -1246,6 +1271,11 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📄'; exportBtn.title = 'Open in New Window';
                         exportBtn.onclick = () => this.exportMessageToWindow(message.content);
                         messageEl.appendChild(exportBtn);
+
+                        // Floating Fork Button
+                        const forkBtn = document.createElement('button'); forkBtn.className = 'message-fork-btn'; forkBtn.innerHTML = '🌿'; forkBtn.title = 'Fork Conversation';
+                        forkBtn.onclick = () => this.forkConversation(index);
+                        messageEl.appendChild(forkBtn);
                     }
                     if (window.hljs) contentEl.querySelectorAll('pre code').forEach(b => hljs.highlightBlock(b));
                 }
@@ -1255,6 +1285,25 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     messageEl.appendChild(this.createTokenUsageCornerElement(message.tokenUsage));
                 }
                 return messageEl;
+            }
+
+            forkConversation(index) {
+                const currentMsgs = this.messages.slice(0, index + 1);
+                const currentRefs = { ...this.references }; // Shallow copy of references so far
+                
+                // Create new session
+                const id = Date.now().toString();
+                const newName = `Fork of ${this.sessions[this.activeSessionId].name}`;
+                
+                this.sessions[id] = {
+                    id: id,
+                    name: newName,
+                    messages: JSON.parse(JSON.stringify(currentMsgs)), // Deep copy messages
+                    references: currentRefs
+                };
+                
+                this.switchSession(id);
+                this.showStatus('Conversation Forked', 'success');
             }
 
             exportMessageToWindow(content) {
@@ -1279,17 +1328,18 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 const wordBtn = win.document.createElement('button');
                 wordBtn.className = 'btn btn-secondary';
                 wordBtn.textContent = 'Download as Word';
+                // Move logic to operate on the 'win' object directly
                 wordBtn.onclick = () => {
                     const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
                     const footer = "</body></html>";
                     const sourceHTML = header + contentDiv.innerHTML + footer;
                     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-                    const fileDownload = document.createElement("a");
-                    document.body.appendChild(fileDownload);
+                    const fileDownload = win.document.createElement("a");
+                    win.document.body.appendChild(fileDownload);
                     fileDownload.href = source;
                     fileDownload.download = 'conversation.doc';
                     fileDownload.click();
-                    document.body.removeChild(fileDownload);
+                    win.document.body.removeChild(fileDownload);
                 };
 
                 btnContainer.appendChild(printBtn);
@@ -1550,13 +1600,14 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 if(!res.ok) throw new Error('API Error');
                 
-                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true };
+                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [] };
                 this.messages.push(assistantMessage);
                 this.renderMessages();
                 
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
                 let done = false;
+                let buffer = ''; // Buffer for handling partial chunks
                 
                 const msgElement = this.messagesContainer.lastElementChild;
                 const contentDiv = msgElement.querySelector('.message-content');
@@ -1565,16 +1616,25 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     while(!done) {
                         const { value, done: d } = await reader.read();
                         done = d;
-                        const chunk = decoder.decode(value, {stream: !done});
-                        chunk.split('\n').forEach(line => {
+                        buffer += decoder.decode(value, {stream: true});
+                        
+                        // Process complete lines only
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop(); // Keep incomplete line in buffer
+
+                        lines.forEach(line => {
                             if(line.startsWith('data: ')) {
                                 const dataStr = line.slice(6);
                                 if(dataStr.trim() === '[DONE]') return;
                                 try {
                                     const data = JSON.parse(dataStr);
-                                    // Perplexity often sends citations in the last chunk or usage object
+                                    // Perplexity citations often in final chunks or distinct objects
                                     if(data.citations) assistantMessage.citations = data.citations;
                                     
+                                    // Perplexity search_results might be in choices[0].message or root depending on API version
+                                    if(data.search_results) assistantMessage.searchResults = data.search_results;
+                                    else if(data.choices?.[0]?.message?.search_results) assistantMessage.searchResults = data.choices[0].message.search_results;
+
                                     const delta = data.choices[0]?.delta?.content || "";
                                     if(delta) {
                                         assistantMessage.content += delta;
@@ -1699,10 +1759,22 @@ input[type=range] { width: 100%; } /* Fix slider width */
             extractReferencesFromResponse(msg) { 
                 if (!msg.citations || !Array.isArray(msg.citations)) return {};
                 const refs = {};
+                
+                // Helper to normalize URLs for matching (remove trailing slash, protocol)
+                const normalize = (u) => u ? u.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase() : '';
+
                 msg.citations.forEach((url, idx) => {
-                    // Try to find matching metadata in searchResults, if available
-                    // Use optional chaining carefully
-                    const searchResult = msg.searchResults ? msg.searchResults.find(res => res.url === url) : null;
+                    // Try to find matching metadata in searchResults with fuzzy URL matching
+                    let searchResult = null;
+                    if (msg.searchResults && Array.isArray(msg.searchResults)) {
+                        // First try strict match
+                        searchResult = msg.searchResults.find(res => res.url === url);
+                        // Fallback to normalized match if exact failed
+                        if (!searchResult) {
+                            searchResult = msg.searchResults.find(res => normalize(res.url) === normalize(url));
+                        }
+                    }
+
                     refs[idx + 1] = {
                         url: url,
                         // Fallback logic: Use title if present, otherwise use URL
