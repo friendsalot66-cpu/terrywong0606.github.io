@@ -38,9 +38,6 @@
         } catch(e) {}
     </script>
 
-    <!-- External CSS (Loaded before embedded to allow overrides) -->
-    <link rel="stylesheet" href="/index.css">
-
     <!-- Embedded CSS -->
     <style>
 :root {
@@ -1389,8 +1386,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         
                         try {
                             const input = document.getElementById('folderInput');
-                            input.click();
-                            console.log("[Debug] Legacy input clicked programmatically.");
+                            // DO NOT CLICK HERE AUTOMATICALLY.
+                            // Chrome will block it if it's async.
+                            // We MUST let the user click again.
+                            alert("Standard file picker not supported or blocked. Legacy mode enabled. Please click 'Set Workspace Folder' again.");
                         } catch (e) {
                             console.error("[Debug] Failed to open legacy picker automatically:", e);
                             alert("Modern file picker failed. Legacy mode enabled. Please click 'Set Workspace Folder' again to open the file picker.");
