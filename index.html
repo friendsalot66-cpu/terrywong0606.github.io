@@ -955,28 +955,33 @@ input[type=range] { width: 100%; } /* Fix slider width */
             async selectRootDirectory() {
                 // Check existence
                 if (typeof window.showDirectoryPicker !== 'function') {
-                    console.warn("FileSystemAccess API missing. Using fallback.");
+                    console.warn("[Debug] FileSystemAccess API missing. Using fallback.");
                     return 'FALLBACK';
                 }
 
                 try {
-                    console.log("Requesting directory access via API...");
+                    console.log("[Debug] Requesting directory access via API...");
                     const handle = await window.showDirectoryPicker();
+                    console.log("[Debug] Directory handle acquired:", handle);
                     this.rootHandle = handle;
                     this.useLegacyMode = false;
                     await this.saveHandle(handle);
                     return handle.name;
                 } catch (err) {
                     // Ignore user cancellation (AbortError)
-                    if (err.name === 'AbortError') return null;
+                    if (err.name === 'AbortError') {
+                        console.log("[Debug] User aborted directory selection.");
+                        return 'ABORT';
+                    }
                     
                     // Log error and return fallback signal for any other error (including SecurityError)
-                    console.warn("FileSystemAccess API error (likely restricted environment):", err);
+                    console.warn("[Debug] FileSystemAccess API error (likely restricted environment):", err);
                     return 'FALLBACK';
                 }
             }
 
             handleLegacySelection(fileList) {
+                console.log("[Debug] Processing legacy file selection, files:", fileList.length);
                 this.useLegacyMode = true;
                 this.legacyFiles.clear();
                 let rootName = "Folder";
@@ -992,6 +997,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         this.legacyFiles.set(relPath, f);
                     });
                 }
+                console.log("[Debug] Legacy files mapped. Root:", rootName);
                 return rootName;
             }
 
@@ -1366,12 +1372,31 @@ input[type=range] { width: 100%; } /* Fix slider width */
 
                 // Tools Interaction
                 this.setWorkspaceBtn.addEventListener('click', async () => {
-                    console.log("Setting workspace...");
-                    const result = await this.fileManager.selectRootDirectory();
-                    console.log("Workspace selection result:", result);
-                    if (result === 'FALLBACK') {
-                        console.log("Triggering fallback input");
+                    console.log("[Debug] Set Workspace Clicked");
+                    
+                    if (this.fileManager.useLegacyMode) {
+                        console.log("[Debug] Using Legacy Mode directly");
                         document.getElementById('folderInput').click();
+                        return;
+                    }
+
+                    const result = await this.fileManager.selectRootDirectory();
+                    console.log("[Debug] selection result:", result);
+                    
+                    if (result === 'FALLBACK') {
+                        console.log("[Debug] Fallback signal received. Attempting to open Legacy Picker...");
+                        this.fileManager.useLegacyMode = true;
+                        
+                        try {
+                            const input = document.getElementById('folderInput');
+                            input.click();
+                            console.log("[Debug] Legacy input clicked programmatically.");
+                        } catch (e) {
+                            console.error("[Debug] Failed to open legacy picker automatically:", e);
+                            alert("Modern file picker failed. Legacy mode enabled. Please click 'Set Workspace Folder' again to open the file picker.");
+                        }
+                    } else if (result === 'ABORT') {
+                        console.log("[Debug] User aborted selection");
                     } else if (result) {
                         document.getElementById('workspaceStatus').textContent = "Workspace: " + result;
                         this.showStatus('Workspace Set', 'success');
