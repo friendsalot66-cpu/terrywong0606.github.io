@@ -646,6 +646,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     </div>
                 </div>
                 <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.html" style="display: none;">
+                <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
             </div>
         </div>
     </div>
@@ -908,6 +909,8 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.dbName = 'MultiAPIChatDB';
                 this.storeName = 'fileHandles';
                 this.rootHandle = null;
+                this.legacyFiles = new Map();
+                this.useLegacyMode = false;
                 this.initDB();
             }
 
@@ -952,26 +955,44 @@ input[type=range] { width: 100%; } /* Fix slider width */
             async selectRootDirectory() {
                 // Check existence
                 if (typeof window.showDirectoryPicker !== 'function') {
-                    alert("Your browser does not support the File System Access API.");
-                    return null;
+                    console.warn("FileSystemAccess API missing. Using fallback.");
+                    return 'FALLBACK';
                 }
 
                 try {
+                    console.log("Requesting directory access via API...");
                     const handle = await window.showDirectoryPicker();
                     this.rootHandle = handle;
+                    this.useLegacyMode = false;
                     await this.saveHandle(handle);
                     return handle.name;
                 } catch (err) {
-                    // Handle the specific Cross Origin / Security Error
-                    if (err.name === 'SecurityError' || err.message.includes('Cross origin') || err.message.includes('frame')) {
-                        alert("Security Restriction: Local File System Access is blocked in this embedded environment (iframe).\n\nPlease open this page in a full browser tab/window to use the Local Tools feature.");
-                    } else if (err.name !== 'AbortError') {
-                        // Ignore user cancellation (AbortError)
-                        console.error("Directory selection failed:", err);
-                        alert("Error selecting directory: " + err.message);
-                    }
-                    return null;
+                    // Ignore user cancellation (AbortError)
+                    if (err.name === 'AbortError') return null;
+                    
+                    // Log error and return fallback signal for any other error (including SecurityError)
+                    console.warn("FileSystemAccess API error (likely restricted environment):", err);
+                    return 'FALLBACK';
                 }
+            }
+
+            handleLegacySelection(fileList) {
+                this.useLegacyMode = true;
+                this.legacyFiles.clear();
+                let rootName = "Folder";
+                if(fileList.length > 0) {
+                    // Path: Root/sub/file
+                    const first = fileList[0].webkitRelativePath;
+                    rootName = first.split('/')[0];
+                    
+                    Array.from(fileList).forEach(f => {
+                        const parts = f.webkitRelativePath.split('/');
+                        parts.shift(); // remove root folder name from key
+                        const relPath = parts.join('/');
+                        this.legacyFiles.set(relPath, f);
+                    });
+                }
+                return rootName;
             }
 
             async restoreHandle() {
@@ -985,6 +1006,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         const options = {};
                         if ((await handle.queryPermission(options)) === 'granted') {
                             this.rootHandle = handle;
+                            this.useLegacyMode = false;
                             return handle.name;
                         }
                     } catch (permErr) {
@@ -1017,6 +1039,12 @@ input[type=range] { width: 100%; } /* Fix slider width */
             }
 
             async readFile(relativePath) {
+                if (this.useLegacyMode) {
+                    const f = this.legacyFiles.get(relativePath);
+                    if (!f) throw new Error("File not found in loaded folder (Legacy Mode): " + relativePath);
+                    return await f.text();
+                }
+
                 if (!this.rootHandle) throw new Error("No workspace selected.");
                 
                 const parts = relativePath.split('/').filter(p => p.trim() !== '');
@@ -1193,6 +1221,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.sendMessage = document.getElementById('sendMessage');
                 this.imageUpload = document.getElementById('imageUpload');
                 this.fileInput = document.getElementById('fileInput');
+                this.folderInput = document.getElementById('folderInput'); // Added Legacy Input
                 this.modelToggle = document.getElementById('modelToggle');
                 this.togglePartialModeBtn = document.getElementById('togglePartialMode');
                 this.partialModeContainer = document.getElementById('partialModeContainer');
@@ -1337,10 +1366,23 @@ input[type=range] { width: 100%; } /* Fix slider width */
 
                 // Tools Interaction
                 this.setWorkspaceBtn.addEventListener('click', async () => {
-                    const name = await this.fileManager.selectRootDirectory();
-                    if(name) {
-                        document.getElementById('workspaceStatus').textContent = "Workspace: " + name;
+                    console.log("Setting workspace...");
+                    const result = await this.fileManager.selectRootDirectory();
+                    console.log("Workspace selection result:", result);
+                    if (result === 'FALLBACK') {
+                        console.log("Triggering fallback input");
+                        document.getElementById('folderInput').click();
+                    } else if (result) {
+                        document.getElementById('workspaceStatus').textContent = "Workspace: " + result;
                         this.showStatus('Workspace Set', 'success');
+                    }
+                });
+                
+                this.folderInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const name = this.fileManager.handleLegacySelection(e.target.files);
+                        document.getElementById('workspaceStatus').textContent = "Workspace: " + name + " (Legacy Mode)";
+                        this.showStatus('Workspace Set (Legacy)', 'success');
                     }
                 });
             }
