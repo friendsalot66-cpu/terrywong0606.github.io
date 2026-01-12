@@ -874,7 +874,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
         <div class="popup-content">
             <h3>My Tools</h3>
             <div class="workspace-status" id="workspaceStatus">Workspace: Not Set</div>
-            <button class="btn btn--secondary btn--sm" id="setWorkspaceBtn" style="width:100%; margin-bottom:16px;">📂 Set Workspace Folder</button>
+            <button class="btn btn--secondary btn--sm" onclick="window.chatApp.handleWorkspaceClick()" style="width:100%; margin-bottom:4px;">📂 Set Workspace Folder</button>
+            <div style="text-align: center; margin-bottom: 16px;">
+                <button class="btn btn--text" onclick="window.chatApp.forceLegacyWorkspace()" style="font-size: 10px; color: var(--color-text-secondary); padding: 2px;">(Click here if button above fails)</button>
+            </div>
             
             <div class="form-group">
                 <input type="text" id="toolNameInput" class="form-control" placeholder="Tool Name" style="margin-bottom:4px;">
@@ -1298,7 +1301,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.maxTokensValue = document.getElementById('maxTokensValue');
                 this.themeToggle = document.getElementById('themeToggle');
                 this.streamToggle = document.getElementById('streamToggle');
-                this.setWorkspaceBtn = document.getElementById('setWorkspaceBtn');
+                this.setWorkspaceBtn = document.getElementById('setWorkspaceBtn'); // Not used in listener but kept for reference
                 
                 this.clearChatBtn = document.getElementById('clearChatBtn');
 
@@ -1395,19 +1398,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 this.readmeBackBtn.addEventListener('click', () => this.showReadmeMain());
 
-                // Tools Interaction - OPTIMIZED FOR SYNC EXECUTION
-                this.setWorkspaceBtn.addEventListener('click', () => {
-                    console.log("[Debug] Set Workspace Clicked");
-                    
-                    // Direct check and click for fallback to ensure user gesture valid
-                    if (this.fileManager.useLegacyMode || typeof window.showDirectoryPicker !== 'function') {
-                        console.log("[Debug] Legacy mode direct click");
-                        document.getElementById('folderInput').click();
-                    } else {
-                        // Modern API (Async)
-                        this.handleModernWorkspaceSelection();
-                    }
-                });
+                // Tools Interaction
+                // Note: Main button click is now handled inline via onclick="window.chatApp.handleWorkspaceClick()"
+                // This ensures it fires even if the below listeners have issues attaching.
                 
                 this.folderInput.addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
@@ -1418,6 +1411,22 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
             }
             
+            handleWorkspaceClick() {
+                console.log("[Debug] Main Workspace Button Clicked");
+                // Direct check: if legacy already active OR standard API missing, click input immediately
+                if (this.fileManager.useLegacyMode || typeof window.showDirectoryPicker !== 'function') {
+                    document.getElementById('folderInput').click();
+                } else {
+                    this.handleModernWorkspaceSelection();
+                }
+            }
+            
+            forceLegacyWorkspace() {
+                console.log("[Debug] Forcing Legacy Mode via Link");
+                this.fileManager.useLegacyMode = true;
+                document.getElementById('folderInput').click();
+            }
+            
             async handleModernWorkspaceSelection() {
                 const result = await this.fileManager.selectRootDirectory();
                 console.log("[Debug] selection result:", result);
@@ -1425,7 +1434,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 if (result === 'FALLBACK') {
                     // Fallback triggered after async operation - might be blocked
                     this.fileManager.useLegacyMode = true;
-                    alert("Standard picker unavailable. Please click 'Set Workspace' again for legacy mode.");
+                    alert("Standard picker unavailable. Please click the 'Use Legacy Picker' link below.");
                 } else if (result === 'ABORT') {
                     console.log("[Debug] User aborted selection");
                 } else if (result) {
