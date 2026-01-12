@@ -6,29 +6,31 @@
     <title>Multi-API Chat Interface (v2.12.14)</title>
 
     <!-- External Dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js" onerror="console.warn('Showdown failed to load')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="console.warn('HighlightJS failed to load')"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" onerror="console.warn('HighlightCSS failed to load')">
     
     <!-- Mathematics (KaTeX) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" onerror="console.warn('Katex CSS failed to load')">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" onerror="console.warn('Katex JS failed to load')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onerror="console.warn('Katex AutoRender failed to load')"></script>
 
     <!-- Diagrams (Mermaid) -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js" onerror="console.warn('Mermaid failed to load')"></script>
 
     <!-- Documents (PDF.js) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="console.warn('PDF.js failed to load')"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        if(window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
     </script>
     
     <!-- Highcharts & SheetJS Dependencies -->
-    <script src="https://code.highcharts.com/highcharts.js"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"></script>
-    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js" onerror="console.warn('Highcharts failed to load')"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js" onerror="console.warn('Highcharts Exporting failed to load')"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js" onerror="console.warn('Highcharts Accessibility failed to load')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="console.warn('XLSX failed to load')"></script>
 
     <script>
         // Immediately apply theme to avoid flash
@@ -901,6 +903,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
     </div>
 
     <script>
+        window.onerror = function(msg, url, line) {
+            alert("App Error: " + msg + "\nLine: " + line);
+        };
+
         class LocalFileManager {
             constructor() {
                 this.dbName = 'MultiAPIChatDB';
@@ -908,10 +914,15 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.rootHandle = null;
                 this.legacyFiles = new Map();
                 this.useLegacyMode = false;
-                this.initDB();
+                try {
+                    this.initDB();
+                } catch(e) {
+                    console.warn("IndexedDB not available:", e);
+                }
             }
 
             initDB() {
+                if(!window.indexedDB) return Promise.resolve(null);
                 return new Promise((resolve, reject) => {
                     const request = indexedDB.open(this.dbName, 1);
                     request.onupgradeneeded = (event) => {
@@ -928,6 +939,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             async saveHandle(handle) {
                 try {
                     const db = await this.initDB();
+                    if(!db) return;
                     const tx = db.transaction(this.storeName, 'readwrite');
                     tx.objectStore(this.storeName).put(handle, 'root');
                     return new Promise((resolve, reject) => {
@@ -940,6 +952,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             async loadHandle() {
                 try {
                     const db = await this.initDB();
+                    if(!db) return null;
                     return new Promise((resolve, reject) => {
                         const tx = db.transaction(this.storeName, 'readonly');
                         const req = tx.objectStore(this.storeName).get('root');
@@ -1114,11 +1127,26 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.fileManager = new LocalFileManager();
 
                 // Initialize Mermaid
-                if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'default' });
+                if (window.mermaid) {
+                    try {
+                        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+                    } catch(e) { console.warn("Mermaid init failed", e); }
+                }
 
-                this.converter = new showdown.Converter({
-                    tables: true, strikethrough: true, tasklists: true, ghCodeBlocks: true, openLinksInNewWindow: true, emoji: true
-                });
+                // Initialize Markdown Converter with fallback
+                if (typeof showdown !== 'undefined') {
+                    try {
+                        this.converter = new showdown.Converter({
+                            tables: true, strikethrough: true, tasklists: true, ghCodeBlocks: true, openLinksInNewWindow: true, emoji: true
+                        });
+                    } catch (e) {
+                        console.warn("Showdown init failed", e);
+                        this.converter = { makeHtml: (t) => t.replace(/\n/g, '<br>') };
+                    }
+                } else {
+                    console.warn("Showdown library missing");
+                    this.converter = { makeHtml: (t) => t.replace(/\n/g, '<br>') };
+                }
 
                 this.personas = {
                     allrounder: { name: "All-rounder", prompt: "You are a versatile AI assistant." },
@@ -1367,38 +1395,17 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 this.readmeBackBtn.addEventListener('click', () => this.showReadmeMain());
 
-                // Tools Interaction
-                this.setWorkspaceBtn.addEventListener('click', async () => {
+                // Tools Interaction - OPTIMIZED FOR SYNC EXECUTION
+                this.setWorkspaceBtn.addEventListener('click', () => {
                     console.log("[Debug] Set Workspace Clicked");
                     
-                    if (this.fileManager.useLegacyMode) {
-                        console.log("[Debug] Using Legacy Mode directly");
+                    // Direct check and click for fallback to ensure user gesture valid
+                    if (this.fileManager.useLegacyMode || typeof window.showDirectoryPicker !== 'function') {
+                        console.log("[Debug] Legacy mode direct click");
                         document.getElementById('folderInput').click();
-                        return;
-                    }
-
-                    const result = await this.fileManager.selectRootDirectory();
-                    console.log("[Debug] selection result:", result);
-                    
-                    if (result === 'FALLBACK') {
-                        console.log("[Debug] Fallback signal received. Attempting to open Legacy Picker...");
-                        this.fileManager.useLegacyMode = true;
-                        
-                        try {
-                            const input = document.getElementById('folderInput');
-                            // DO NOT CLICK HERE AUTOMATICALLY.
-                            // Chrome will block it if it's async.
-                            // We MUST let the user click again.
-                            alert("Standard file picker not supported or blocked. Legacy mode enabled. Please click 'Set Workspace Folder' again.");
-                        } catch (e) {
-                            console.error("[Debug] Failed to open legacy picker automatically:", e);
-                            alert("Modern file picker failed. Legacy mode enabled. Please click 'Set Workspace Folder' again to open the file picker.");
-                        }
-                    } else if (result === 'ABORT') {
-                        console.log("[Debug] User aborted selection");
-                    } else if (result) {
-                        document.getElementById('workspaceStatus').textContent = "Workspace: " + result;
-                        this.showStatus('Workspace Set', 'success');
+                    } else {
+                        // Modern API (Async)
+                        this.handleModernWorkspaceSelection();
                     }
                 });
                 
@@ -1409,6 +1416,22 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         this.showStatus('Workspace Set (Legacy)', 'success');
                     }
                 });
+            }
+            
+            async handleModernWorkspaceSelection() {
+                const result = await this.fileManager.selectRootDirectory();
+                console.log("[Debug] selection result:", result);
+                
+                if (result === 'FALLBACK') {
+                    // Fallback triggered after async operation - might be blocked
+                    this.fileManager.useLegacyMode = true;
+                    alert("Standard picker unavailable. Please click 'Set Workspace' again for legacy mode.");
+                } else if (result === 'ABORT') {
+                    console.log("[Debug] User aborted selection");
+                } else if (result) {
+                    document.getElementById('workspaceStatus').textContent = "Workspace: " + result;
+                    this.showStatus('Workspace Set', 'success');
+                }
             }
             
             showReadmeDetail(featureKey) {
@@ -1613,17 +1636,22 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         this.processTables(contentEl);
                         
                         // NEW: Initialize Mermaid and Math
-                        if (window.mermaid) mermaid.init(undefined, contentEl.querySelectorAll('.mermaid'));
+                        if (window.mermaid) {
+                            try { mermaid.init(undefined, contentEl.querySelectorAll('.mermaid')); }
+                            catch(e) { console.warn('Mermaid render failed', e); }
+                        }
                         if (window.renderMathInElement) {
-                            renderMathInElement(contentEl, {
-                                delimiters: [
-                                    {left: '$$', right: '$$', display: true},
-                                    {left: '$', right: '$', display: false},
-                                    {left: '\\(', right: '\\)', display: false},
-                                    {left: '\\[', right: '\\]', display: true}
-                                ],
-                                throwOnError: false
-                            });
+                            try {
+                                renderMathInElement(contentEl, {
+                                    delimiters: [
+                                        {left: '$$', right: '$$', display: true},
+                                        {left: '$', right: '$', display: false},
+                                        {left: '\\(', right: '\\)', display: false},
+                                        {left: '\\[', right: '\\]', display: true}
+                                    ],
+                                    throwOnError: false
+                                });
+                            } catch(e) { console.warn('Katex render failed', e); }
                         }
 
                         // Floating Export Button
@@ -2003,7 +2031,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
                                         
                                         // Dynamic post-processing for streaming content
                                         if (window.renderMathInElement) renderMathInElement(contentDiv, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError:false});
-                                        if (window.mermaid) mermaid.init(undefined, contentDiv.querySelectorAll('.mermaid'));
+                                        if (window.mermaid) {
+                                            try { mermaid.init(undefined, contentDiv.querySelectorAll('.mermaid')); }
+                                            catch(e){}
+                                        }
                                         
                                         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
                                     }
