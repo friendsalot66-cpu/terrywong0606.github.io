@@ -2083,7 +2083,17 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 });
                 if(!res.ok) throw new Error('API Error');
                 const d = await res.json();
-                return { content: d.choices[0]?.message?.content || '', tokenUsage: d.usage || {}, searchResults: d.choices[0]?.message?.search_results || d.search_results || [], citations: d.citations || [] };
+                
+                // Safe parsing to avoid crashes if API returns unexpected structure
+                const choice = d.choices?.[0];
+                const message = choice?.message || {};
+                
+                return { 
+                    content: message.content || '', 
+                    tokenUsage: d.usage || {}, 
+                    searchResults: message.search_results || d.search_results || [], 
+                    citations: d.citations || [] 
+                };
             }
             
             buildMessagesForAPI(pre) {
@@ -2180,7 +2190,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                                     
                                     if (data.usage) assistantMessage.tokenUsage = data.usage;
 
-                                    const delta = data.choices[0]?.delta?.content || "";
+                                    const delta = data.choices?.[0]?.delta?.content || "";
                                     if(delta) {
                                         assistantMessage.content += delta;
                                         contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
@@ -2477,6 +2487,9 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 saveBtn.onclick = async () => {
                     const newText = textarea.value.trim();
                     if (newText) {
+                        // FIX: Ensure API Key is present before regenerating
+                        if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); this.setLoading(false); return; }
+
                         this.messages[index].content = newText;
                         this.messages = this.messages.slice(0, index + 1);
                         this.renderMessages(); 
