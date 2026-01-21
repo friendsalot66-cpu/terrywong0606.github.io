@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.15.10)</title>
+    <title>Multi-API Chat Interface (v2.15.12)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js" onerror="console.warn('Showdown failed to load')"></script>
@@ -624,11 +624,12 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.15.10</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.15.12</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
                             <span id="personaStatus">Persona: All-rounder</span>
+                            <span id="saveStatus" style="opacity: 0; transition: opacity 0.5s; color: var(--color-success); margin-left: 8px; font-weight: bold;">Saved</span>
                         </div>
                     </div>
                 </div>
@@ -823,7 +824,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
         </div>
     </div>
 
-    <div class="popup hidden" id="readmePopup"><div class="popup-content" style="max-width: 800px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:12px;"><h3 style="margin:0; border:none; padding:0;">About Multi-API Chat</h3><button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button></div><div id="readmeMainView"><div class="key-section" style="margin-top:0;"><h4 style="margin:0 0 8px 0;">Getting Started</h4><p style="font-size:13px; margin:0 0 8px 0;">This client-side application connects directly to Perplexity and Moonshot APIs. Your keys are stored locally.</p><ul style="font-size:13px; margin:0; padding-left:20px;"><li><strong>Step 1:</strong> Obtain API keys from <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Perplexity</a> or <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Moonshot AI</a>.</li><li><strong>Step 2:</strong> Click the Key icon (🔑) in the sidebar to save them.</li><li><strong>Step 3:</strong> Select a model (🧠) and start chatting.</li></ul></div><h4 style="margin-top:20px;">Features (Click for Help)</h4><div class="feature-grid"><div class="feature-card" data-feature="partial"><div class="feature-title">⚡ Partial / Prefill Mode</div><p class="feature-desc">Guide the AI's response by starting the sentence for it. Exclusive to Kimi models.</p></div><div class="feature-card" data-feature="feedback"><div class="feature-title">🔁 Feedback Loop</div><p class="feature-desc">Teach the model your preferences by correcting its output text.</p></div><div class="feature-card" data-feature="image"><div class="feature-title">🖼️ Set Image / Vision</div><p class="feature-desc">Analyze images or use them as context for Perplexity Sonar Pro.</p></div><div class="feature-card" data-feature="viz"><div class="feature-title">📊 Charts & Diagrams</div><p class="feature-desc">Create Mermaids flowcharts, Highcharts visualizations, and Math equations.</p></div><div class="feature-card" data-feature="tools"><div class="feature-title">🛠️ Local File Tools</div><p class="feature-desc">Securely link a local folder to read files directly into the chat context.</p></div><div class="feature-card" data-feature="branching"><div class="feature-title">🌿 Branching & Forking</div><p class="feature-desc">Fork conversations to explore different outcomes without losing the original path.</p></div></div><div class="readme-footer"><p style="margin:0;">Multi-API Chat Interface v2.15.10</p></div></div><div id="readmeDetailView" class="feature-detail-view"><div class="detail-header"><button class="back-btn" id="readmeBackBtn">←</button><h3 style="margin:0; font-size:16px;" id="detailTitle">Feature Name</h3></div><div class="detail-content" id="detailContent"></div></div></div></div>
+    <div class="popup hidden" id="readmePopup"><div class="popup-content" style="max-width: 800px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:12px;"><h3 style="margin:0; border:none; padding:0;">About Multi-API Chat</h3><button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button></div><div id="readmeMainView"><div class="key-section" style="margin-top:0;"><h4 style="margin:0 0 8px 0;">Getting Started</h4><p style="font-size:13px; margin:0 0 8px 0;">This client-side application connects directly to Perplexity and Moonshot APIs. Your keys are stored locally.</p><ul style="font-size:13px; margin:0; padding-left:20px;"><li><strong>Step 1:</strong> Obtain API keys from <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Perplexity</a> or <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Moonshot AI</a>.</li><li><strong>Step 2:</strong> Click the Key icon (🔑) in the sidebar to save them.</li><li><strong>Step 3:</strong> Select a model (🧠) and start chatting.</li></ul></div><h4 style="margin-top:20px;">Features (Click for Help)</h4><div class="feature-grid"><div class="feature-card" data-feature="partial"><div class="feature-title">⚡ Partial / Prefill Mode</div><p class="feature-desc">Guide the AI's response by starting the sentence for it. Exclusive to Kimi models.</p></div><div class="feature-card" data-feature="feedback"><div class="feature-title">🔁 Feedback Loop</div><p class="feature-desc">Teach the model your preferences by correcting its output text.</p></div><div class="feature-card" data-feature="image"><div class="feature-title">🖼️ Set Image / Vision</div><p class="feature-desc">Analyze images or use them as context for Perplexity Sonar Pro.</p></div><div class="feature-card" data-feature="viz"><div class="feature-title">📊 Charts & Diagrams</div><p class="feature-desc">Create Mermaids flowcharts, Highcharts visualizations, and Math equations.</p></div><div class="feature-card" data-feature="tools"><div class="feature-title">🛠️ Local File Tools</div><p class="feature-desc">Securely link a local folder to read files directly into the chat context.</p></div><div class="feature-card" data-feature="branching"><div class="feature-title">🌿 Branching & Forking</div><p class="feature-desc">Fork conversations to explore different outcomes without losing the original path.</p></div></div><div class="readme-footer"><p style="margin:0;">Multi-API Chat Interface v2.15.12</p></div></div><div id="readmeDetailView" class="feature-detail-view"><div class="detail-header"><button class="back-btn" id="readmeBackBtn">←</button><h3 style="margin:0; font-size:16px;" id="detailTitle">Feature Name</h3></div><div class="detail-content" id="detailContent"></div></div></div></div>
     <div class="popup hidden" id="referencePopup"><div class="popup-content"><div class="reference-header" style="display:flex; justify-content:space-between; margin-bottom:8px;"><h3 id="referenceTitle" style="margin:0;">Reference</h3><button id="closeReferencePopup" style="border:none; background:none; font-size:18px; cursor:pointer;">&times;</button></div><div class="reference-body"><p id="referenceSnippet" style="font-size:13px; color:var(--color-text); margin-bottom:8px; font-style:italic; background:var(--color-bg-1); padding:8px; border-radius:4px;"></p><p id="referenceUrl" style="word-break: break-all; font-size: 13px; color: var(--color-primary);"></p></div><div class="reference-actions" style="margin-top:12px; display:flex; gap:8px;"><button class="btn btn--secondary btn--sm" id="copyReference">Copy URL</button><button class="btn btn--primary btn--sm" id="openReference">Open Link</button></div></div></div>
     <div class="popup hidden" id="imageInputPopup"><div class="popup-content"><h3>Set Image Source</h3><div class="form-group"><textarea id="imageInputString" class="form-control" rows="5" placeholder="Paste URL or Base64 string..."></textarea></div><div class="form-group" style="display:flex; gap:8px;"><button class="btn btn--secondary btn--sm" id="cancelImageInput">Cancel</button><button class="btn btn--primary btn--sm" id="saveImageInput">Set Image</button></div></div></div>
     <div class="popup hidden" id="historyPopup">
@@ -840,7 +841,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </div>
             <div class="history-list" id="historyList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-bottom:16px;"></div>
             
-            <input type="file" id="importSingleChatInput" accept=".json" style="display: none;">
+            <input type="file" id="importSingleChatInput" accept=".json" multiple style="display: none;">
         </div>
     </div>
     <div class="popup hidden" id="toolsPopup"><div class="popup-content"><h3>My Tools</h3><div class="workspace-status" id="workspaceStatus">Workspace: Not Set</div><button class="btn btn--secondary btn--sm" onclick="window.chatApp.handleWorkspaceClick()" style="width:100%; margin-bottom:4px;">📂 Set Workspace Folder</button><div style="text-align: center; margin-bottom: 16px;"><button class="btn btn--text" onclick="window.chatApp.forceLegacyWorkspace()" style="font-size: 10px; color: var(--color-text-secondary); padding: 2px;">(Click here if button above fails)</button></div><div class="form-group"><input type="text" id="toolNameInput" class="form-control" placeholder="Tool Name" style="margin-bottom:4px;"><input type="text" id="toolPathInput" class="form-control" placeholder="Relative Path (e.g., config.json)" style="margin-bottom:4px;"><input type="text" id="toolDescInput" class="form-control" placeholder="Description" style="margin-bottom:4px;"><button class="btn btn--primary btn--sm" id="addToolBtn">Add Tool</button></div><div class="history-list" id="toolsList" style="display:flex; flex-direction:column; gap:8px;"></div></div></div>
@@ -2417,26 +2418,36 @@ input[type=range] { width: 100%; } /* Fix slider width */
             }
             
             importSingleChat(e) {
-                const file = e.target.files[0]; if(!file) return;
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if(data.savedChats) { 
-                            let count = 0;
-                            for(const k in data.savedChats) {
-                                await this.storageManager.saveChat(data.savedChats[k]);
-                                count++;
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+                
+                let processedCount = 0;
+                const total = files.length;
+
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if(data.savedChats) { 
+                                for(const k in data.savedChats) {
+                                    await this.storageManager.saveChat(data.savedChats[k]);
+                                }
                             }
-                            await this.initData();
-                            this.renderChatHistory();
-                            this.showStatus(`Imported ${count} chat(s)`, 'success');
-                        } else {
-                            this.showStatus('Invalid Format: Missing savedChats key', 'error');
+                        } catch(err) { 
+                            console.error("Import error for file " + file.name, err);
+                        } finally {
+                            processedCount++;
+                            if(processedCount === total) {
+                                await this.initData(); // Reload metadata
+                                this.renderChatHistory();
+                                this.showStatus(`Imported ${total} file(s)`, 'success');
+                                e.target.value = ''; // Reset input
+                            }
                         }
-                    } catch(err) { this.showStatus('Invalid File', 'error'); }
-                };
-                reader.readAsText(file);
+                    };
+                    reader.readAsText(file);
+                });
             }
             
             saveApiKeys() { this.apiKeys.perplexity = document.getElementById('perplexityApiKey').value; this.apiKeys.moonshot = document.getElementById('moonshotApiKey').value; localStorage.setItem('perplexity_api_key', this.apiKeys.perplexity); localStorage.setItem('moonshot_api_key', this.apiKeys.moonshot); this.togglePopup('apiKey'); this.showStatus('Keys saved', 'success'); }
@@ -2467,14 +2478,31 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 }
             }
             saveCustomPrompt() {
-                const n = document.getElementById('customPersonaName').value;
+                const n = document.getElementById('customPersonaName').value.trim();
                 const p = document.getElementById('customPrompt').value;
-                if(this.currentPersona === 'customized') {
-                    this.customPersonaName = n; this.customPrompt = p;
-                    localStorage.setItem('customPersonaName', n); localStorage.setItem('customPrompt', p);
-                    this.personas.customized.name = n; this.personas.customized.prompt = p;
+                
+                if (this.currentPersona === 'customized') {
+                    // Update scratchpad
+                    this.customPersonaName = n;
+                    this.customPrompt = p;
+                    localStorage.setItem('customPersonaName', n);
+                    localStorage.setItem('customPrompt', p);
+                    this.personas.customized.name = n;
+                    this.personas.customized.prompt = p;
                     this.updateHeaderStatus();
-                    this.showStatus('Updated', 'success');
+                    this.showStatus('Scratchpad Updated', 'success');
+                } else if (this.savedPersonas[this.currentPersona]) {
+                    // Update saved persona
+                    this.savedPersonas[this.currentPersona].name = n;
+                    this.savedPersonas[this.currentPersona].prompt = p;
+                    this.personas[this.currentPersona].name = n;
+                    this.personas[this.currentPersona].prompt = p;
+                    localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                    this.renderSavedPersonas();
+                    this.updateHeaderStatus(); // Update header in case name changed
+                    this.showStatus('Persona Updated', 'success');
+                } else {
+                    this.showStatus('Cannot edit standard persona. Save as New.', 'warning');
                 }
             }
             updateMaxTokens(v) { this.maxTokens = parseInt(v); this.maxTokensValue.textContent = v; localStorage.setItem('maxTokens', v); }
@@ -2543,9 +2571,26 @@ input[type=range] { width: 100%; } /* Fix slider width */
             
             async autoSaveChat() { 
                 const chatObj = { id: this.currentChatId, name: this.sessions[this.currentChatId].name, messages: this.messages, references: this.references, timestamp: Date.now() };
-                await this.storageManager.saveChat(chatObj);
-                // Update local metadata cache
-                this.savedChats[this.currentChatId] = { id: chatObj.id, name: chatObj.name, timestamp: chatObj.timestamp };
+                try {
+                    await this.storageManager.saveChat(chatObj);
+                    // Update local metadata cache
+                    this.savedChats[this.currentChatId] = { id: chatObj.id, name: chatObj.name, timestamp: chatObj.timestamp };
+                    
+                    // Visual confirmation (optional, subtle)
+                    const saveStatus = document.getElementById('saveStatus');
+                    if(saveStatus) {
+                        saveStatus.textContent = 'Saved';
+                        saveStatus.style.opacity = '1';
+                        setTimeout(() => saveStatus.style.opacity = '0', 2000);
+                    }
+                } catch (e) {
+                    console.error("AutoSave Failed:", e);
+                    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                        this.showStatus('Storage Full! Delete old chats.', 'error');
+                    } else {
+                        this.showStatus('Save Failed (Check Console)', 'error');
+                    }
+                }
             }
             
             async saveCurrentChat() {
@@ -2556,7 +2601,13 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.showStatus('Chat Saved', 'success');
             }
             
-            copyMessage(text) { navigator.clipboard.writeText(text).then(() => this.showStatus('Copied', 'success')); }
+            copyMessage(text) { 
+                let contentToCopy = text;
+                if (!this.showReferences) {
+                    contentToCopy = contentToCopy.replace(/\[\d+\]/g, '');
+                }
+                navigator.clipboard.writeText(contentToCopy).then(() => this.showStatus('Copied', 'success'));
+            }
             
             exportPersonas() {
                 const data = this.savedPersonas;
