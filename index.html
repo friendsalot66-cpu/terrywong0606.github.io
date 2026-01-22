@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v2.15.14)</title>
+    <title>Multi-API Chat Interface (v2.15.15)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js" onerror="console.warn('Showdown failed to load')"></script>
@@ -624,7 +624,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v2.15.14</small></h1>
+                        <h1>Multi-API Chat Interface<small>v2.15.15</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -636,6 +636,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 <!-- Right Side: Status & About -->
                 <div class="header-right">
                     <div class="status hidden" id="statusIndicator"></div>
+                    <button class="header-icon hidden" id="openInNewTab" title="Open Full App (Fix Storage)" style="color:var(--color-primary); background:var(--color-bg-1);">↗</button>
                     <button class="header-icon" id="readmeToggle" title="About">ℹ️</button>
                 </div>
             </div>
@@ -713,8 +714,11 @@ input[type=range] { width: 100%; } /* Fix slider width */
             </div>
             
             <h4 style="margin-top:20px; border-top:1px solid var(--color-border); padding-top:12px;">Storage & Data Rescue</h4>
-            <p style="font-size:11px; color:var(--color-text-secondary);">If chats disappear but LocalStorage works, use this to reconnect the database.</p>
-            <button id="runStorageDoctorBtn" class="btn btn--secondary btn--sm" style="width:100%;">🏥 Run Storage Doctor</button>
+            <p style="font-size:11px; color:var(--color-text-secondary);">If chats disappear due to restricted iframe access:</p>
+            <div style="display:flex; gap:8px;">
+                <button id="runStorageDoctorBtn" class="btn btn--secondary btn--sm" style="flex:1;">🏥 Run Doctor</button>
+                <button id="reqStorageAccessBtn" class="btn btn--primary btn--sm hidden" style="flex:1;">🔑 Connect Database</button>
+            </div>
             <div id="storageDoctorResult" style="margin-top:8px; font-size:12px; padding:8px; background:var(--color-bg-1); border-radius:4px; display:none;"></div>
         </div>
     </div>
@@ -829,7 +833,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
         </div>
     </div>
 
-    <div class="popup hidden" id="readmePopup"><div class="popup-content" style="max-width: 800px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:12px;"><h3 style="margin:0; border:none; padding:0;">About Multi-API Chat</h3><button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button></div><div id="readmeMainView"><div class="key-section" style="margin-top:0;"><h4 style="margin:0 0 8px 0;">Getting Started</h4><p style="font-size:13px; margin:0 0 8px 0;">This client-side application connects directly to Perplexity and Moonshot APIs. Your keys are stored locally.</p><ul style="font-size:13px; margin:0; padding-left:20px;"><li><strong>Step 1:</strong> Obtain API keys from <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Perplexity</a> or <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Moonshot AI</a>.</li><li><strong>Step 2:</strong> Click the Key icon (🔑) in the sidebar to save them.</li><li><strong>Step 3:</strong> Select a model (🧠) and start chatting.</li></ul></div><h4 style="margin-top:20px;">Features (Click for Help)</h4><div class="feature-grid"><div class="feature-card" data-feature="partial"><div class="feature-title">⚡ Partial / Prefill Mode</div><p class="feature-desc">Guide the AI's response by starting the sentence for it. Exclusive to Kimi models.</p></div><div class="feature-card" data-feature="feedback"><div class="feature-title">🔁 Feedback Loop</div><p class="feature-desc">Teach the model your preferences by correcting its output text.</p></div><div class="feature-card" data-feature="image"><div class="feature-title">🖼️ Set Image / Vision</div><p class="feature-desc">Analyze images or use them as context for Perplexity Sonar Pro.</p></div><div class="feature-card" data-feature="viz"><div class="feature-title">📊 Charts & Diagrams</div><p class="feature-desc">Create Mermaids flowcharts, Highcharts visualizations, and Math equations.</p></div><div class="feature-card" data-feature="tools"><div class="feature-title">🛠️ Local File Tools</div><p class="feature-desc">Securely link a local folder to read files directly into the chat context.</p></div><div class="feature-card" data-feature="branching"><div class="feature-title">🌿 Branching & Forking</div><p class="feature-desc">Fork conversations to explore different outcomes without losing the original path.</p></div></div><div class="readme-footer"><p style="margin:0;">Multi-API Chat Interface v2.15.14</p></div></div><div id="readmeDetailView" class="feature-detail-view"><div class="detail-header"><button class="back-btn" id="readmeBackBtn">←</button><h3 style="margin:0; font-size:16px;" id="detailTitle">Feature Name</h3></div><div class="detail-content" id="detailContent"></div></div></div></div>
+    <div class="popup hidden" id="readmePopup"><div class="popup-content" style="max-width: 800px;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--color-border); padding-bottom:12px;"><h3 style="margin:0; border:none; padding:0;">About Multi-API Chat</h3><button onclick="document.getElementById('readmePopup').classList.add('hidden')" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button></div><div id="readmeMainView"><div class="key-section" style="margin-top:0;"><h4 style="margin:0 0 8px 0;">Getting Started</h4><p style="font-size:13px; margin:0 0 8px 0;">This client-side application connects directly to Perplexity and Moonshot APIs. Your keys are stored locally.</p><ul style="font-size:13px; margin:0; padding-left:20px;"><li><strong>Step 1:</strong> Obtain API keys from <a href="https://docs.perplexity.ai/" target="_blank" style="color:var(--color-primary);">Perplexity</a> or <a href="https://platform.moonshot.cn/" target="_blank" style="color:var(--color-primary);">Moonshot AI</a>.</li><li><strong>Step 2:</strong> Click the Key icon (🔑) in the sidebar to save them.</li><li><strong>Step 3:</strong> Select a model (🧠) and start chatting.</li></ul></div><h4 style="margin-top:20px;">Features (Click for Help)</h4><div class="feature-grid"><div class="feature-card" data-feature="partial"><div class="feature-title">⚡ Partial / Prefill Mode</div><p class="feature-desc">Guide the AI's response by starting the sentence for it. Exclusive to Kimi models.</p></div><div class="feature-card" data-feature="feedback"><div class="feature-title">🔁 Feedback Loop</div><p class="feature-desc">Teach the model your preferences by correcting its output text.</p></div><div class="feature-card" data-feature="image"><div class="feature-title">🖼️ Set Image / Vision</div><p class="feature-desc">Analyze images or use them as context for Perplexity Sonar Pro.</p></div><div class="feature-card" data-feature="viz"><div class="feature-title">📊 Charts & Diagrams</div><p class="feature-desc">Create Mermaids flowcharts, Highcharts visualizations, and Math equations.</p></div><div class="feature-card" data-feature="tools"><div class="feature-title">🛠️ Local File Tools</div><p class="feature-desc">Securely link a local folder to read files directly into the chat context.</p></div><div class="feature-card" data-feature="branching"><div class="feature-title">🌿 Branching & Forking</div><p class="feature-desc">Fork conversations to explore different outcomes without losing the original path.</p></div></div><div class="readme-footer"><p style="margin:0;">Multi-API Chat Interface v2.15.15</p></div></div><div id="readmeDetailView" class="feature-detail-view"><div class="detail-header"><button class="back-btn" id="readmeBackBtn">←</button><h3 style="margin:0; font-size:16px;" id="detailTitle">Feature Name</h3></div><div class="detail-content" id="detailContent"></div></div></div></div>
     <div class="popup hidden" id="referencePopup"><div class="popup-content"><div class="reference-header" style="display:flex; justify-content:space-between; margin-bottom:8px;"><h3 id="referenceTitle" style="margin:0;">Reference</h3><button id="closeReferencePopup" style="border:none; background:none; font-size:18px; cursor:pointer;">&times;</button></div><div class="reference-body"><p id="referenceSnippet" style="font-size:13px; color:var(--color-text); margin-bottom:8px; font-style:italic; background:var(--color-bg-1); padding:8px; border-radius:4px;"></p><p id="referenceUrl" style="word-break: break-all; font-size: 13px; color: var(--color-primary);"></p></div><div class="reference-actions" style="margin-top:12px; display:flex; gap:8px;"><button class="btn btn--secondary btn--sm" id="copyReference">Copy URL</button><button class="btn btn--primary btn--sm" id="openReference">Open Link</button></div></div></div>
     <div class="popup hidden" id="imageInputPopup"><div class="popup-content"><h3>Set Image Source</h3><div class="form-group"><textarea id="imageInputString" class="form-control" rows="5" placeholder="Paste URL or Base64 string..."></textarea></div><div class="form-group" style="display:flex; gap:8px;"><button class="btn btn--secondary btn--sm" id="cancelImageInput">Cancel</button><button class="btn btn--primary btn--sm" id="saveImageInput">Set Image</button></div></div></div>
     <div class="popup hidden" id="historyPopup">
@@ -871,104 +875,140 @@ input[type=range] { width: 100%; } /* Fix slider width */
             initDB() {
                 if(!window.indexedDB) return Promise.resolve(null);
                 return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.version);
-                    request.onupgradeneeded = (event) => {
-                        const db = event.target.result;
-                        if (!db.objectStoreNames.contains('fileHandles')) {
-                            db.createObjectStore('fileHandles');
-                        }
-                        if (!db.objectStoreNames.contains('savedChats')) {
-                            const chatStore = db.createObjectStore('savedChats', { keyPath: 'id' });
-                            chatStore.createIndex('name', 'name', { unique: false });
-                            chatStore.createIndex('timestamp', 'timestamp', { unique: false });
-                        }
-                    };
-                    request.onsuccess = (event) => {
-                        this.db = event.target.result;
-                        resolve(this.db);
-                    };
-                    request.onerror = (event) => reject(request.error);
+                    // Try/Catch for iframe security errors
+                    try {
+                        const request = indexedDB.open(this.dbName, this.version);
+                        request.onupgradeneeded = (event) => {
+                            const db = event.target.result;
+                            if (!db.objectStoreNames.contains('fileHandles')) {
+                                db.createObjectStore('fileHandles');
+                            }
+                            if (!db.objectStoreNames.contains('savedChats')) {
+                                const chatStore = db.createObjectStore('savedChats', { keyPath: 'id' });
+                                chatStore.createIndex('name', 'name', { unique: false });
+                                chatStore.createIndex('timestamp', 'timestamp', { unique: false });
+                            }
+                        };
+                        request.onsuccess = (event) => {
+                            this.db = event.target.result;
+                            resolve(this.db);
+                        };
+                        request.onerror = (event) => {
+                            console.error("DB Open Error:", request.error);
+                            reject(request.error);
+                        };
+                    } catch (e) {
+                        console.error("Security Error opening DB (likely iframe):", e);
+                        reject(e);
+                    }
                 });
+            }
+            
+            async ensureStorageAccess() {
+                if (document.hasStorageAccess && document.requestStorageAccess) {
+                    try {
+                        const hasAccess = await document.hasStorageAccess();
+                        if (!hasAccess) {
+                            await document.requestStorageAccess();
+                            // Re-init DB after granting access
+                            this.ready = this.initDB(); 
+                            return true;
+                        }
+                    } catch (e) {
+                        console.warn("Storage Access API failed", e);
+                    }
+                }
+                return false;
             }
 
             // --- Chat Storage Methods ---
 
             async saveChat(chatObj) {
-                await this.ready;
-                if(!this.db) return;
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('savedChats', 'readwrite');
-                    const store = tx.objectStore('savedChats');
-                    // Add timestamp if missing for sorting
-                    if(!chatObj.timestamp) chatObj.timestamp = Date.now();
-                    store.put(chatObj);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                });
+                try {
+                    await this.ready;
+                    if(!this.db) return;
+                    return new Promise((resolve, reject) => {
+                        const tx = this.db.transaction('savedChats', 'readwrite');
+                        const store = tx.objectStore('savedChats');
+                        // Add timestamp if missing for sorting
+                        if(!chatObj.timestamp) chatObj.timestamp = Date.now();
+                        store.put(chatObj);
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                    });
+                } catch(e) { console.warn("Save skipped due to DB error"); }
             }
 
             async getChat(id) {
-                await this.ready;
-                if(!this.db) return null;
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('savedChats', 'readonly');
-                    const store = tx.objectStore('savedChats');
-                    const req = store.get(id);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
+                try {
+                    await this.ready;
+                    if(!this.db) return null;
+                    return new Promise((resolve, reject) => {
+                        const tx = this.db.transaction('savedChats', 'readonly');
+                        const store = tx.objectStore('savedChats');
+                        const req = store.get(id);
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => reject(req.error);
+                    });
+                } catch(e) { return null; }
             }
 
             async getAllChatsMetadata() {
-                await this.ready;
-                if(!this.db) return [];
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('savedChats', 'readonly');
-                    const store = tx.objectStore('savedChats');
-                    const headers = [];
-                    // Use cursor to avoid loading full message bodies (base64 images) into memory
-                    const req = store.openCursor();
-                    req.onsuccess = (event) => {
-                        const cursor = event.target.result;
-                        if (cursor) {
-                            headers.push({
-                                id: cursor.value.id,
-                                name: cursor.value.name,
-                                timestamp: cursor.value.timestamp,
-                                isPinned: cursor.value.isPinned
-                            });
-                            cursor.continue();
-                        } else {
-                            resolve(headers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
-                        }
-                    };
-                    req.onerror = () => reject(req.error);
-                });
+                try {
+                    await this.ready;
+                    if(!this.db) return [];
+                    return new Promise((resolve, reject) => {
+                        const tx = this.db.transaction('savedChats', 'readonly');
+                        const store = tx.objectStore('savedChats');
+                        const headers = [];
+                        // Use cursor to avoid loading full message bodies (base64 images) into memory
+                        const req = store.openCursor();
+                        req.onsuccess = (event) => {
+                            const cursor = event.target.result;
+                            if (cursor) {
+                                headers.push({
+                                    id: cursor.value.id,
+                                    name: cursor.value.name,
+                                    timestamp: cursor.value.timestamp,
+                                    isPinned: cursor.value.isPinned
+                                });
+                                cursor.continue();
+                            } else {
+                                resolve(headers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
+                            }
+                        };
+                        req.onerror = () => reject(req.error);
+                    });
+                } catch(e) { return []; }
             }
 
             // Diagnostic: Fetch EVERYTHING raw
             async dumpAllChats() {
-                await this.ready;
-                if(!this.db) return [];
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('savedChats', 'readonly');
-                    const store = tx.objectStore('savedChats');
-                    const req = store.getAll();
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
+                try {
+                    await this.ready;
+                    if(!this.db) return [];
+                    return new Promise((resolve, reject) => {
+                        const tx = this.db.transaction('savedChats', 'readonly');
+                        const store = tx.objectStore('savedChats');
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => reject(req.error);
+                    });
+                } catch(e) { throw e; }
             }
 
             async deleteChat(id) {
-                await this.ready;
-                if(!this.db) return;
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('savedChats', 'readwrite');
-                    const store = tx.objectStore('savedChats');
-                    store.delete(id);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                });
+                try {
+                    await this.ready;
+                    if(!this.db) return;
+                    return new Promise((resolve, reject) => {
+                        const tx = this.db.transaction('savedChats', 'readwrite');
+                        const store = tx.objectStore('savedChats');
+                        store.delete(id);
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                    });
+                } catch(e) { console.error(e); }
             }
 
             // --- File Handle Methods (Existing Logic) ---
@@ -1171,6 +1211,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.updateHeaderStatus();
                 this.updateTokenConfigUI();
                 this.updatePartialModeButton();
+                this.detectIframe();
                 
                 // Request Persistence
                 if (navigator.storage && navigator.storage.persist) {
@@ -1186,6 +1227,19 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         this.createNewSession();
                     }
                 });
+            }
+            
+            detectIframe() {
+                if (window.self !== window.top) {
+                    // Show breakout button
+                    this.openInNewTabBtn.classList.remove('hidden');
+                    this.showStatus("Running in embedded mode. Storage may be restricted.", "warning");
+                    
+                    // Show Connect Storage button in Settings if API exists
+                    if (document.hasStorageAccess) {
+                        this.reqStorageAccessBtn.classList.remove('hidden');
+                    }
+                }
             }
 
             async initData() {
@@ -1269,7 +1323,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                     }
                 } catch (err) {
                     console.error("Init Data Error:", err);
-                    this.showStatus("History Load Failed", "error");
+                    this.showStatus("History Load Failed (Check Storage Doctor)", "error");
                 }
             }
             
@@ -1358,6 +1412,10 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.clearChatBtn = document.getElementById('clearChatBtn');
                 this.runStorageDoctorBtn = document.getElementById('runStorageDoctorBtn');
                 
+                // New Iframe Buttons
+                this.openInNewTabBtn = document.getElementById('openInNewTab');
+                this.reqStorageAccessBtn = document.getElementById('reqStorageAccessBtn');
+                
                 // Persona Export/Import Elements
                 this.exportPersonasBtn = document.getElementById('exportPersonasBtn');
                 this.importPersonasBtn = document.getElementById('importPersonasBtn');
@@ -1393,6 +1451,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.toolsToggle.addEventListener('click', () => { this.renderToolsList(); this.togglePopup('tools'); });
                 this.historyToggle.addEventListener('click', () => { this.renderChatHistory(); this.togglePopup('history'); });
                 this.readmeToggle.addEventListener('click', () => { this.showReadmeMain(); this.togglePopup('readme'); });
+                this.openInNewTabBtn.addEventListener('click', () => window.open(window.location.href, '_blank'));
                 
                 this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
                 this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
@@ -1457,6 +1516,15 @@ input[type=range] { width: 100%; } /* Fix slider width */
                 this.maxTokensSlider.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
                 this.maxTokensInput.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
                 this.runStorageDoctorBtn.addEventListener('click', () => this.runStorageDoctor());
+                this.reqStorageAccessBtn.addEventListener('click', async () => {
+                    const granted = await this.storageManager.ensureStorageAccess();
+                    if(granted) {
+                        this.showStatus('Storage Access Granted!', 'success');
+                        this.initData(); // Reload
+                    } else {
+                        alert('Storage access denied by browser policy. Please open in a new tab.');
+                    }
+                });
                 
                 document.getElementById('closeReferencePopup').addEventListener('click', () => this.referencePopup.classList.add('hidden'));
                 document.getElementById('openReference').addEventListener('click', () => this.openReference());
@@ -1524,7 +1592,7 @@ input[type=range] { width: 100%; } /* Fix slider width */
                         };
                     }
                 } catch(e) {
-                    resEl.innerHTML = `<span style="color:var(--color-error)">Error accessing DB: ${e.message}</span>`;
+                    resEl.innerHTML = `<span style="color:var(--color-error)">Error accessing DB: ${e.message}</span><br>If in iframe, try 'Connect Database' above.`;
                 }
             }
 
