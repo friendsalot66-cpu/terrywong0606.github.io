@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v3.0.1)</title>
+    <title>Multi-API Chat Interface (v4.0.1)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"
@@ -37,11 +37,11 @@
     </script>
 
     <!-- Highcharts & SheetJS Dependencies -->
-    <script src="https://code.highcharts.com/highcharts.js"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.0/highcharts.js"
         onerror="console.warn('Highcharts failed to load')"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.0/modules/exporting.min.js"
         onerror="console.warn('Highcharts Exporting failed to load')"></script>
-    <script src="https://code.highcharts.com/modules/accessibility.js"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.4.0/modules/accessibility.min.js"
         onerror="console.warn('Highcharts Accessibility failed to load')"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
         onerror="console.warn('XLSX failed to load')"></script>
@@ -1662,13 +1662,7 @@
                     <span class="slider"></span>
                 </label>
             </div>
-            <div class="settings-row">
-                <span>Confirm on Exit</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="warnOnExitToggle">
-                    <span class="slider"></span>
-                </label>
-            </div>
+
 
             <h4 style="margin-top:20px; border-top:1px solid var(--color-border); padding-top:12px;">Storage & Data
                 Rescue</h4>
@@ -1705,27 +1699,6 @@
             <input type="text" id="corsProxyUrl" class="form-control" placeholder="https://your-worker.workers.dev"
                 style="margin-bottom:8px; font-size:12px;">
             <button id="saveCorsProxyBtn" class="btn btn--secondary btn--sm" style="width:100%;">Save Proxy URL</button>
-
-            <h4 style="margin-top:20px; border-top:1px solid var(--color-border); padding-top:12px;">About</h4>
-            <div style="font-size:12px; color:var(--color-text-secondary);">
-                <p style="margin-bottom:8px;"><strong>Multi-API Chat Interface v3.0.1</strong></p>
-                <p style="margin-bottom:6px;"><strong>Key Features:</strong></p>
-                <ul style="margin:0 0 8px 16px; padding:0;">
-                    <li><strong>Model Selection:</strong> Click the model button in the header to switch between
-                        providers (Perplexity, Moonshot, NVIDIA NIM, Custom).</li>
-                    <li><strong>NVIDIA NIM:</strong> Use the dropdown in Model popup to select from MiniMax M2.1, Kimi
-                        K2.5, GLM 4.7, DeepSeek V3.2, Qwen3 Coder 480B. Requires CORS proxy setup.</li>
-                    <li><strong>Personas:</strong> Click the persona button to select a personality (All-rounder, Excel,
-                        Grammar, Auditor, or create custom).</li>
-                    <li><strong>API Keys:</strong> Set your API keys via the key icon in the header.</li>
-                    <li><strong>Custom Providers:</strong> Add OpenAI-compatible endpoints (DeepSeek, Ollama, LocalAI)
-                        above.</li>
-                    <li><strong>CORS Proxy:</strong> For NVIDIA NIM, set up a Cloudflare Worker proxy URL above.</li>
-                    <li><strong>Streaming:</strong> Toggle above to enable/disable streaming responses.</li>
-                    <li><strong>Dark Mode:</strong> Toggle above to switch themes.</li>
-                </ul>
-                <p style="font-size:10px; color:var(--color-text-tertiary);">© 2026 Multi-API Chat</p>
-            </div>
         </div>
     </div>
 
@@ -1869,7 +1842,9 @@
                         <select id="nimModelSelect" class="form-control" style="flex:1; min-width:200px; padding:8px;">
                             <option value="minimaxai/minimax-m2.1">🚀 MiniMax M2.1</option>
                             <option value="moonshotai/kimi-k2.5">🌙 Kimi K2.5</option>
-                            <option value="z-ai/glm4.7">🧠 GLM 4.7</option>
+                            <option value="z-ai/glm5">🧠 GLM-5</option>
+
+                            <option value="nvidia/nemotron-3-super-120b-a12b">🚀 Nemotron 3 Super 120B</option>
                             <option value="deepseek-ai/deepseek-v3.2">🔍 DeepSeek V3.2</option>
                             <option value="qwen/qwen3-coder-480b-a35b-instruct">💻 Qwen3 Coder 480B</option>
                         </select>
@@ -1878,6 +1853,30 @@
                     <label style="font-size:11px; display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <input type="checkbox" id="nimReasoningToggle"> Enable Reasoning Mode
                     </label>
+                </div>
+            </div>
+            <h4 style="margin-top:16px;">OpenRouter</h4>
+            <div class="model-options">
+                <div id="openrouterSettingsSection"
+                    style="padding: 8px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <select id="openrouterModelSelect" class="form-control" style="flex:1; min-width:200px; padding:8px;">
+                            <option value="openai/gpt-4o">🔵 GPT-4o</option>
+                            <option value="openai/gpt-4o-mini">🔵 GPT-4o Mini</option>
+                            <option value="anthropic/claude-sonnet-4">🟣 Claude Sonnet 4</option>
+                            <option value="anthropic/claude-3.5-haiku">🟣 Claude 3.5 Haiku</option>
+                            <option value="google/gemini-2.5-pro-preview">🟢 Gemini 2.5 Pro</option>
+                            <option value="google/gemini-2.5-flash-preview">🟢 Gemini 2.5 Flash</option>
+                            <option value="deepseek/deepseek-r1">🔍 DeepSeek R1</option>
+                            <option value="deepseek/deepseek-chat-v3-0324">🔍 DeepSeek V3</option>
+                            <option value="meta-llama/llama-4-maverick">🦙 Llama 4 Maverick</option>
+                            <option value="meta-llama/llama-4-scout">🦙 Llama 4 Scout</option>
+                            <option value="qwen/qwen3-235b-a22b">💜 Qwen3 235B</option>
+                        </select>
+                        <button id="selectOpenrouterModelBtn" class="btn btn-primary" style="padding:8px 16px;">Select</button>
+                        <button id="loadOpenrouterModelsBtn" class="btn btn-primary" style="padding:8px 16px; background:var(--color-success);">🔄 Load Models</button>
+                    </div>
+                    <input type="text" id="openrouterCustomModel" class="form-control" placeholder="Or type any model ID (e.g. mistralai/mistral-large)" style="margin-top:8px; font-size:12px;">
                 </div>
             </div>
             <h4 style="margin-top:16px;">Custom Providers</h4>
@@ -1902,6 +1901,10 @@
             <div class="form-group">
                 <label class="form-label">NVIDIA NIM API Key:</label>
                 <input type="password" id="nvidiaApiKey" class="form-control">
+            </div>
+            <div class="form-group">
+                <label class="form-label">OpenRouter API Key:</label>
+                <input type="password" id="openrouterApiKey" class="form-control">
             </div>
             <h4 style="margin-top:16px; border-top:1px solid var(--color-border); padding-top:12px;">Custom Providers
             </h4>
@@ -1972,9 +1975,21 @@
                         <p class="feature-desc">Access MiniMax M2.1, Kimi K2.5, GLM 4.7, DeepSeek V3.2, Qwen3 Coder via
                             NVIDIA's API with CORS proxy.</p>
                     </div>
+                    <div class="feature-card" data-feature="openrouter">
+                        <div class="feature-title">🌐 OpenRouter</div>
+                        <p class="feature-desc">Access hundreds of open-source and commercial models, including free tiers.</p>
+                    </div>
+                    <div class="feature-card" data-feature="shortcuts">
+                        <div class="feature-title">⚡ Prompt Shortcuts</div>
+                        <p class="feature-desc">Save frequently used prompts to slash-commands (e.g. /c) for instant recall.</p>
+                    </div>
+                    <div class="feature-card" data-feature="customProviders">
+                        <div class="feature-title">💻 Local Custom Providers</div>
+                        <p class="feature-desc">Connect directly to local LLMs running on Ollama, LM Studio, or vLLM.</p>
+                    </div>
                 </div>
                 <div class="readme-footer">
-                    <p style="margin:0;">Multi-API Chat Interface v3.0.1</p>
+                    <p style="margin:0;">Multi-API Chat Interface v4.0.1</p>
                 </div>
             </div>
             <div id="readmeDetailView" class="feature-detail-view">
@@ -2428,10 +2443,15 @@
                 }
             }
 
-            async fetchModels(apiKey) {
+            async fetchModels(apiKey, proxyUrl) {
                 if (!this.supportsModelList) return null;
                 try {
-                    const modelsUrl = this.baseUrl.replace('/chat/completions', '/models');
+                    let modelsUrl = this.baseUrl.replace('/chat/completions', '/models');
+                    // Route through CORS proxy if configured
+                    if (proxyUrl && proxyUrl.trim()) {
+                        const sep = proxyUrl.includes('?') ? '&' : '?';
+                        modelsUrl = proxyUrl.trim() + sep + 'url=' + encodeURIComponent(modelsUrl);
+                    }
                     const res = await fetch(modelsUrl, { headers: this.getHeaders(apiKey) });
                     if (!res.ok) return null;
                     const data = await res.json();
@@ -2561,7 +2581,8 @@
                         'google/gemma-2-27b-it',
                         'mistralai/mistral-7b-instruct-v0.3',
                         'mistralai/mixtral-8x7b-instruct-v0.1',
-                        'deepseek-ai/deepseek-r1'
+                        'deepseek-ai/deepseek-r1',
+                        'qwen/qwen3.5-122b-a10b'
                     ],
                     supportsModelList: false  // CORS blocks this from frontend
                 });
@@ -2586,17 +2607,20 @@
                     body.seed = parseInt(nimSettings.seed);
                 }
 
+                // NVIDIA Nemotron reasoning: use enable_thinking in chat_template_kwargs
+                if (nimSettings.reasoning) {
+                    body.chat_template_kwargs = { enable_thinking: true };
+                } else {
+                    body.chat_template_kwargs = { enable_thinking: false };
+                }
+
                 return body;
             }
 
             buildMessages(history, systemPrompt, prefill, app) {
                 let sys = systemPrompt;
 
-                // Add reasoning instruction if enabled
                 const nimSettings = app?.nimSettings || {};
-                if (nimSettings.reasoning && model?.includes('nemotron')) {
-                    sys += "\n\nPlease show your step-by-step reasoning process before providing the final answer.";
-                }
 
                 if (app && app.feedbackLoops[app.currentChatId]?.length) {
                     sys += '\n\nUser corrections to learn from:\n' + app.feedbackLoops[app.currentChatId].map((f, i) => `${i + 1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
@@ -2626,6 +2650,80 @@
             }
         }
 
+        class OpenRouterProvider extends APIProvider {
+            constructor() {
+                super({
+                    id: 'openrouter',
+                    name: 'OpenRouter',
+                    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+                    type: 'native',
+                    models: [
+                        'openai/gpt-4o',
+                        'openai/gpt-4o-mini',
+                        'anthropic/claude-sonnet-4',
+                        'anthropic/claude-3.5-haiku',
+                        'google/gemini-2.5-pro-preview',
+                        'google/gemini-2.5-flash-preview',
+                        'deepseek/deepseek-r1',
+                        'deepseek/deepseek-chat-v3-0324',
+                        'meta-llama/llama-4-maverick',
+                        'meta-llama/llama-4-scout',
+                        'qwen/qwen3-235b-a22b'
+                    ],
+                    supportsModelList: true
+                });
+            }
+
+            getHeaders(apiKey) {
+                return {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'Multi-API Chat Interface'
+                };
+            }
+
+            async fetchModels(apiKey, proxyUrl) {
+                try {
+                    // OpenRouter models endpoint works without auth too
+                    const headers = {};
+                    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+                    const res = await fetch('https://openrouter.ai/api/v1/models', { headers });
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    if (data.data && Array.isArray(data.data)) {
+                        return data.data
+                            .sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+                            .map(m => {
+                                const isFree = m.pricing && m.pricing.prompt === "0" && m.pricing.completion === "0";
+                                return {
+                                    id: m.id,
+                                    name: (m.name || m.id) + (isFree ? " (Free)" : ""),
+                                    context_length: m.context_length
+                                };
+                            });
+                    }
+                    return null;
+                } catch (e) {
+                    console.warn('OpenRouter fetchModels error:', e);
+                    return null;
+                }
+            }
+
+            buildMessages(history, systemPrompt, prefill, app) {
+                let sys = systemPrompt;
+                if (app && app.feedbackLoops[app.currentChatId]?.length) {
+                    sys += '\n\nUser corrections to learn from:\n' + app.feedbackLoops[app.currentChatId].map((f, i) => `${i + 1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
+                }
+                return super.buildMessages(history, sys, prefill, app);
+            }
+
+            parseResponse(data) {
+                const result = super.parseResponse(data);
+                return result;
+            }
+        }
+
         // ========== END PROVIDER PATTERN CLASSES ==========
 
         class MultiAPIChat {
@@ -2635,7 +2733,8 @@
                 this.apiKeys = {
                     perplexity: localStorage.getItem('perplexity_api_key') || '',
                     moonshot: localStorage.getItem('moonshot_api_key') || '',
-                    nvidia: localStorage.getItem('nvidia_api_key') || ''
+                    nvidia: localStorage.getItem('nvidia_api_key') || '',
+                    openrouter: localStorage.getItem('openrouter_api_key') || ''
                 };
                 this.currentModel = localStorage.getItem('currentModel') || 'sonar';
                 this.currentAPI = localStorage.getItem('currentAPI') || 'perplexity';
@@ -2646,7 +2745,6 @@
                 this.pplxRecency = localStorage.getItem('pplxRecency') || ''; // Recency filter
                 this.moonshotSearchEnabled = localStorage.getItem('moonshotSearchEnabled') === 'true'; // Default false
                 this.moonshotReasoningEnabled = localStorage.getItem('moonshotReasoningEnabled') === 'true'; // Default false
-                this.warnOnExit = localStorage.getItem('warnOnExit') === 'true'; // New Setting
 
                 // Provider Registry
                 this.customProviders = JSON.parse(localStorage.getItem('custom_providers') || '[]');
@@ -2654,12 +2752,12 @@
                 this.providerRegistry = this.buildProviderRegistry();
                 this.corsProxyUrl = localStorage.getItem('cors_proxy_url') || '';
 
-                this.isLoading = false;
-                this.abortController = null; // Controller for stopping requests
+                this._sessionLoading = {}; // Per-session loading state
+                this._sessionAbort = {};   // Per-session abort controllers
                 this.references = {};
                 this.currentReference = { num: '', url: '', snippet: '', title: '' };
                 this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
-                this.streamMode = localStorage.getItem('streamMode') !== 'false';
+                this.streamMode = localStorage.getItem('streamMode') === 'true';
 
                 this.savedChats = {}; // Now only metadata: { id: {id, name, timestamp} }
                 this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
@@ -2702,7 +2800,8 @@
                 this.apiEndpoints = {
                     perplexity: "https://api.perplexity.ai/chat/completions",
                     moonshot: "https://api.moonshot.cn/v1/chat/completions",
-                    nvidia: "https://integrate.api.nvidia.com/v1/chat/completions"
+                    nvidia: "https://integrate.api.nvidia.com/v1/chat/completions",
+                    openrouter: "https://openrouter.ai/api/v1/chat/completions"
                 };
 
                 this.featureDetails = {
@@ -2729,8 +2828,30 @@
                     branching: {
                         title: "Branching & Forking",
                         content: "<p>Hover over any assistant message to see the 'Fork' (🌿) button.</p><p>Clicking this creates a <strong>copy</strong> of the current conversation up to that point. You can then take the conversation in a completely different direction without losing the original thread.</p>"
+                    },
+                    openrouter: {
+                        title: "OpenRouter & Free Models",
+                        content: "<p>Access dozens of models via OpenRouter. You can freely type any model ID or select from the dropdown.</p><p>Free models are indicated in the dropdown and are accessible without a paid subscription, though they may have strict rate limits.</p>"
+                    },
+                    shortcuts: {
+                        title: "Prompt Shortcuts (/macros)",
+                        content: "<p>Save your frequently used prompts with short aliases! Start a message with <code>/</code> to see a list of your saved shortcuts.</p><p>Type your alias like <code>/c</code> and press <strong>Enter</strong> to instantly expand it to the full prompt text.</p>"
+                    },
+                    customProviders: {
+                        title: "Custom Local Providers",
+                        content: "<p>If you run models locally using Ollama, LM Studio, or LocalAI, you can add them as custom providers in the Settings!</p><p>Simply add a provider name and base URL (e.g. <code>http://localhost:11434/v1/chat/completions</code>) and you can chat with your local models in this interface.</p>"
                     }
                 };
+
+                // Audio heartbeat to prevent browser throttling/sleep
+                // Must be triggered by a user gesture to satisfy AudioContext policies
+                const initAudio = () => {
+                    this._startHeartbeat();
+                    document.removeEventListener('click', initAudio);
+                    document.removeEventListener('keydown', initAudio);
+                };
+                document.addEventListener('click', initAudio);
+                document.addEventListener('keydown', initAudio);
 
                 this.initializeElements();
                 this.attachEventListeners();
@@ -2757,6 +2878,29 @@
                         this.createNewSession();
                     }
                 });
+            }
+
+            _startHeartbeat() {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) return;
+                    this._audioCtx = new AudioContext();
+                    // Create silent oscillator to keep audio context alive
+                    const osc = this._audioCtx.createOscillator();
+                    const gain = this._audioCtx.createGain();
+                    gain.gain.value = 0; // Silent
+                    osc.connect(gain);
+                    gain.connect(this._audioCtx.destination);
+                    osc.start();
+                    // Periodic resume to prevent suspension
+                    this._heartbeatInterval = setInterval(() => {
+                        if (this._audioCtx && this._audioCtx.state === 'suspended') {
+                            this._audioCtx.resume().catch(() => {});
+                        }
+                    }, 25000);
+                } catch (e) {
+                    console.warn('Heartbeat init failed:', e);
+                }
             }
 
             detectIframe() {
@@ -2936,7 +3080,6 @@
                 this.maxTokensValue = document.getElementById('maxTokensValue');
                 this.themeToggle = document.getElementById('themeToggle');
                 this.streamToggle = document.getElementById('streamToggle');
-                this.warnOnExitToggle = document.getElementById('warnOnExitToggle'); // New Element
                 this.setWorkspaceBtn = document.getElementById('setWorkspaceBtn');
                 this.pplxSearchToggle = document.getElementById('pplxSearchToggle');
                 this.pplxRecencySelect = document.getElementById('pplxRecencySelect');
@@ -2974,6 +3117,7 @@
                 registry.perplexity = new PerplexityProvider();
                 registry.moonshot = new MoonshotProvider();
                 registry.nvidia = new NvidiaNIMProvider();
+                registry.openrouter = new OpenRouterProvider();
 
                 // Custom providers
                 this.customProviders.forEach(p => {
@@ -2997,7 +3141,7 @@
                 }
 
                 this.showStatus('Fetching models...', 'info');
-                const models = await provider.fetchModels(apiKey);
+                const models = await provider.fetchModels(apiKey, this.corsProxyUrl);
 
                 if (models && models.length > 0) {
                     provider.models = models;
@@ -3154,6 +3298,7 @@
                 document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity || '';
                 document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot || '';
                 document.getElementById('nvidiaApiKey').value = this.apiKeys.nvidia || '';
+                document.getElementById('openrouterApiKey').value = this.apiKeys.openrouter || '';
 
                 // Initialize NIM settings UI
                 const nimSettings = this.nimSettings;
@@ -3235,7 +3380,14 @@
                 }
 
                 this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
-                this.messageInput.addEventListener('input', () => { this.autoResizeTextarea(); this.updateTokenEstimate(); });
+                this._tokenDebounce = null;
+                this.messageInput.addEventListener('input', () => {
+                    // Check for slash commands as user types
+                    this._checkSlashCommand();
+                    this.autoResizeTextarea();
+                    clearTimeout(this._tokenDebounce);
+                    this._tokenDebounce = setTimeout(() => this.updateTokenEstimate(), 200);
+                });
                 this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
                 this.sendMessage.addEventListener('click', () => this.sendUserMessage());
                 this.togglePartialModeBtn.addEventListener('click', () => {
@@ -3255,16 +3407,6 @@
                     localStorage.setItem('streamMode', this.streamMode);
                     this.showStatus(`Streaming ${this.streamMode ? 'Enabled' : 'Disabled'}`, 'info');
                 });
-
-                if (this.warnOnExitToggle) {
-                    this.warnOnExitToggle.addEventListener('change', (e) => {
-                        this.warnOnExit = e.target.checked;
-                        localStorage.setItem('warnOnExit', this.warnOnExit);
-                    });
-                }
-
-                // Warn on Exit Listener
-                window.addEventListener('beforeunload', (e) => this.handleBeforeUnload(e));
 
                 this.pplxSearchToggle.addEventListener('change', (e) => {
                     this.pplxSearchEnabled = e.target.checked;
@@ -3398,6 +3540,57 @@
                             this.setModel(nimModelSelect.value, 'nvidia', false);
                             this.modelPopup.classList.add('hidden');
                             this.showStatus(`Selected: ${nimModelSelect.options[nimModelSelect.selectedIndex].text}`, 'success');
+                        }
+                    });
+                }
+
+                // OpenRouter Model Select Button
+                const selectOpenrouterModelBtn = document.getElementById('selectOpenrouterModelBtn');
+                if (selectOpenrouterModelBtn) {
+                    selectOpenrouterModelBtn.addEventListener('click', () => {
+                        const select = document.getElementById('openrouterModelSelect');
+                        const customInput = document.getElementById('openrouterCustomModel');
+                        const modelId = (customInput && customInput.value.trim()) ? customInput.value.trim() : select.value;
+                        this.setModel(modelId, 'openrouter', false);
+                        this.modelPopup.classList.add('hidden');
+                        this.showStatus('OpenRouter: ' + modelId, 'success');
+                        if (customInput) customInput.value = '';
+                    });
+                }
+
+                // OpenRouter Load Models Button
+                const loadOpenrouterModelsBtn = document.getElementById('loadOpenrouterModelsBtn');
+                if (loadOpenrouterModelsBtn) {
+                    loadOpenrouterModelsBtn.addEventListener('click', async () => {
+                        // Read key from DOM in case user just typed it
+                        let apiKey = this.apiKeys.openrouter;
+                        const orKeyInput = document.getElementById('openrouterApiKey');
+                        if (orKeyInput && orKeyInput.value.trim()) apiKey = orKeyInput.value.trim();
+                        if (!apiKey) { this.showStatus('Enter OpenRouter API key first', 'error'); return; }
+                        loadOpenrouterModelsBtn.textContent = '⏳ Loading...';
+                        loadOpenrouterModelsBtn.disabled = true;
+                        try {
+                            const provider = this.providerRegistry.openrouter;
+                            const models = await provider.fetchModels(apiKey);
+                            if (models && models.length > 0) {
+                                const select = document.getElementById('openrouterModelSelect');
+                                select.innerHTML = '';
+                                models.forEach(m => {
+                                    const opt = document.createElement('option');
+                                    opt.value = m.id;
+                                    opt.textContent = m.name || m.id;
+                                    if (m.context_length) opt.textContent += ` (${Math.round(m.context_length/1000)}k)`;
+                                    select.appendChild(opt);
+                                });
+                                this.showStatus(`Loaded ${models.length} OpenRouter models`, 'success');
+                            } else {
+                                this.showStatus('No models returned', 'error');
+                            }
+                        } catch (e) {
+                            this.showStatus('Failed: ' + e.message, 'error');
+                        } finally {
+                            loadOpenrouterModelsBtn.textContent = '🔄 Load Models';
+                            loadOpenrouterModelsBtn.disabled = false;
                         }
                     });
                 }
@@ -3548,6 +3741,17 @@
                 this.persistSessionState();
             }
             switchSession(id) {
+                // Refresh loading UI for the tab we're switching to
+                setTimeout(() => {
+                    const isThisTabLoading = this._sessionLoading && this._sessionLoading[id];
+                    if (isThisTabLoading) {
+                        this.sendMessage.textContent = '■';
+                        this.sendMessage.classList.add('stop');
+                    } else {
+                        this.sendMessage.textContent = '→';
+                        this.sendMessage.classList.remove('stop');
+                    }
+                }, 50);
                 if (!this.sessions[id]) return;
                 this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
                 this.renderTabs(); this.renderMessages();
@@ -3694,8 +3898,24 @@
                 messageEl.append(headerEl, contentEl);
 
                 // Show token usage if available
+                // Display citations/web search results
+                if (message.role === 'assistant' && (message.citations?.length || message.searchResults?.length)) {
+                    const citDiv = document.createElement('div');
+                    citDiv.style.cssText = 'margin-top:8px; padding:8px 12px; background:var(--color-bg-1); border-radius:6px; font-size:12px; border:1px solid var(--color-border);';
+                    let citHtml = '<div style="font-weight:600; margin-bottom:4px; color:var(--color-text-secondary); font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">📎 Sources</div>';
+                    const sources = message.citations || [];
+                    const searchRes = message.searchResults || [];
+                    sources.forEach((url, idx) => {
+                        const sr = searchRes.find(r => r.url === url);
+                        const title = sr?.name || sr?.title || (() => { try { return new URL(url).hostname; } catch(e) { return url; } })();
+                        citHtml += '<div style="margin-bottom:3px;"><a href="' + url + '" target="_blank" rel="noopener" style="color:var(--color-primary); text-decoration:none;">[' + (idx+1) + '] ' + title + '</a></div>';
+                    });
+                    citDiv.innerHTML = citHtml;
+                    messageEl.appendChild(citDiv);
+                }
+
                 if (message.role === 'assistant' && message.tokenUsage) {
-                    messageEl.appendChild(this.createTokenInfoElement(message.tokenUsage));
+                    messageEl.appendChild(this.createTokenInfoElement(message.tokenUsage, message.modelUsed));
                 }
                 return messageEl;
             }
@@ -3731,16 +3951,33 @@
                             blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
                             .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px; }
                             .btn-secondary { background: #6c757d; }
-                            @media print { .btn { display: none; } }
+                            .btn-success { background: #28a745; }
+                            @media print { .btn, #controls { display: none; } }
                         </style>
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"><\/script>
                     </head>
                     <body>
                         <div id="controls">
+                            <button class="btn btn-success" onclick="downloadPDF()">📄 Download PDF</button>
                             <button class="btn" onclick="window.print()">Print / Save as PDF</button>
                             <button class="btn btn-secondary" onclick="downloadAsWord()">Download as Word</button>
                         </div>
                         <div id="content">${htmlContent}</div>
                         <script>
+                            function downloadPDF() {
+                                if (typeof html2pdf === 'undefined') { alert('PDF library loading, try again in a moment.'); return; }
+                                const el = document.getElementById('content');
+                                html2pdf().set({
+                                    margin: [10, 10, 10, 10],
+                                    filename: 'conversation_export.pdf',
+                                    image: { type: 'jpeg', quality: 0.98 },
+                                    html2canvas: { scale: 2, useCORS: true },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                }).from(el).save();
+                            }
                             function downloadAsWord() {
                                 var header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export Document</title></head><body>";
                                 var footer = "</body></html>";
@@ -3779,7 +4016,6 @@
             updateUI() {
                 if (this.themeToggle) this.themeToggle.checked = (localStorage.getItem('theme') === 'dark');
                 if (this.streamToggle) this.streamToggle.checked = this.streamMode;
-                if (this.warnOnExitToggle) this.warnOnExitToggle.checked = this.warnOnExit;
                 if (this.pplxSearchToggle) this.pplxSearchToggle.checked = this.pplxSearchEnabled;
                 if (this.pplxRecencySelect) this.pplxRecencySelect.value = this.pplxRecency;
                 if (this.pplxStartDate) this.pplxStartDate.value = localStorage.getItem('pplxStartDate') || '';
@@ -3802,6 +4038,18 @@
                     thinkBlocks.set(id, content.trim());
                     return id;
                 });
+                // Fix 10: Protect math blocks from Showdown markdown escaping
+                const mathBlocks = new Map();
+                processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, inner) => {
+                    const id = 'MATHD' + Date.now() + Math.random().toString(36).substr(2, 9);
+                    mathBlocks.set(id, { display: true, content: inner });
+                    return id;
+                });
+                processedText = processedText.replace(/\$([^\$\n]+?)\$/g, (match, inner) => {
+                    const id = 'MATHI' + Date.now() + Math.random().toString(36).substr(2, 9);
+                    mathBlocks.set(id, { display: false, content: inner });
+                    return id;
+                });
                 processedText = processedText.replace(/(^|\n)(\d+)\.\s/gm, '$1$2. ');
                 let html;
                 try { html = this.converter.makeHtml(processedText); } catch (e) { html = processedText.replace(/\n/g, '<br>'); }
@@ -3811,7 +4059,15 @@
                     const detailsHtml = `<details class="thinking-details"><summary>Thinking Process</summary><div class="thinking-content">${innerHtml}</div></details>`;
                     html = html.replace(new RegExp(id, 'g'), () => detailsHtml);
                 });
-                html = html.replace(/<pre><code class="([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
+                // Restore protected math blocks
+                mathBlocks.forEach((block, id) => {
+                    if (block.display) {
+                        html = html.replace(new RegExp(id, 'g'), () => '$$' + block.content + '$$');
+                    } else {
+                        html = html.replace(new RegExp(id, 'g'), () => '$' + block.content + '$');
+                    }
+                });
+                html = html.replace(/<pre><code class=""([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
                     if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
                     const language = langClass ? langClass.replace('language-', '') : 'text';
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
@@ -3828,7 +4084,201 @@
                 this.messageInput.style.height = (newHeight + 2) + 'px';
                 if (this.messageInput.value.length > 0) { this.messageInput.scrollTop = this.messageInput.scrollHeight; }
             }
-            handleKeyDown(e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.sendUserMessage(); } }
+            handleKeyDown(e) {
+                // If just Enter (without modifier)
+                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    const val = this.messageInput.value.trim();
+                    if (val.startsWith('/') && val.length > 1 && !val.includes(' ')) {
+                        const alias = val.substring(1);
+                        const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                        const match = shortcuts.find(s => s.name === alias);
+                        if (match) {
+                            e.preventDefault();
+                            this.messageInput.value = match.prompt;
+                            this.autoResizeTextarea();
+                            this.updateTokenEstimate();
+                            this.showStatus('Loaded /' + alias, 'info');
+                            if (document.getElementById('slashCmdTip')) {
+                                document.getElementById('slashCmdTip').remove();
+                            }
+                            return; // Stop here, prompt is replaced, wait for user to send it or edit it
+                        }
+                    }
+                }
+                
+                // Ctrl+Enter or Cmd+Enter sends the message
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    // Check for slash commands before sending
+                    const val = this.messageInput.value.trim();
+                    if (val === '/check') {
+                        this.messageInput.value = '';
+                        this.autoResizeTextarea();
+                        this.showShortcutMenu();
+                        return;
+                    }
+                    if (val.startsWith('/save ')) {
+                        const promptText = val.substring(6).trim();
+                        if (promptText) this.saveShortcutPrompt(promptText);
+                        this.messageInput.value = '';
+                        this.autoResizeTextarea();
+                        return;
+                    }
+                    this.sendUserMessage();
+                }
+            }
+
+            // Slash command detection and autocomplete
+            _checkSlashCommand() {
+                const val = this.messageInput.value;
+                const existingTip = document.getElementById('slashCmdTip');
+                
+                // Show tip when user types "/" at the start
+                if (val.startsWith('/') && !val.includes(' ') && val.length <= 20) {
+                    if (!existingTip) {
+                        const tip = document.createElement('div');
+                        tip.id = 'slashCmdTip';
+                        tip.style.cssText = 'position:absolute; bottom:100%; left:8px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; padding:6px 10px; font-size:11px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.8); pointer-events:auto; cursor:pointer; max-width:400px;';
+                        let tipHtml = '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/check</kbd> — View saved prompts</div>' +
+                                      '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/save &lt;prompt&gt; /&lt;alias&gt;</kbd> — Save with name</div>';
+                        // Show existing aliases
+                        const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                        const typed = val.substring(1).toLowerCase();
+                        const matches = shortcuts.filter(s => s.name && s.name.toLowerCase().startsWith(typed));
+                        if (matches.length > 0) {
+                            tipHtml += '<div style="border-top:1px solid var(--color-border); margin-top:4px; padding-top:4px; font-size:10px; color:var(--color-text-secondary);">Saved:</div>';
+                            matches.slice(0, 5).forEach(s => {
+                                const preview = s.prompt.length > 40 ? s.prompt.substring(0, 40) + '...' : s.prompt;
+                                tipHtml += '<div style="cursor:pointer; padding:2px 0;" class="slash-match" data-name="' + s.name + '"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px;">/' + s.name + '</kbd> <span style="color:var(--color-text-secondary);">' + preview + '</span></div>';
+                            });
+                        }
+                        tip.innerHTML = tipHtml;
+                        // Click on /check suggestion to run it
+                        tip.addEventListener('click', () => {
+                            this.messageInput.value = '';
+                            this.autoResizeTextarea();
+                            tip.remove();
+                            this.showShortcutMenu();
+                        });
+                        this.messageInput.parentElement.style.position = 'relative';
+                        this.messageInput.parentElement.appendChild(tip);
+                    }
+                } else if (val.startsWith('/save ') && val.length > 6) {
+                    // Show "press Ctrl+Enter to save" tip
+                    if (existingTip) {
+                        existingTip.innerHTML = '<div>💾 Press <kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px;">Ctrl+Enter</kbd> to save this prompt</div>';
+                    }
+                } else {
+                    if (existingTip) existingTip.remove();
+                }
+            }
+
+            // Shortcut prompt management
+            showShortcutMenu() {
+                let shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                // Migrate old string format to {name, prompt} format
+                shortcuts = shortcuts.map((s, i) => typeof s === 'string' ? { name: 'sc' + i, prompt: s } : s);
+                localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+
+                if (shortcuts.length === 0) {
+                    this.showStatus('No saved shortcuts. Use: /save <prompt> /<alias> + Ctrl+Enter', 'info');
+                    return;
+                }
+                const existing = document.getElementById('shortcutMenu');
+                if (existing) existing.remove();
+                const menu = document.createElement('div');
+                menu.id = 'shortcutMenu';
+                menu.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--color-bg-0); border:1px solid var(--color-border); border-radius:8px; padding:10px; z-index:10000; max-width:550px; width:90%; max-height:350px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+                let html = '<div style="font-weight:600; margin-bottom:8px; font-size:13px; color:var(--color-text-secondary);">📋 Saved Prompt Shortcuts <span style="float:right; cursor:pointer; font-size:16px;" id="closeShortcutMenu">×</span></div>';
+                shortcuts.forEach((s, idx) => {
+                    const preview = s.prompt.length > 60 ? s.prompt.substring(0, 60) + '...' : s.prompt;
+                    html += '<div style="display:flex; align-items:center; gap:6px; padding:6px 4px; font-size:12px; border-bottom:1px solid var(--color-border);" data-idx="' + idx + '">';
+                    html += '<input class="shortcut-alias" data-idx="' + idx + '" value="' + (s.name || '').replace(/"/g, '&quot;') + '" style="width:60px; padding:2px 4px; border:1px solid var(--color-border); border-radius:3px; font-size:11px; font-family:monospace; background:var(--color-bg-1); color:var(--color-text-primary);" title="Alias - type /' + s.name + ' + Ctrl+Enter to use">';
+                    html += '<span style="flex:1; color:var(--color-text-secondary);" title="' + s.prompt.replace(/"/g, '&quot;') + '">' + preview + '</span>';
+                    html += '<button class="shortcut-use" data-idx="' + idx + '" style="font-size:10px; padding:2px 8px; background:var(--color-primary); color:#fff; border:none; border-radius:3px; cursor:pointer;">Use</button>';
+                    html += '<button class="shortcut-del" data-idx="' + idx + '" style="font-size:10px; padding:2px 6px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">×</button>';
+                    html += '</div>';
+                });
+                menu.innerHTML = html;
+                document.body.appendChild(menu);
+                document.getElementById('closeShortcutMenu').onclick = () => menu.remove();
+                // Rename alias on blur
+                menu.querySelectorAll('.shortcut-alias').forEach(input => {
+                    input.onchange = () => {
+                        const idx = parseInt(input.dataset.idx);
+                        const newName = input.value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+                        if (newName) {
+                            shortcuts[idx].name = newName;
+                            localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+                            this.showStatus('Alias updated to /' + newName, 'success');
+                        }
+                    };
+                });
+                menu.querySelectorAll('.shortcut-use').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.idx);
+                        this.messageInput.value = shortcuts[idx].prompt;
+                        this.autoResizeTextarea();
+                        this.updateTokenEstimate();
+                        menu.remove();
+                    };
+                });
+                menu.querySelectorAll('.shortcut-del').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.idx);
+                        shortcuts.splice(idx, 1);
+                        localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+                        menu.remove();
+                        if (shortcuts.length > 0) this.showShortcutMenu(); // Re-open with updated list
+                        this.showStatus('Shortcut deleted', 'info');
+                    };
+                });
+                // Add help tip and Delete All button at bottom
+                const footer = document.createElement('div');
+                footer.style.cssText = 'margin-top:8px; padding-top:6px; border-top:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;';
+                footer.innerHTML = '<span style="font-size:10px; color:var(--color-text-secondary);">💡 /save &lt;prompt&gt; + Ctrl+Enter to save</span>' +
+                    '<button id="deleteAllShortcuts" style="font-size:10px; padding:2px 8px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">🗑 Delete All</button>';
+                menu.appendChild(footer);
+                document.getElementById('deleteAllShortcuts').onclick = () => {
+                    localStorage.setItem('saved_shortcuts', '[]');
+                    menu.remove();
+                    this.showStatus('All shortcuts deleted', 'info');
+                };
+                // Close on outside click
+                setTimeout(() => {
+                    document.addEventListener('click', function handler(e) {
+                        if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); }
+                    });
+                }, 100);
+            }
+            saveShortcutPrompt(text) {
+                // Parse: /save <prompt> /<alias>
+                // Find the last occurrence of / followed by a word (the alias)
+                const aliasMatch = text.match(/\s+\/([a-zA-Z0-9_]+)\s*$/);
+                let alias = '';
+                let promptText = text;
+                if (aliasMatch) {
+                    alias = aliasMatch[1];
+                    promptText = text.substring(0, aliasMatch.index).trim();
+                } else {
+                    // Auto-generate alias from first 2 words
+                    alias = promptText.split(/\s+/).slice(0, 2).join('_').toLowerCase().replace(/[^a-z0-9_]/g, '').substring(0, 15);
+                }
+                if (!promptText) { this.showStatus('Empty prompt', 'error'); return; }
+                const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                // Check for duplicate alias
+                const existing = shortcuts.findIndex(s => s.name === alias);
+                if (existing >= 0) {
+                    shortcuts[existing].prompt = promptText;
+                    this.showStatus(`Shortcut /${alias} updated!`, 'success');
+                } else {
+                    shortcuts.push({ name: alias, prompt: promptText });
+                    this.showStatus(`Saved as /${alias}. Use /${alias} + Ctrl+Enter to insert.`, 'success');
+                }
+                localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+            }
 
             updateHeaderStatus() {
                 let modelName = this.currentModel;
@@ -3854,6 +4304,8 @@
                     if (type === 'apiKey') {
                         document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity;
                         document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
+                        const nvK = document.getElementById('nvidiaApiKey'); if (nvK) nvK.value = this.apiKeys.nvidia;
+                        const orK = document.getElementById('openrouterApiKey'); if (orK) orK.value = this.apiKeys.openrouter || '';
                     }
                 }
             }
@@ -4061,15 +4513,222 @@
                 else cs.classList.add('hidden');
             }
             updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            stopGeneration() {
+                const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
+                if (ac) {
+                    ac.abort();
+                    delete this._sessionAbort[this.activeSessionId];
+                }
+                if (this._sessionLoading) delete this._sessionLoading[this.activeSessionId];
+                this.setLoading(false, this.activeSessionId);
+            }
 
+            handleBeforeUnload(e) {
+                if (!this.warnOnExit) return;
+
+                // Check if any active OR saved chat is "Named" (not starting with "Topic")
+                // We check metadata from savedChats + active sessions
+                const hasNamedSaved = Object.values(this.savedChats).some(c => c.name && !c.name.startsWith('Topic'));
+                const hasNamedActive = Object.values(this.sessions).some(s => s.name && !s.name.startsWith('Topic'));
+
+                if (hasNamedSaved || hasNamedActive) {
+                    e.preventDefault();
+                    e.returnValue = ''; // Standard browser trigger
+                    return '';
+                }
+            }
+
+            async exportNamedChats() {
+                try {
+                    this.showStatus('Preparing export...', 'info');
+                    // Get all IDs from saved chats
+                    const allIds = Object.keys(this.savedChats);
+                    const namedIds = allIds.filter(id => {
+                        const name = this.savedChats[id].name;
+                        return name && !name.name.startsWith('Topic');
+                    });
+
+                    if (namedIds.length === 0) {
+                        this.showStatus('No named chats found to export.', 'warning');
+                        return;
+                    }
+
+                    const exportData = { savedChats: {} };
+                    let count = 0;
+
+                    for (const id of namedIds) {
+                        // Try loading from DB
+                        let chat = await this.storageManager.getChat(id);
+                        // Fallback to active session memory if DB fails (e.g., iframe storage block)
+                        if (!chat && this.sessions[id]) {
+                            chat = { ...this.sessions[id], timestamp: Date.now() };
+                        }
+
+                        if (chat) {
+                            exportData.savedChats[id] = chat;
+                            count++;
+                        }
+                    }
+
+                    if (count === 0) {
+                        this.showStatus('Failed to load chat data.', 'error');
+                        return;
+                    }
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `named_chats_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    this.showStatus(`Exported ${count} chats`, 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    this.showStatus('Export failed: ' + e.message, 'error');
+                }
+            }
+
+            renderToolsList() { /* ... same ... */
+                this.renderGenericList(this.localTools, 'toolsList', (item) => {
+                    return `<div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px;"><div style="flex:1;"><b>${item.name}</b><br><small style="color:var(--color-text-secondary);">${item.path}</small></div><div class="history-actions" style="display:flex; gap:4px;"><button class="btn btn--primary btn--sm" onclick="window.chatApp.openTool('${item.path}')">Open</button><button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteTool(${item.id})">🗑️</button></div></div>`;
+                });
+            }
+            renderChatHistory() {
+                const query = this.historySearch.value.toLowerCase();
+                const ids = Object.keys(this.savedChats).filter(id => {
+                    const chat = this.savedChats[id];
+                    return !query || chat.name.toLowerCase().includes(query);
+                }).sort((a, b) => {
+                    const ca = this.savedChats[a];
+                    const cb = this.savedChats[b];
+                    // Sort by pinned (true first), then by timestamp (newest first)
+                    if (!!ca.isPinned !== !!cb.isPinned) return cb.isPinned ? 1 : -1;
+                    return (cb.timestamp || 0) - (ca.timestamp || 0);
+                });
+
+                const container = document.getElementById('historyList');
+                container.innerHTML = ids.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);font-size:13px;margin-top:20px;">No saved chats found.</p>';
+
+                ids.forEach(id => {
+                    const chat = this.savedChats[id];
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    if (chat.isPinned) div.style.backgroundColor = 'var(--color-bg-1)'; // Highlight pinned
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'history-name';
+                    // Visual pin indicator in title
+                    nameSpan.innerHTML = (chat.isPinned ? '<span style="opacity:0.8; margin-right:4px;">📌</span>' : '') + (chat.name || 'Untitled Chat');
+                    nameSpan.onclick = () => { this.loadChat(id); };
+
+                    // Inline Actions
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'history-actions';
+
+                    // Pin Button
+                    const pinBtn = document.createElement('button');
+                    pinBtn.className = `history-action-btn ${chat.isPinned ? 'active' : ''}`;
+                    pinBtn.innerHTML = '📌';
+                    pinBtn.title = chat.isPinned ? 'Unpin' : 'Pin';
+                    if (chat.isPinned) pinBtn.style.color = 'var(--color-primary)';
+                    pinBtn.onclick = (e) => { e.stopPropagation(); this.togglePin(id); };
+
+                    // Export Button (Fixed Icon)
+                    const exportBtn = document.createElement('button');
+                    exportBtn.className = 'history-action-btn';
+                    exportBtn.innerHTML = '💾';
+                    exportBtn.title = 'Export JSON';
+                    exportBtn.onclick = (e) => { e.stopPropagation(); this.exportSingleChat(id); };
+
+                    // Delete Button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'history-action-btn delete';
+                    deleteBtn.innerHTML = '🗑️';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.onclick = (e) => { e.stopPropagation(); if (confirm('Delete this chat?')) this.deleteChat(id); };
+
+                    actionsDiv.append(pinBtn, exportBtn, deleteBtn);
+                    div.append(nameSpan, actionsDiv);
+                    container.appendChild(div);
+                });
+            }
+
+            async togglePin(id) {
+                const chat = await this.storageManager.getChat(id);
+                if (chat) {
+                    chat.isPinned = !chat.isPinned;
+                    await this.storageManager.saveChat(chat);
+                    // Update local metadata cache
+                    if (this.savedChats[id]) {
+                        this.savedChats[id].isPinned = chat.isPinned;
+                    }
+                    this.renderChatHistory();
+                }
+            }
+
+            renderGenericList(items, containerId, mapFn) {
+                const container = document.getElementById(containerId);
+                container.innerHTML = items.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);">Empty</p>';
+                items.forEach(item => {
+                    const el = document.createElement('div'); el.innerHTML = mapFn(item); container.appendChild(el.firstChild);
+                });
+            }
+            showStatus(msg, type = 'info') {
+                this.statusIndicator.textContent = msg; this.statusIndicator.className = `status status--${type} show`;
+                setTimeout(() => { this.statusIndicator.classList.remove('show'); this.statusIndicator.classList.add('hidden'); }, 3000);
+            }
+            setModel(m, a, openPopup = true) {
+                if (!m || !a) return;
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton();
+                if (openPopup) this.togglePopup('model');
+                this.updateModelOptions();
+            }
+            updateModelOptions() {
+                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.currentModel));
+
+                // Moonshot Reasoning Visibility Logic
+                const moonshotRow = document.getElementById('moonshotReasoningRow');
+                if (moonshotRow) {
+                    // Only show for Kimi K2.5 (K2 Thinking has it forced, others don't support)
+                    if (this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5') {
+                        moonshotRow.style.display = 'flex';
+                    } else {
+                        moonshotRow.style.display = 'none';
+                    }
+                }
+            }
+            setPersona(p) {
+                this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
+                const isStd = ['allrounder', 'excel', 'grammar', 'auditor'].includes(p);
+                const cs = document.getElementById('customPromptSection');
+                if (!isStd) { cs.classList.remove('hidden'); const d = this.personas[p]; if (d) { document.getElementById('customPersonaName').value = d.name; document.getElementById('customPrompt').value = d.prompt; } }
+                else cs.classList.add('hidden');
+            }
+            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            stopGeneration() {
+                const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
+                if (ac) {
+                    ac.abort();
+                    delete this._sessionAbort[this.activeSessionId];
+                }
+                if (this._sessionLoading) delete this._sessionLoading[this.activeSessionId];
+                this.setLoading(false, this.activeSessionId);
+            }
             async sendUserMessage() {
-                // If loading, clicking button acts as STOP
-                if (this.isLoading) {
-                    if (this.abortController) {
-                        this.abortController.abort();
-                        this.abortController = null;
+                const sessionId = this.activeSessionId;
+                // If this session is loading, clicking acts as STOP
+                if (this._sessionLoading && this._sessionLoading[sessionId]) {
+                    const ctrl = this._sessionAbort && this._sessionAbort[sessionId];
+                    if (ctrl) {
+                        ctrl.abort();
+                        delete this._sessionAbort[sessionId];
                         this.showStatus('Generation Stopped', 'info');
                     }
+                    delete this._sessionLoading[sessionId];
+                    this.setLoading(false);
                     return;
                 }
 
@@ -4101,6 +4760,10 @@
                 this.uploadedFileName = null;
                 this.updateTokenEstimate();
 
+                // Set per-session abort controller early
+                if (!this._sessionAbort) this._sessionAbort = {};
+                this._sessionAbort[sessionId] = new AbortController();
+                
                 // Defer heavy rendering and saving to next tick to free up UI thread
                 requestAnimationFrame(() => {
                     this.renderMessages();
@@ -4109,21 +4772,26 @@
                 });
 
                 if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); return; }
-                this.setLoading(true);
-                this.abortController = new AbortController();
+                this.setLoading(true, sessionId);
+                if (!this._sessionLoading) this._sessionLoading = {};
+                this._sessionLoading[sessionId] = true;
+
+                // Capture refs for current session so tab switching doesn't affect them
+                const _sessionMessages = this.sessions[sessionId].messages;
+                const _sessionRefs = this.sessions[sessionId].references;
 
                 try {
                     // Use dedicated handler for Moonshot web search (requires multi-turn tool calls)
                     if (this.currentAPI === 'moonshot' && this.moonshotSearchEnabled) {
                         const msgs = this.buildMessagesForAPI(pre);
-                        const content = await this.moonshotWebSearchCall(msgs);
-                        this.messages.push({ role: 'assistant', content: pre ? pre + content : content, timestamp: new Date() });
+                        const content = await this.moonshotWebSearchCall(msgs, sessionId);
+                        _sessionMessages.push({ role: 'assistant', content: pre ? pre + content : content, timestamp: new Date() });
                         this.renderMessages(); this.autoSaveChat();
-                    } else if (this.streamMode) await this.streamResponse(fullContent, pre);
+                    } else if (this.streamMode) await this.streamResponse(fullContent, pre, sessionId);
                     else {
-                        const res = await this.callAPI(fullContent, pre);
+                        const res = await this.callAPI(fullContent, pre, sessionId);
                         const content = pre ? pre + res.content : res.content;
-                        this.messages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations });
+                        _sessionMessages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations, modelUsed: this.currentModel });
                         this.renderMessages(); this.autoSaveChat();
                     }
                 } catch (e) {
@@ -4131,12 +4799,13 @@
                         // Stopped by user, do nothing special
                     } else {
                         this.showStatus('Error: ' + e.message, 'error');
-                        this.messages.push({ role: 'assistant', content: 'Error: ' + e.message });
+                        _sessionMessages.push({ role: 'assistant', content: 'Error: ' + e.message });
                         this.renderMessages();
                     }
                 } finally {
-                    this.setLoading(false);
-                    this.abortController = null;
+                    if (this._sessionLoading) delete this._sessionLoading[sessionId];
+                    if (this._sessionAbort) delete this._sessionAbort[sessionId];
+                    this.setLoading(false, sessionId);
                 }
             }
 
@@ -4144,12 +4813,15 @@
             resetTextareaSize() { this.messageInput.style.height = 'auto'; this.messageInput.rows = 1; }
             removeImagePreview() { if (this.imagePreview) { this.imagePreview.classList.add('hidden'); this.imagePreview.innerHTML = ''; } this.uploadedImage = null; this.uploadedTextContext = null; this.fileInput.value = ''; this.updateTokenEstimate(); }
 
-            setLoading(l) {
-                this.isLoading = l;
-                if (l) {
+            setLoading(l, sessionId = this.activeSessionId) {
+                // Determine if the *active* session should show loading state
+                const currentSessionLoading = this._sessionLoading && this._sessionLoading[this.activeSessionId];
+                // Check if we are toggling the active session, or just checking generic state
+                const showStop = (sessionId === this.activeSessionId && l) || currentSessionLoading;
+                if (showStop) {
                     this.sendMessage.textContent = '■'; // Stop icon
                     this.sendMessage.classList.add('stop');
-                    if (!this.streamMode) {
+                    if (!this.streamMode && l) {
                         const div = document.createElement('div'); div.className = 'message assistant loading'; div.textContent = 'Loading...'; this.messagesContainer.appendChild(div);
                     }
                 } else {
@@ -4159,9 +4831,39 @@
                 }
             }
 
-            async callAPI(msg, pre) {
+            async callAPI(msg, pre, sessionId = this.activeSessionId) {
                 const msgs = this.buildMessagesForAPI(pre);
                 const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens, temperature: 0.2, stream: false };
+
+                // NVIDIA: inject enable_thinking based on reasoning checkbox
+                if (this.currentAPI === 'nvidia') {
+                    const nimSettings = this.nimSettings || {};
+                    body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
+                }
+
+                // Handle Moonshot Parameters
+                if (this.currentAPI === 'moonshot') {
+                    if (this.currentModel === 'kimi-k2.5') {
+                        delete body.temperature;
+                    }
+                    else if (this.currentModel.includes('thinking')) {
+                        body.temperature = 1.0;
+                    }
+                    else {
+                        body.temperature = 0.6;
+                    }
+
+                    if (this.currentModel === 'kimi-k2.5') {
+                        if (this.moonshotSearchEnabled || !this.moonshotReasoningEnabled) {
+                            body.thinking = { type: 'disabled' };
+                        } else {
+                            body.thinking = { type: 'enabled' };
+                        }
+                    }
+                    else if (this.moonshotReasoningEnabled) {
+                        body.thinking = { type: 'enabled' };
+                    }
+                }
 
                 // Perplexity Search Logic
                 if (this.currentAPI === 'perplexity') {
@@ -4174,19 +4876,31 @@
 
                 // Determine API URL (use CORS proxy if configured and needed)
                 let apiUrl = this.apiEndpoints[this.currentAPI];
+                if (!apiUrl && this.providerRegistry[this.currentAPI]) {
+                    apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
+                }
                 const needsProxy = ['nvidia'].includes(this.currentAPI) || (this.customProviders.some(p => p.id === this.currentAPI));
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` };
+                if (this.currentAPI === 'openrouter') {
+                    headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                    headers['X-Title'] = 'Multi-API Chat Interface';
+                }
+
                 const res = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` },
+                    headers: headers,
                     body: JSON.stringify(body),
-                    signal: this.abortController.signal
+                    signal: this._sessionAbort[sessionId]?.signal
                 });
                 if (!res.ok) {
+                    if (res.status === 429) {
+                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                    }
                     const errorData = await res.json().catch(() => ({}));
                     const errorMsg = errorData.error?.message || errorData.message || errorData.error || `HTTP ${res.status}`;
                     throw new Error(errorMsg);
@@ -4252,7 +4966,7 @@
             }
 
             // Moonshot web search with multi-turn tool call handling
-            async moonshotWebSearchCall(msgs) {
+            async moonshotWebSearchCall(msgs, sessionId = this.activeSessionId) {
                 const apiUrl = this.apiEndpoints['moonshot'];
                 const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys['moonshot']}` };
 
@@ -4291,7 +5005,7 @@
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(body),
-                        signal: this.abortController.signal
+                        signal: this._sessionAbort[sessionId]?.signal
                     });
 
                     if (!res.ok) {
@@ -4338,9 +5052,20 @@
                 return finalContent;
             }
 
-            async streamResponse(msg, pre) {
+            async streamResponse(msg, pre, sessionId = this.activeSessionId) {
+                // Capture session state at start - tab switching won't affect these refs
+                const _streamSessionId = this.activeSessionId;
+                const _streamMessages = this.messages;
+                const _streamRefs = this.references;
+
                 const msgs = this.buildMessagesForAPI(pre);
                 const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens, temperature: 0.2, stream: true };
+
+                // NVIDIA: inject enable_thinking based on reasoning checkbox
+                if (this.currentAPI === 'nvidia') {
+                    const nimSettings = this.nimSettings || {};
+                    body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
+                }
 
                 if (this.currentAPI === 'perplexity') {
                     if (!this.pplxSearchEnabled) {
@@ -4387,20 +5112,32 @@
 
                 // Determine API URL (use CORS proxy if configured and needed)
                 let apiUrl = this.apiEndpoints[this.currentAPI];
+                if (!apiUrl && this.providerRegistry[this.currentAPI]) {
+                    apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
+                }
                 const needsProxy = ['nvidia'].includes(this.currentAPI) || (this.customProviders.some(p => p.id === this.currentAPI));
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` };
+                if (this.currentAPI === 'openrouter') {
+                    headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                    headers['X-Title'] = 'Multi-API Chat Interface';
+                }
+
                 const res = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` },
+                    headers: headers,
                     body: JSON.stringify(body),
-                    signal: this.abortController.signal
+                    signal: this._sessionAbort[sessionId]?.signal
                 });
 
                 if (!res.ok) {
+                    if (res.status === 429) {
+                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                    }
                     const errorText = await res.text();
                     console.error('API Error Response:', errorText);
                     try {
@@ -4412,9 +5149,11 @@
                     }
                 }
 
-                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [] };
-                this.messages.push(assistantMessage);
-                this.renderMessages();
+                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [], modelUsed: this.currentModel };
+                // Push to captured session messages (immune to tab switching)
+                _streamMessages.push(assistantMessage);
+                // Only render if we're still on the same tab
+                if (this.activeSessionId === _streamSessionId) this.renderMessages();
 
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
@@ -4455,8 +5194,11 @@
                                             assistantMessage.isThinking = true;
                                         }
                                         assistantMessage.content += reasoningContent;
-                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+                                        if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                            contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                            try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
+                                            this._lastStreamRender = Date.now();
+                                        }
                                     }
 
                                     // Handle Standard Content
@@ -4466,10 +5208,12 @@
                                             assistantMessage.isThinking = false;
                                         }
                                         assistantMessage.content += delta;
-                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                        if (window.renderMathInElement) try { renderMathInElement(contentDiv, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }, { left: '\\(', right: '\\)', display: false }, { left: '\\[', right: '\\]', display: true }], throwOnError: false }); } catch (e) { }
-                                        if (window.mermaid) try { mermaid.init(undefined, contentDiv.querySelectorAll('.mermaid')); } catch (e) { }
-                                        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+                                        // Throttle DOM updates for long responses
+                                        if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                            contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                            try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
+                                            this._lastStreamRender = Date.now();
+                                        }
                                     }
                                 } catch (e) { }
                             }
@@ -4485,13 +5229,25 @@
                     if (assistantMessage.isThinking) {
                         assistantMessage.content += "</think>";
                         assistantMessage.isThinking = false;
-                        this.renderMessages(); // Re-render to show closed tag
                     }
 
                     assistantMessage.isStreaming = false;
-                    if (assistantMessage.citations) Object.assign(this.references, this.extractReferencesFromResponse(assistantMessage));
-                    this.renderMessages();
-                    this.autoSaveChat();
+                    if (assistantMessage.citations) Object.assign(_streamRefs, this.extractReferencesFromResponse(assistantMessage));
+
+                    // Save to the correct session regardless of which tab is active
+                    if (this.sessions[_streamSessionId]) {
+                        this.sessions[_streamSessionId].messages = _streamMessages;
+                        this.sessions[_streamSessionId].references = _streamRefs;
+                    }
+
+                    // Only re-render if we're still on the original tab
+                    if (this.activeSessionId === _streamSessionId) {
+                        this.renderMessages();
+                        this.autoSaveChat();
+                    } else {
+                        // Save the other session's data without re-rendering
+                        this.persistSessionState();
+                    }
                 }
             }
 
@@ -4599,13 +5355,15 @@
                 });
                 return refs;
             }
-            createTokenInfoElement(u) { /* ... same ... */
+            createTokenInfoElement(u, modelUsed) { /* ... same ... */
                 const container = document.createElement('div');
                 container.className = 'token-info-icon';
                 container.textContent = '?';
                 const tooltip = document.createElement('div');
                 tooltip.className = 'token-tooltip';
-                tooltip.innerHTML = `<strong>Token Usage</strong><br>Input: ${u.prompt_tokens || 0}<br>Output: ${u.completion_tokens || 0}<br>Total: ${u.total_tokens || 0}`;
+                let html = `<strong>Token Usage</strong><br>Input: ${u.prompt_tokens || 0}<br>Output: ${u.completion_tokens || 0}<br>Total: ${u.total_tokens || 0}`;
+                if (modelUsed) html += `<br>Model: ${modelUsed}`;
+                tooltip.innerHTML = html;
                 container.appendChild(tooltip);
                 return container;
             }
@@ -4773,9 +5531,12 @@
                 this.apiKeys.perplexity = document.getElementById('perplexityApiKey').value;
                 this.apiKeys.moonshot = document.getElementById('moonshotApiKey').value;
                 this.apiKeys.nvidia = document.getElementById('nvidiaApiKey').value;
+                const orKeyEl2 = document.getElementById('openrouterApiKey');
+                if (orKeyEl2) this.apiKeys.openrouter = orKeyEl2.value;
                 localStorage.setItem('perplexity_api_key', this.apiKeys.perplexity);
                 localStorage.setItem('moonshot_api_key', this.apiKeys.moonshot);
                 localStorage.setItem('nvidia_api_key', this.apiKeys.nvidia);
+                localStorage.setItem('openrouter_api_key', this.apiKeys.openrouter || '');
 
                 // Save custom provider keys
                 this.customProviders.forEach(p => {
@@ -4795,6 +5556,8 @@
                 p.type = newType;
                 document.getElementById('moonshotApiKey').type = newType;
                 document.getElementById('nvidiaApiKey').type = newType;
+                const orKeyEl = document.getElementById('openrouterApiKey');
+                if (orKeyEl) orKeyEl.type = newType;
 
                 // Toggle custom provider keys
                 this.customProviders.forEach(cp => {
@@ -4874,28 +5637,32 @@
                     const newText = textarea.value.trim();
                     if (newText) {
                         // FIX: Ensure API Key is present before regenerating
-                        if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); this.setLoading(false); return; }
+                        if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
 
                         this.messages[index].content = newText;
                         this.messages = this.messages.slice(0, index + 1);
                         this.renderMessages();
-                        this.setLoading(true);
 
-                        // FIX: Initialize AbortController before API call
-                        this.abortController = new AbortController();
+                        const sessionId = this.activeSessionId;
+                        this.setLoading(true, sessionId);
+                        if (!this._sessionLoading) this._sessionLoading = {};
+                        if (!this._sessionAbort) this._sessionAbort = {};
+                        this._sessionLoading[sessionId] = true;
+                        this._sessionAbort[sessionId] = new AbortController();
 
                         try {
                             if (this.streamMode) {
-                                await this.streamResponse(null, null);
+                                await this.streamResponse(null, null, sessionId);
                             } else {
-                                const res = await this.callAPI(null, null);
+                                const res = await this.callAPI(null, null, sessionId);
                                 this.messages.push({
                                     role: 'assistant',
                                     content: res.content,
                                     timestamp: new Date(),
                                     tokenUsage: res.tokenUsage,
                                     searchResults: res.searchResults,
-                                    citations: res.citations
+                                    citations: res.citations,
+                                    modelUsed: this.currentModel
                                 });
                                 this.renderMessages();
                                 await this.autoSaveChat();
@@ -4903,9 +5670,9 @@
                         } catch (e) {
                             this.showStatus('Error: ' + e.message, 'error');
                         } finally {
-                            this.setLoading(false);
-                            // Clean up controller
-                            this.abortController = null;
+                            if (this._sessionLoading) delete this._sessionLoading[sessionId];
+                            if (this._sessionAbort) delete this._sessionAbort[sessionId];
+                            this.setLoading(false, sessionId);
                         }
                     }
                 };
