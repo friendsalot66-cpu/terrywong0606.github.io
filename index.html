@@ -4067,11 +4067,16 @@
                         html = html.replace(new RegExp(id, 'g'), () => '$' + block.content + '$');
                     }
                 });
-                html = html.replace(/<pre><code class=""([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
+                html = html.replace(/<pre><code class="([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
                     if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
                     const language = langClass ? langClass.replace('language-', '') : 'text';
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
                     return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
+                });
+                // Also catch plain <pre><code> blocks without a class attribute
+                html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
+                    const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+                    return `<div class="code-block"><div class="code-header"><span class="code-language">text</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}">${code}</code></pre></div>`;
                 });
                 if (this.showReferences) html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
                 else html = html.replace(/\[\d+\]/g, '');
