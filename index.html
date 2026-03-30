@@ -998,6 +998,32 @@
             background: var(--color-bg-3);
         }
 
+        /* Heartbeat Dot */
+        .heartbeat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-success);
+            display: inline-block;
+            margin-right: 6px;
+            vertical-align: middle;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .heartbeat-dot.active {
+            opacity: 1;
+            animation: hb-pulse 2s infinite;
+        }
+        .heartbeat-dot.suspended {
+            opacity: 0.6;
+            background: var(--color-warning, orange);
+            animation: none;
+        }
+        @keyframes hb-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+        }
+
         /* Popups & Drawer */
         .popup {
             position: fixed;
@@ -1567,7 +1593,7 @@
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v3.0.1</small></h1>
+                        <h1>Multi-API Chat Interface<small>v4.0.1</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -1579,6 +1605,7 @@
                 </div>
                 <!-- Right Side: Status & About -->
                 <div class="header-right">
+                    <span class="heartbeat-dot" id="heartbeatDot" title="Keep-alive: inactive"></span>
                     <div class="status hidden" id="statusIndicator"></div>
                     <button class="header-icon hidden" id="openInNewTab" title="Open Full App (Fix Storage)"
                         style="color:var(--color-primary); background:var(--color-bg-1);">↗</button>
@@ -2881,26 +2908,53 @@
             }
 
             _startHeartbeat() {
+                const dot = document.getElementById('heartbeatDot');
+                const updateDot = (state) => {
+                    if (!dot) return;
+                    dot.classList.remove('active', 'suspended');
+                    if (state === 'running') { dot.classList.add('active'); dot.title = 'Keep-alive: active'; }
+                    else if (state === 'suspended') { dot.classList.add('suspended'); dot.title = 'Keep-alive: suspended'; }
+                    else { dot.title = 'Keep-alive: inactive'; }
+                };
                 try {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
                     if (!AudioContext) return;
                     this._audioCtx = new AudioContext();
-                    // Create silent oscillator to keep audio context alive
                     const osc = this._audioCtx.createOscillator();
                     const gain = this._audioCtx.createGain();
-                    gain.gain.value = 0; // Silent
+                    gain.gain.value = 0;
                     osc.connect(gain);
                     gain.connect(this._audioCtx.destination);
                     osc.start();
-                    // Periodic resume to prevent suspension
+                    updateDot(this._audioCtx.state);
+                    // Periodic resume every 15s
                     this._heartbeatInterval = setInterval(() => {
-                        if (this._audioCtx && this._audioCtx.state === 'suspended') {
-                            this._audioCtx.resume().catch(() => {});
+                        if (this._audioCtx) {
+                            if (this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
+                            updateDot(this._audioCtx.state);
                         }
-                    }, 25000);
+                    }, 15000);
                 } catch (e) {
                     console.warn('Heartbeat init failed:', e);
+                    updateDot('off');
                 }
+                // Wake Lock API to prevent page discard during idle
+                this._acquireWakeLock = async () => {
+                    try {
+                        if ('wakeLock' in navigator) {
+                            this._wakeLock = await navigator.wakeLock.request('screen');
+                            this._wakeLock.addEventListener('release', () => { this._wakeLock = null; });
+                        }
+                    } catch (e) { /* Wake Lock not available or denied */ }
+                };
+                this._acquireWakeLock();
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        this._acquireWakeLock();
+                        if (this._audioCtx && this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
+                        if (dot) updateDot(this._audioCtx?.state || 'off');
+                    }
+                });
             }
 
             detectIframe() {
@@ -4896,13 +4950,22 @@
                     headers['X-Title'] = 'Multi-API Chat Interface';
                 }
 
-                const res = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(body),
-                    signal: this._sessionAbort[sessionId]?.signal
-                });
-                if (!res.ok) {
+                let res;
+                const maxRetries = 3;
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(body),
+                        signal: this._sessionAbort[sessionId]?.signal
+                    });
+                    if (res.ok) break;
+                    if ([524, 503].includes(res.status) && attempt < maxRetries) {
+                        const wait = Math.pow(2, attempt) * 1000;
+                        this.showStatus(`Server timeout (${res.status}), retrying ${attempt}/${maxRetries}...`, 'warning');
+                        await new Promise(r => setTimeout(r, wait));
+                        continue;
+                    }
                     if (res.status === 429) {
                         throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
                     }
@@ -5132,14 +5195,22 @@
                     headers['X-Title'] = 'Multi-API Chat Interface';
                 }
 
-                const res = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(body),
-                    signal: this._sessionAbort[sessionId]?.signal
-                });
-
-                if (!res.ok) {
+                let res;
+                const _maxRetries = 3;
+                for (let _attempt = 1; _attempt <= _maxRetries; _attempt++) {
+                    res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(body),
+                        signal: this._sessionAbort[sessionId]?.signal
+                    });
+                    if (res.ok) break;
+                    if ([524, 503].includes(res.status) && _attempt < _maxRetries) {
+                        const _wait = Math.pow(2, _attempt) * 1000;
+                        this.showStatus(`Server timeout (${res.status}), retrying ${_attempt}/${_maxRetries}...`, 'warning');
+                        await new Promise(r => setTimeout(r, _wait));
+                        continue;
+                    }
                     if (res.status === 429) {
                         throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
                     }
@@ -5165,8 +5236,12 @@
                 let done = false;
                 let buffer = '';
 
-                const msgElement = this.messagesContainer.lastElementChild;
-                const contentDiv = msgElement.querySelector('.message-content');
+                // Find the correct element - use data attr for safety across tab switches
+                let msgElement = this.messagesContainer.lastElementChild;
+                let contentDiv = msgElement ? msgElement.querySelector('.message-content') : null;
+
+                // Track whether K2.5 web search is active (skip reasoning_content to avoid duplicates)
+                const _isK25WebSearch = this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5' && this.moonshotSearchEnabled;
 
                 try {
                     while (!done) {
@@ -5193,16 +5268,19 @@
                                     const reasoningContent = data.choices?.[0]?.delta?.reasoning_content || "";
 
                                     // Handle Reasoning Content (Thinking Process)
-                                    if (reasoningContent) {
+                                    // Skip reasoning_content for K2.5 + web search to avoid duplicated thinking blocks
+                                    if (reasoningContent && !_isK25WebSearch) {
                                         if (!assistantMessage.isThinking) {
                                             assistantMessage.content += "<think>";
                                             assistantMessage.isThinking = true;
                                         }
                                         assistantMessage.content += reasoningContent;
-                                        if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
-                                            contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                            try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
-                                            this._lastStreamRender = Date.now();
+                                        if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                            if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                                contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                                try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
+                                                this._lastStreamRender = Date.now();
+                                            }
                                         }
                                     }
 
@@ -5213,11 +5291,13 @@
                                             assistantMessage.isThinking = false;
                                         }
                                         assistantMessage.content += delta;
-                                        // Throttle DOM updates for long responses
-                                        if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
-                                            contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                            try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
-                                            this._lastStreamRender = Date.now();
+                                        // Throttle DOM updates — only write to DOM if still on same tab
+                                        if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                            if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                                contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                                try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
+                                                this._lastStreamRender = Date.now();
+                                            }
                                         }
                                     }
                                 } catch (e) { }
