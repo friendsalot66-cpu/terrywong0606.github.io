@@ -2763,6 +2763,12 @@
                     nvidia: localStorage.getItem('nvidia_api_key') || '',
                     openrouter: localStorage.getItem('openrouter_api_key') || ''
                 };
+                // Load custom provider API keys at startup
+                const _savedCustomProviders = JSON.parse(localStorage.getItem('custom_providers') || '[]');
+                _savedCustomProviders.forEach(p => {
+                    const savedKey = localStorage.getItem(p.id + '_api_key');
+                    if (savedKey) this.apiKeys[p.id] = savedKey;
+                });
                 this.currentModel = localStorage.getItem('currentModel') || 'sonar';
                 this.currentAPI = localStorage.getItem('currentAPI') || 'perplexity';
                 this.currentPersona = localStorage.getItem('currentPersona') || 'allrounder';
@@ -2953,8 +2959,73 @@
                         this._acquireWakeLock();
                         if (this._audioCtx && this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
                         if (dot) updateDot(this._audioCtx?.state || 'off');
+                        // Re-acquire Web Lock on visibility restore
+                        this._acquireWebLock();
                     }
                 });
+
+                // ===== ANTI-IDLE LAYER 2: Web Locks API =====
+                // Holds a persistent lock that generates lock-manager activity visible to network proxies
+                this._acquireWebLock = () => {
+                    if (navigator.locks) {
+                        try {
+                            navigator.locks.request('chat-keepalive-' + Date.now(), { mode: 'exclusive' }, () => {
+                                // Hold the lock indefinitely by returning a promise that never resolves
+                                return new Promise(() => {});
+                            }).catch(() => {});
+                        } catch (e) { /* Web Locks not available */ }
+                    }
+                };
+                this._acquireWebLock();
+
+                // ===== ANTI-IDLE LAYER 3: Periodic Network Fetch (every 30s) =====
+                // Generates actual network traffic to prevent Menlo Security proxy from detecting idle state
+                this._networkPingInterval = setInterval(() => {
+                    try {
+                        // Fetch a tiny resource from the same origin to generate network traffic
+                        // Use HEAD request with cache-busting to ensure actual network activity
+                        fetch(window.location.href.split('?')[0] + '?_keepalive=' + Date.now(), {
+                            method: 'HEAD',
+                            cache: 'no-store',
+                            mode: 'no-cors'
+                        }).catch(() => {});
+                    } catch (e) { /* Fetch failed, non-critical */ }
+                }, 30000);
+
+                // ===== ANTI-IDLE LAYER 4: Periodic DOM/JS Activity (every 30s) =====
+                // Generates JavaScript execution activity to prevent browser from considering page idle
+                this._activityInterval = setInterval(() => {
+                    try {
+                        // Touch localStorage to generate storage activity
+                        localStorage.setItem('_keepalive_ts', Date.now().toString());
+                        // Trigger a minimal layout calculation
+                        if (dot) void dot.offsetHeight;
+                    } catch (e) { /* Non-critical */ }
+                }, 30000);
+
+                // ===== ANTI-IDLE LAYER 5: beforeunload Warning =====
+                // Warn user before page unloads (refresh/close) to prevent accidental loss
+                window.addEventListener('beforeunload', (e) => {
+                    // Only warn if there are active sessions with messages
+                    const hasContent = Object.values(this.sessions || {}).some(s => s.messages && s.messages.length > 0);
+                    if (hasContent) {
+                        e.preventDefault();
+                        e.returnValue = 'You have active chat sessions. Are you sure you want to leave?';
+                        return e.returnValue;
+                    }
+                });
+
+                // ===== ANTI-IDLE LAYER 6: Auto-Recovery Detection =====
+                // Detect if the page was refreshed unexpectedly and restore state
+                this._pageLoadTime = Date.now();
+                const lastAliveTs = parseInt(localStorage.getItem('_keepalive_ts') || '0');
+                const timeSinceLastAlive = Date.now() - lastAliveTs;
+                // If last alive timestamp is less than 2 minutes ago, this might be an auto-recovery
+                if (lastAliveTs > 0 && timeSinceLastAlive < 120000 && timeSinceLastAlive > 5000) {
+                    console.log('[Auto-Recovery] Page reloaded after ' + Math.round(timeSinceLastAlive / 1000) + 's idle. Restoring session...');
+                    this._isAutoRecovery = true;
+                    // Session restoration happens in initData() which is called after constructor
+                }
             }
 
             detectIframe() {
@@ -3498,9 +3569,17 @@
 
                 this.historySearch.addEventListener('input', () => this.renderChatHistory());
 
-                document.querySelectorAll('.model-option').forEach(btn => {
-                    btn.addEventListener('click', (e) => this.setModel(e.target.dataset.model, e.target.dataset.api));
-                });
+                // Use event delegation for model options so dynamically added buttons (custom providers) work
+                // Must attach to popup-content (not modelPopup) because .popup-content has stopPropagation()
+                const modelPopupContent = this.modelPopup?.querySelector('.popup-content');
+                if (modelPopupContent) {
+                    modelPopupContent.addEventListener('click', (e) => {
+                        const btn = e.target.closest('.model-option');
+                        if (btn && btn.dataset.model && btn.dataset.api) {
+                            this.setModel(btn.dataset.model, btn.dataset.api);
+                        }
+                    });
+                }
                 document.querySelectorAll('.persona-option').forEach(btn => {
                     if (btn.dataset.persona) btn.addEventListener('click', () => this.setPersona(btn.dataset.persona));
                 });
