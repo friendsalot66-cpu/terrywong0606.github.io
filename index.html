@@ -3260,7 +3260,8 @@
                 const provider = this.providerRegistry[providerId];
                 const apiKey = this.apiKeys[providerId] || '';
 
-                if (!provider || !apiKey) {
+                const isCustomProvider = providerId.startsWith('custom_');
+                if (!provider || (!apiKey && !isCustomProvider)) {
                     this.showStatus('API key required to fetch models', 'warning');
                     return null;
                 }
@@ -4909,7 +4910,8 @@
                     setTimeout(() => this.autoSaveChat(), 50);
                 });
 
-                if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); return; }
+                const isCustomProvider = this.currentAPI.startsWith('custom_');
+                if (!this.apiKeys[this.currentAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); return; }
                 this.setLoading(true, sessionId);
                 if (!this._sessionLoading) this._sessionLoading = {};
                 this._sessionLoading[sessionId] = true;
@@ -5017,13 +5019,15 @@
                 if (!apiUrl && this.providerRegistry[this.currentAPI]) {
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
-                const needsProxy = ['nvidia'].includes(this.currentAPI) || (this.customProviders.some(p => p.id === this.currentAPI));
+                const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
+                const needsProxy = ['nvidia'].includes(this.currentAPI);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
-                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` };
+                const headers = { 'Content-Type': 'application/json' };
+                if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
                 if (this.currentAPI === 'openrouter') {
                     headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
                     headers['X-Title'] = 'Multi-API Chat Interface';
@@ -5262,13 +5266,15 @@
                 if (!apiUrl && this.providerRegistry[this.currentAPI]) {
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
-                const needsProxy = ['nvidia'].includes(this.currentAPI) || (this.customProviders.some(p => p.id === this.currentAPI));
+                const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
+                const needsProxy = ['nvidia'].includes(this.currentAPI);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
-                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[this.currentAPI]}` };
+                const headers = { 'Content-Type': 'application/json' };
+                if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
                 if (this.currentAPI === 'openrouter') {
                     headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
                     headers['X-Title'] = 'Multi-API Chat Interface';
@@ -5801,7 +5807,8 @@
                     const newText = textarea.value.trim();
                     if (newText) {
                         // FIX: Ensure API Key is present before regenerating
-                        if (!this.apiKeys[this.currentAPI]) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
+                        const isCustomProvider = this.currentAPI.startsWith('custom_');
+                        if (!this.apiKeys[this.currentAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
 
                         this.messages[index].content = newText;
                         this.messages = this.messages.slice(0, index + 1);
