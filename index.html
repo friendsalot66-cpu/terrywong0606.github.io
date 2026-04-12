@@ -1010,18 +1010,30 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
+
         .heartbeat-dot.active {
             opacity: 1;
             animation: hb-pulse 2s infinite;
         }
+
         .heartbeat-dot.suspended {
             opacity: 0.6;
             background: var(--color-warning, orange);
             animation: none;
         }
+
         @keyframes hb-pulse {
-            0%, 100% { transform: scale(1); opacity: 0.7; }
-            50% { transform: scale(1.3); opacity: 1; }
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 1;
+            }
         }
 
         /* Popups & Drawer */
@@ -1887,7 +1899,8 @@
                 <div id="openrouterSettingsSection"
                     style="padding: 8px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <select id="openrouterModelSelect" class="form-control" style="flex:1; min-width:200px; padding:8px;">
+                        <select id="openrouterModelSelect" class="form-control"
+                            style="flex:1; min-width:200px; padding:8px;">
                             <option value="openai/gpt-4o">🔵 GPT-4o</option>
                             <option value="openai/gpt-4o-mini">🔵 GPT-4o Mini</option>
                             <option value="anthropic/claude-sonnet-4">🟣 Claude Sonnet 4</option>
@@ -1900,10 +1913,14 @@
                             <option value="meta-llama/llama-4-scout">🦙 Llama 4 Scout</option>
                             <option value="qwen/qwen3-235b-a22b">💜 Qwen3 235B</option>
                         </select>
-                        <button id="selectOpenrouterModelBtn" class="btn btn-primary" style="padding:8px 16px;">Select</button>
-                        <button id="loadOpenrouterModelsBtn" class="btn btn-primary" style="padding:8px 16px; background:var(--color-success);">🔄 Load Models</button>
+                        <button id="selectOpenrouterModelBtn" class="btn btn-primary"
+                            style="padding:8px 16px;">Select</button>
+                        <button id="loadOpenrouterModelsBtn" class="btn btn-primary"
+                            style="padding:8px 16px; background:var(--color-success);">🔄 Load Models</button>
                     </div>
-                    <input type="text" id="openrouterCustomModel" class="form-control" placeholder="Or type any model ID (e.g. mistralai/mistral-large)" style="margin-top:8px; font-size:12px;">
+                    <input type="text" id="openrouterCustomModel" class="form-control"
+                        placeholder="Or type any model ID (e.g. mistralai/mistral-large)"
+                        style="margin-top:8px; font-size:12px;">
                 </div>
             </div>
             <h4 style="margin-top:16px;">Custom Providers</h4>
@@ -2004,15 +2021,18 @@
                     </div>
                     <div class="feature-card" data-feature="openrouter">
                         <div class="feature-title">🌐 OpenRouter</div>
-                        <p class="feature-desc">Access hundreds of open-source and commercial models, including free tiers.</p>
+                        <p class="feature-desc">Access hundreds of open-source and commercial models, including free
+                            tiers.</p>
                     </div>
                     <div class="feature-card" data-feature="shortcuts">
                         <div class="feature-title">⚡ Prompt Shortcuts</div>
-                        <p class="feature-desc">Save frequently used prompts to slash-commands (e.g. /c) for instant recall.</p>
+                        <p class="feature-desc">Save frequently used prompts to slash-commands (e.g. /c) for instant
+                            recall.</p>
                     </div>
                     <div class="feature-card" data-feature="customProviders">
                         <div class="feature-title">💻 Local Custom Providers</div>
-                        <p class="feature-desc">Connect directly to local LLMs running on Ollama, LM Studio, or vLLM.</p>
+                        <p class="feature-desc">Connect directly to local LLMs running on Ollama, LM Studio, or vLLM.
+                        </p>
                     </div>
                 </div>
                 <div class="readme-footer">
@@ -2677,6 +2697,93 @@
             }
         }
 
+        class GenericGeminiProvider extends APIProvider {
+            constructor(config) {
+                super({
+                    ...config,
+                    type: 'gemini_native',
+                    supportsModelList: true
+                });
+            }
+
+            getHeaders(apiKey) {
+                const h = { 'Content-Type': 'application/json' };
+                if (apiKey) h['x-goog-api-key'] = apiKey;
+                return h;
+            }
+
+            // Gemini: model is part of URL path; baseUrl should be API root e.g. https://generativelanguage.googleapis.com/v1beta
+            getApiUrl(proxyUrl) {
+                // For Gemini, baseUrl IS the endpoint (user provides full URL or we build it)
+                // The actual URL construction with model is done in MultiAPIChat helpers
+                return this.baseUrl;
+            }
+
+            async fetchModels(apiKey, proxyUrl) {
+                try {
+                    // Gemini models endpoint: {baseUrl}/models
+                    let modelsUrl = this.baseUrl.replace(/\/+$/, '') + '/models';
+                    if (proxyUrl && proxyUrl.trim()) {
+                        const sep = proxyUrl.includes('?') ? '&' : '?';
+                        modelsUrl = proxyUrl.trim() + sep + 'url=' + encodeURIComponent(modelsUrl);
+                    }
+                    const res = await fetch(modelsUrl, { headers: this.getHeaders(apiKey) });
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    // Gemini returns { models: [{ name: "models/gemini-...", displayName: "..." }] }
+                    if (data.models && Array.isArray(data.models)) {
+                        return data.models
+                            .filter(m => m.name && m.supportedGenerationMethods?.includes('generateContent'))
+                            .map(m => m.name.replace('models/', ''));
+                    }
+                    return null;
+                } catch (e) {
+                    console.warn('Gemini fetchModels error:', e);
+                    return null;
+                }
+            }
+
+            buildMessages(history, systemPrompt, prefill, app) {
+                let sys = systemPrompt;
+                if (app && app.feedbackLoops[app.currentChatId]?.length) {
+                    sys += '\n\nUser corrections to learn from:\n' + app.feedbackLoops[app.currentChatId].map((f, i) => `${i + 1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
+                }
+                return super.buildMessages(history, sys, prefill, app);
+            }
+        }
+
+        class GenericAnthropicProvider extends APIProvider {
+            constructor(config) {
+                super({
+                    ...config,
+                    type: 'anthropic_native',
+                    supportsModelList: false // Anthropic doesn't have a browser-accessible models endpoint
+                });
+            }
+
+            getHeaders(apiKey) {
+                const h = {
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01'
+                };
+                if (apiKey) h['x-api-key'] = apiKey;
+                return h;
+            }
+
+            async fetchModels(apiKey, proxyUrl) {
+                // Anthropic doesn't expose a public models list from browser
+                return null;
+            }
+
+            buildMessages(history, systemPrompt, prefill, app) {
+                let sys = systemPrompt;
+                if (app && app.feedbackLoops[app.currentChatId]?.length) {
+                    sys += '\n\nUser corrections to learn from:\n' + app.feedbackLoops[app.currentChatId].map((f, i) => `${i + 1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
+                }
+                return super.buildMessages(history, sys, prefill, app);
+            }
+        }
+
         class OpenRouterProvider extends APIProvider {
             constructor() {
                 super({
@@ -2936,7 +3043,7 @@
                     // Periodic resume every 15s
                     this._heartbeatInterval = setInterval(() => {
                         if (this._audioCtx) {
-                            if (this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
+                            if (this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => { });
                             updateDot(this._audioCtx.state);
                         }
                     }, 15000);
@@ -2957,7 +3064,7 @@
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'visible') {
                         this._acquireWakeLock();
-                        if (this._audioCtx && this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
+                        if (this._audioCtx && this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => { });
                         if (dot) updateDot(this._audioCtx?.state || 'off');
                         // Re-acquire Web Lock on visibility restore
                         this._acquireWebLock();
@@ -2971,8 +3078,8 @@
                         try {
                             navigator.locks.request('chat-keepalive-' + Date.now(), { mode: 'exclusive' }, () => {
                                 // Hold the lock indefinitely by returning a promise that never resolves
-                                return new Promise(() => {});
-                            }).catch(() => {});
+                                return new Promise(() => { });
+                            }).catch(() => { });
                         } catch (e) { /* Web Locks not available */ }
                     }
                 };
@@ -2988,7 +3095,7 @@
                             method: 'HEAD',
                             cache: 'no-store',
                             mode: 'no-cors'
-                        }).catch(() => {});
+                        }).catch(() => { });
                     } catch (e) { /* Fetch failed, non-critical */ }
                 }, 30000);
 
@@ -3244,9 +3351,16 @@
                 registry.nvidia = new NvidiaNIMProvider();
                 registry.openrouter = new OpenRouterProvider();
 
-                // Custom providers
+                // Custom providers - instantiate based on apiProtocol
                 this.customProviders.forEach(p => {
-                    registry[p.id] = new GenericOpenAIProvider(p);
+                    const proto = p.apiProtocol || 'openai';
+                    if (proto === 'gemini') {
+                        registry[p.id] = new GenericGeminiProvider(p);
+                    } else if (proto === 'anthropic') {
+                        registry[p.id] = new GenericAnthropicProvider(p);
+                    } else {
+                        registry[p.id] = new GenericOpenAIProvider(p);
+                    }
                 });
 
                 return registry;
@@ -3295,7 +3409,8 @@
                     baseUrl: config.baseUrl,
                     defaultModel: config.defaultModel || '',
                     models: config.models || [],
-                    useCorsProxy: config.useCorsProxy || false
+                    useCorsProxy: config.useCorsProxy || false,
+                    apiProtocol: config.apiProtocol || 'openai'
                 };
 
                 this.customProviders.push(provider);
@@ -3346,10 +3461,17 @@
                     return;
                 }
 
-                container.innerHTML = this.customProviders.map(p => `
+                const _protocolBadges = { openai: 'OAI', gemini: 'GEM', anthropic: 'ANT' };
+                const _protocolColors = { openai: '#10a37f', gemini: '#4285f4', anthropic: '#d97706' };
+
+                container.innerHTML = this.customProviders.map(p => {
+                    const proto = p.apiProtocol || 'openai';
+                    const badge = _protocolBadges[proto] || 'OAI';
+                    const badgeColor = _protocolColors[proto] || '#10a37f';
+                    return `
                     <div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px; margin-bottom:8px;">
                         <div style="flex:1; min-width:0;">
-                            <b>${p.name}</b>${p.useCorsProxy ? ' <span style="font-size:10px; background:var(--color-primary); color:#fff; padding:1px 5px; border-radius:3px;">CORS</span>' : ''}<br>
+                            <b>${p.name}</b> <span style="font-size:10px; background:${badgeColor}; color:#fff; padding:1px 5px; border-radius:3px;">${badge}</span>${p.useCorsProxy ? ' <span style="font-size:10px; background:var(--color-primary); color:#fff; padding:1px 5px; border-radius:3px;">CORS</span>' : ''}<br>
                             <small style="color:var(--color-text-secondary); word-break:break-all;">${p.baseUrl}</small>
                         </div>
                         <div style="display:flex; gap:4px; align-items:flex-start;">
@@ -3357,7 +3479,7 @@
                             <button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteCustomProvider('${p.id}')" title="Delete">🗑️</button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             renderCustomProviderKeysInPopup() {
@@ -3376,6 +3498,13 @@
                 const existing = editId ? this.customProviders.find(p => p.id === editId) : null;
                 const isEdit = !!existing;
                 const title = isEdit ? 'Edit Provider' : 'Add Custom Provider';
+                const currentProtocol = isEdit ? (existing.apiProtocol || 'openai') : 'openai';
+
+                const placeholders = {
+                    openai: 'https://...../v1/chat/completions',
+                    gemini: 'https://generativelanguage.googleapis.com/v1beta',
+                    anthropic: 'https://api.anthropic.com/v1/messages'
+                };
 
                 // Build inline modal
                 const overlay = document.createElement('div');
@@ -3390,8 +3519,17 @@
                                 <input type="text" id="_provName" class="form-control" placeholder="e.g. Ollama, DeepSeek" value="${isEdit ? existing.name : ''}">
                             </div>
                             <div>
+                                <label style="font-size:12px;font-weight:600;">API Protocol</label>
+                                <select id="_provProtocol" class="form-control" style="padding:6px 8px;">
+                                    <option value="openai" ${currentProtocol === 'openai' ? 'selected' : ''}>OpenAI-compatible</option>
+                                    <option value="gemini" ${currentProtocol === 'gemini' ? 'selected' : ''}>Gemini-compatible</option>
+                                    <option value="anthropic" ${currentProtocol === 'anthropic' ? 'selected' : ''}>Anthropic-compatible</option>
+                                </select>
+                                <small style="font-size:10px;color:var(--color-text-secondary);display:block;margin-top:2px;" id="_provProtocolHint">Determines request/response format and authentication headers</small>
+                            </div>
+                            <div>
                                 <label style="font-size:12px;font-weight:600;">Base URL</label>
-                                <input type="text" id="_provUrl" class="form-control" placeholder="https://...../v1/chat/completions" value="${isEdit ? existing.baseUrl : ''}">
+                                <input type="text" id="_provUrl" class="form-control" placeholder="${placeholders[currentProtocol]}" value="${isEdit ? existing.baseUrl : ''}">
                             </div>
                             <div>
                                 <label style="font-size:12px;font-weight:600;">Default Model ID (optional)</label>
@@ -3415,6 +3553,21 @@
                 `;
                 document.body.appendChild(overlay);
 
+                // Dynamic placeholder update when protocol changes
+                const protocolSelect = document.getElementById('_provProtocol');
+                const urlInput = document.getElementById('_provUrl');
+                const hintEl = document.getElementById('_provProtocolHint');
+                const hints = {
+                    openai: 'Determines request/response format and authentication headers',
+                    gemini: 'Uses x-goog-api-key auth, model in URL path, contents/parts format',
+                    anthropic: 'Uses x-api-key auth, system as top-level param, content blocks format'
+                };
+                protocolSelect.addEventListener('change', () => {
+                    const p = protocolSelect.value;
+                    urlInput.placeholder = placeholders[p] || placeholders.openai;
+                    hintEl.textContent = hints[p] || hints.openai;
+                });
+
                 // Focus first field
                 document.getElementById('_provName').focus();
 
@@ -3429,6 +3582,7 @@
                     const defaultModel = document.getElementById('_provModel').value.trim();
                     const apiKey = document.getElementById('_provKey').value.trim();
                     const useCorsProxy = document.getElementById('_provCors').checked;
+                    const apiProtocol = document.getElementById('_provProtocol').value;
 
                     if (!name) { this.showStatus('Provider name is required', 'warning'); return; }
                     if (!baseUrl) { this.showStatus('Base URL is required', 'warning'); return; }
@@ -3439,6 +3593,7 @@
                         existing.baseUrl = baseUrl;
                         existing.defaultModel = defaultModel;
                         existing.useCorsProxy = useCorsProxy;
+                        existing.apiProtocol = apiProtocol;
                         localStorage.setItem('custom_providers', JSON.stringify(this.customProviders));
 
                         // Update API key
@@ -3451,7 +3606,7 @@
                         this.providerRegistry = this.buildProviderRegistry();
                         this.showStatus('Provider updated', 'success');
                     } else {
-                        this.addCustomProvider({ name, baseUrl, defaultModel, apiKey, useCorsProxy });
+                        this.addCustomProvider({ name, baseUrl, defaultModel, apiKey, useCorsProxy, apiProtocol });
                     }
 
                     this.renderCustomProvidersList();
@@ -3487,14 +3642,17 @@
                     return;
                 }
 
+                const _protoEmoji = { openai: '🤖', gemini: '💎', anthropic: '🔮' };
+
                 container.innerHTML = this.customProviders.map(p => {
                     const provider = this.providerRegistry[p.id];
                     const models = provider?.models || [p.defaultModel || 'default'];
+                    const emoji = _protoEmoji[p.apiProtocol || 'openai'] || '🤖';
 
                     return `
                         <h5 style="margin:8px 0 4px; font-size:11px; color:var(--color-text-secondary);">${p.name}</h5>
                         <div class="model-options">
-                            ${models.map(m => `<button class="model-option" data-model="${m}" data-api="${p.id}"><span>🤖</span> ${m}</button>`).join('')}
+                            ${models.map(m => `<button class="model-option" data-model="${m}" data-api="${p.id}"><span>${emoji}</span> ${m}</button>`).join('')}
                             <button class="btn btn--secondary btn--sm" onclick="window.chatApp.fetchModelsForCustomProvider('${p.id}')" style="margin-top:4px; width:100%;">🔄 Fetch Models</button>
                         </div>
                     `;
@@ -3548,6 +3706,268 @@
                 if (corsProxyInput) {
                     corsProxyInput.value = this.corsProxyUrl || '';
                 }
+            }
+
+            // ========== PROTOCOL TRANSLATION HELPERS ==========
+
+            _getProviderProtocol() {
+                const isCustom = this.customProviders.some(p => p.id === this.currentAPI);
+                if (!isCustom) return 'openai'; // Native providers all use OpenAI-compat format
+                const cp = this.customProviders.find(p => p.id === this.currentAPI);
+                return cp?.apiProtocol || 'openai';
+            }
+
+            _buildApiUrl(baseUrl, model, protocol, isStream) {
+                if (protocol === 'gemini') {
+                    // Gemini: {baseUrl}/models/{model}:generateContent or :streamGenerateContent?alt=sse
+                    const base = baseUrl.replace(/\/+$/, '');
+                    if (isStream) {
+                        return `${base}/models/${model}:streamGenerateContent?alt=sse`;
+                    } else {
+                        return `${base}/models/${model}:generateContent`;
+                    }
+                }
+                // OpenAI and Anthropic: baseUrl IS the full endpoint
+                return baseUrl;
+            }
+
+            _buildHeaders(protocol, apiKey) {
+                if (protocol === 'gemini') {
+                    const h = { 'Content-Type': 'application/json' };
+                    if (apiKey) h['x-goog-api-key'] = apiKey;
+                    return h;
+                }
+                if (protocol === 'anthropic') {
+                    const h = {
+                        'Content-Type': 'application/json',
+                        'anthropic-version': '2023-06-01'
+                    };
+                    if (apiKey) h['x-api-key'] = apiKey;
+                    return h;
+                }
+                // OpenAI default
+                const h = { 'Content-Type': 'application/json' };
+                if (apiKey) h['Authorization'] = `Bearer ${apiKey}`;
+                return h;
+            }
+
+            _transformBody(body, msgs, protocol) {
+                if (protocol === 'gemini') {
+                    // Extract system prompt from first message if it's system role
+                    let systemText = '';
+                    const contents = [];
+                    msgs.forEach(m => {
+                        if (m.role === 'system') {
+                            systemText += (systemText ? '\n' : '') + (typeof m.content === 'string' ? m.content : m.content);
+                        } else {
+                            // Map roles: user→user, assistant→model
+                            const role = m.role === 'assistant' ? 'model' : 'user';
+                            // Handle multimodal content
+                            if (Array.isArray(m.content)) {
+                                const parts = m.content.map(c => {
+                                    if (c.type === 'text') return { text: c.text };
+                                    if (c.type === 'image_url' && c.image_url?.url) {
+                                        // Convert data URI to Gemini inlineData format
+                                        const url = c.image_url.url;
+                                        if (url.startsWith('data:')) {
+                                            const match = url.match(/^data:([^;]+);base64,(.+)$/);
+                                            if (match) {
+                                                return { inlineData: { mimeType: match[1], data: match[2] } };
+                                            }
+                                        }
+                                        // For regular URLs, Gemini doesn't support URL references directly
+                                        return { text: `[Image: ${url}]` };
+                                    }
+                                    return { text: JSON.stringify(c) };
+                                });
+                                contents.push({ role, parts });
+                            } else {
+                                contents.push({ role, parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }] });
+                            }
+                        }
+                    });
+
+                    const geminiBody = {
+                        contents: contents,
+                        generationConfig: {
+                            maxOutputTokens: body.max_tokens || 4096,
+                            temperature: body.temperature ?? 0.2
+                        }
+                    };
+                    if (systemText) {
+                        geminiBody.system_instruction = { parts: [{ text: systemText }] };
+                    }
+                    return geminiBody;
+                }
+
+                if (protocol === 'anthropic') {
+                    // Anthropic: system is a top-level string, NOT in messages
+                    // Messages must alternate user/assistant, no system role
+                    let systemText = '';
+                    const anthropicMsgs = [];
+                    msgs.forEach(m => {
+                        if (m.role === 'system') {
+                            systemText += (systemText ? '\n' : '') + (typeof m.content === 'string' ? m.content : m.content);
+                        } else {
+                            // Anthropic expects role: 'user' | 'assistant'
+                            const role = m.role === 'user' ? 'user' : 'assistant';
+                            // Handle multimodal content
+                            if (Array.isArray(m.content)) {
+                                const blocks = m.content.map(c => {
+                                    if (c.type === 'text') return { type: 'text', text: c.text };
+                                    if (c.type === 'image_url' && c.image_url?.url) {
+                                        const url = c.image_url.url;
+                                        if (url.startsWith('data:')) {
+                                            const match = url.match(/^data:([^;]+);base64,(.+)$/);
+                                            if (match) {
+                                                return { type: 'image', source: { type: 'base64', media_type: match[1], data: match[2] } };
+                                            }
+                                        }
+                                        return { type: 'image', source: { type: 'url', url: url } };
+                                    }
+                                    return { type: 'text', text: JSON.stringify(c) };
+                                });
+                                anthropicMsgs.push({ role, content: blocks });
+                            } else {
+                                anthropicMsgs.push({ role, content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) });
+                            }
+                        }
+                    });
+
+                    const anthropicBody = {
+                        model: body.model,
+                        max_tokens: body.max_tokens || 4096,
+                        messages: anthropicMsgs,
+                        stream: body.stream || false
+                    };
+                    if (systemText) {
+                        anthropicBody.system = systemText;
+                    }
+                    // Anthropic doesn't use a temperature field the same way but does support it
+                    if (body.temperature !== undefined) {
+                        anthropicBody.temperature = body.temperature;
+                    }
+                    return anthropicBody;
+                }
+
+                // OpenAI: return as-is
+                return body;
+            }
+
+            _parseApiResponse(data, protocol) {
+                if (protocol === 'gemini') {
+                    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+                    const usage = data.usageMetadata ? {
+                        prompt_tokens: data.usageMetadata.promptTokenCount || 0,
+                        completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
+                        total_tokens: data.usageMetadata.totalTokenCount || 0
+                    } : {};
+                    return { content: text, tokenUsage: usage, searchResults: [], citations: [] };
+                }
+
+                if (protocol === 'anthropic') {
+                    // Anthropic response: { content: [{type:"text", text:"..."}], usage: {input_tokens, output_tokens} }
+                    const text = data.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
+                    const usage = data.usage ? {
+                        prompt_tokens: data.usage.input_tokens || 0,
+                        completion_tokens: data.usage.output_tokens || 0,
+                        total_tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
+                    } : {};
+                    return { content: text, tokenUsage: usage, searchResults: [], citations: [] };
+                }
+
+                // OpenAI default
+                const choice = data.choices?.[0];
+                const message = choice?.message || {};
+                return {
+                    content: message.content || '',
+                    tokenUsage: data.usage || {},
+                    searchResults: message.search_results || data.search_results || [],
+                    citations: data.citations || []
+                };
+            }
+
+            // Parse a single SSE stream line and return { content, reasoningContent, done, usage }
+            // `state` is a mutable object for tracking Anthropic event types across lines
+            _parseStreamLine(line, protocol, state) {
+                const result = { content: '', reasoningContent: '', done: false, usage: null, citations: null, searchResults: null };
+
+                if (protocol === 'gemini') {
+                    if (!line.startsWith('data: ')) return result;
+                    const dataStr = line.slice(6).trim();
+                    if (dataStr === '[DONE]') { result.done = true; return result; }
+                    try {
+                        const data = JSON.parse(dataStr);
+                        result.content = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+                        if (data.usageMetadata) {
+                            result.usage = {
+                                prompt_tokens: data.usageMetadata.promptTokenCount || 0,
+                                completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
+                                total_tokens: data.usageMetadata.totalTokenCount || 0
+                            };
+                        }
+                    } catch (e) { }
+                    return result;
+                }
+
+                if (protocol === 'anthropic') {
+                    // Anthropic uses typed events: event: <type>\ndata: <json>
+                    if (line.startsWith('event: ')) {
+                        state._anthropicEventType = line.slice(7).trim();
+                        return result; // Wait for the data line
+                    }
+                    if (!line.startsWith('data: ')) return result;
+                    const dataStr = line.slice(6).trim();
+                    const eventType = state._anthropicEventType || '';
+
+                    try {
+                        const data = JSON.parse(dataStr);
+
+                        if (eventType === 'content_block_delta') {
+                            if (data.delta?.type === 'text_delta') {
+                                result.content = data.delta.text || '';
+                            } else if (data.delta?.type === 'thinking_delta') {
+                                result.reasoningContent = data.delta.thinking || '';
+                            }
+                        } else if (eventType === 'message_delta') {
+                            if (data.usage) {
+                                result.usage = {
+                                    prompt_tokens: data.usage.input_tokens || 0,
+                                    completion_tokens: data.usage.output_tokens || 0,
+                                    total_tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
+                                };
+                            }
+                        } else if (eventType === 'message_start') {
+                            // Extract initial usage from message_start
+                            if (data.message?.usage) {
+                                result.usage = {
+                                    prompt_tokens: data.message.usage.input_tokens || 0,
+                                    completion_tokens: 0,
+                                    total_tokens: data.message.usage.input_tokens || 0
+                                };
+                            }
+                        } else if (eventType === 'message_stop') {
+                            result.done = true;
+                        }
+                    } catch (e) { }
+                    state._anthropicEventType = ''; // Reset after processing
+                    return result;
+                }
+
+                // OpenAI default
+                if (!line.startsWith('data: ')) return result;
+                const dataStr = line.slice(6).trim();
+                if (dataStr === '[DONE]') { result.done = true; return result; }
+                try {
+                    const data = JSON.parse(dataStr);
+                    result.content = data.choices?.[0]?.delta?.content || '';
+                    result.reasoningContent = data.choices?.[0]?.delta?.reasoning_content || '';
+                    if (data.usage) result.usage = data.usage;
+                    if (data.citations) result.citations = data.citations;
+                    if (data.search_results) result.searchResults = data.search_results;
+                    else if (data.choices?.[0]?.message?.search_results) result.searchResults = data.choices[0].message.search_results;
+                } catch (e) { }
+                return result;
             }
 
             // ========== END PROVIDER REGISTRY METHODS ==========
@@ -3802,7 +4222,7 @@
                                     const opt = document.createElement('option');
                                     opt.value = m.id;
                                     opt.textContent = m.name || m.id;
-                                    if (m.context_length) opt.textContent += ` (${Math.round(m.context_length/1000)}k)`;
+                                    if (m.context_length) opt.textContent += ` (${Math.round(m.context_length / 1000)}k)`;
                                     select.appendChild(opt);
                                 });
                                 this.showStatus(`Loaded ${models.length} OpenRouter models`, 'success');
@@ -4130,8 +4550,8 @@
                     const searchRes = message.searchResults || [];
                     sources.forEach((url, idx) => {
                         const sr = searchRes.find(r => r.url === url);
-                        const title = sr?.name || sr?.title || (() => { try { return new URL(url).hostname; } catch(e) { return url; } })();
-                        citHtml += '<div style="margin-bottom:3px;"><a href="' + url + '" target="_blank" rel="noopener" style="color:var(--color-primary); text-decoration:none;">[' + (idx+1) + '] ' + title + '</a></div>';
+                        const title = sr?.name || sr?.title || (() => { try { return new URL(url).hostname; } catch (e) { return url; } })();
+                        citHtml += '<div style="margin-bottom:3px;"><a href="' + url + '" target="_blank" rel="noopener" style="color:var(--color-primary); text-decoration:none;">[' + (idx + 1) + '] ' + title + '</a></div>';
                     });
                     citDiv.innerHTML = citHtml;
                     messageEl.appendChild(citDiv);
@@ -4333,7 +4753,7 @@
                         }
                     }
                 }
-                
+
                 // Ctrl+Enter or Cmd+Enter sends the message
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -4360,7 +4780,7 @@
             _checkSlashCommand() {
                 const val = this.messageInput.value;
                 const existingTip = document.getElementById('slashCmdTip');
-                
+
                 // Show tip when user types "/" at the start
                 if (val.startsWith('/') && !val.includes(' ') && val.length <= 20) {
                     if (!existingTip) {
@@ -4368,7 +4788,7 @@
                         tip.id = 'slashCmdTip';
                         tip.style.cssText = 'position:absolute; bottom:100%; left:8px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; padding:6px 10px; font-size:11px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.8); pointer-events:auto; cursor:pointer; max-width:400px;';
                         let tipHtml = '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/check</kbd> — View saved prompts</div>' +
-                                      '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/save &lt;prompt&gt; /&lt;alias&gt;</kbd> — Save with name</div>';
+                            '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/save &lt;prompt&gt; /&lt;alias&gt;</kbd> — Save with name</div>';
                         // Show existing aliases
                         const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
                         const typed = val.substring(1).toLowerCase();
@@ -4991,7 +5411,7 @@
                 // Set per-session abort controller early
                 if (!this._sessionAbort) this._sessionAbort = {};
                 this._sessionAbort[sessionId] = new AbortController();
-                
+
                 // Defer heavy rendering and saving to next tick to free up UI thread
                 requestAnimationFrame(() => {
                     this.renderMessages();
@@ -5104,10 +5524,14 @@
                 }
 
                 // Determine API URL (use CORS proxy if configured and needed)
+                const _protocol = this._getProviderProtocol();
                 let apiUrl = this.apiEndpoints[this.currentAPI];
                 if (!apiUrl && this.providerRegistry[this.currentAPI]) {
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
+                // Protocol-aware URL building (Gemini needs model in URL path)
+                apiUrl = this._buildApiUrl(apiUrl, this.currentModel, _protocol, false);
+
                 const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
                 const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
                 const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig && cpConfig.useCorsProxy);
@@ -5116,12 +5540,21 @@
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
-                const headers = { 'Content-Type': 'application/json' };
-                if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
-                if (this.currentAPI === 'openrouter') {
-                    headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
-                    headers['X-Title'] = 'Multi-API Chat Interface';
+                // Protocol-aware headers
+                let headers;
+                if (_protocol !== 'openai') {
+                    headers = this._buildHeaders(_protocol, this.apiKeys[this.currentAPI]);
+                } else {
+                    headers = { 'Content-Type': 'application/json' };
+                    if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
+                    if (this.currentAPI === 'openrouter') {
+                        headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                        headers['X-Title'] = 'Multi-API Chat Interface';
+                    }
                 }
+
+                // Protocol-aware body transformation
+                const finalBody = this._transformBody(body, msgs, _protocol);
 
                 let res;
                 const maxRetries = 3;
@@ -5129,7 +5562,7 @@
                     res = await fetch(apiUrl, {
                         method: 'POST',
                         headers: headers,
-                        body: JSON.stringify(body),
+                        body: JSON.stringify(finalBody),
                         signal: this._sessionAbort[sessionId]?.signal
                     });
                     if (res.ok) break;
@@ -5148,16 +5581,8 @@
                 }
                 const d = await res.json();
 
-                // Safe parsing to avoid crashes if API returns unexpected structure
-                const choice = d.choices?.[0];
-                const message = choice?.message || {};
-
-                return {
-                    content: message.content || '',
-                    tokenUsage: d.usage || {},
-                    searchResults: message.search_results || d.search_results || [],
-                    citations: d.citations || []
-                };
+                // Protocol-aware response parsing
+                return this._parseApiResponse(d, _protocol);
             }
 
             buildMessagesForAPI(pre) {
@@ -5352,10 +5777,14 @@
                 }
 
                 // Determine API URL (use CORS proxy if configured and needed)
+                const _protocol = this._getProviderProtocol();
                 let apiUrl = this.apiEndpoints[this.currentAPI];
                 if (!apiUrl && this.providerRegistry[this.currentAPI]) {
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
+                // Protocol-aware URL building (Gemini uses different streaming endpoint)
+                apiUrl = this._buildApiUrl(apiUrl, this.currentModel, _protocol, true);
+
                 const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
                 const cpConfig2 = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
                 const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig2 && cpConfig2.useCorsProxy);
@@ -5364,12 +5793,21 @@
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
                 }
 
-                const headers = { 'Content-Type': 'application/json' };
-                if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
-                if (this.currentAPI === 'openrouter') {
-                    headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
-                    headers['X-Title'] = 'Multi-API Chat Interface';
+                // Protocol-aware headers
+                let headers;
+                if (_protocol !== 'openai') {
+                    headers = this._buildHeaders(_protocol, this.apiKeys[this.currentAPI]);
+                } else {
+                    headers = { 'Content-Type': 'application/json' };
+                    if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
+                    if (this.currentAPI === 'openrouter') {
+                        headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                        headers['X-Title'] = 'Multi-API Chat Interface';
+                    }
                 }
+
+                // Protocol-aware body transformation
+                const finalBody = this._transformBody(body, msgs, _protocol);
 
                 let res;
                 const _maxRetries = 3;
@@ -5377,7 +5815,7 @@
                     res = await fetch(apiUrl, {
                         method: 'POST',
                         headers: headers,
-                        body: JSON.stringify(body),
+                        body: JSON.stringify(finalBody),
                         signal: this._sessionAbort[sessionId]?.signal
                     });
                     if (res.ok) break;
@@ -5419,6 +5857,9 @@
                 // Track whether K2.5 web search is active (skip reasoning_content to avoid duplicates)
                 const _isK25WebSearch = this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5' && this.moonshotSearchEnabled;
 
+                // Mutable state for Anthropic event tracking
+                const _streamState = {};
+
                 try {
                     while (!done) {
                         const { value, done: d } = await reader.read();
@@ -5429,54 +5870,49 @@
                         buffer = lines.pop();
 
                         lines.forEach(line => {
-                            if (line.startsWith('data: ')) {
-                                const dataStr = line.slice(6);
-                                if (dataStr.trim() === '[DONE]') return;
-                                try {
-                                    const data = JSON.parse(dataStr);
-                                    if (data.citations) assistantMessage.citations = data.citations;
-                                    if (data.search_results) assistantMessage.searchResults = data.search_results;
-                                    else if (data.choices?.[0]?.message?.search_results) assistantMessage.searchResults = data.choices[0].message.search_results;
+                            // Use protocol-aware stream line parser
+                            const parsed = this._parseStreamLine(line, _protocol, _streamState);
 
-                                    if (data.usage) assistantMessage.tokenUsage = data.usage;
+                            if (parsed.done) return;
+                            if (parsed.citations) assistantMessage.citations = parsed.citations;
+                            if (parsed.searchResults) assistantMessage.searchResults = parsed.searchResults;
+                            if (parsed.usage) assistantMessage.tokenUsage = parsed.usage;
 
-                                    const delta = data.choices?.[0]?.delta?.content || "";
-                                    const reasoningContent = data.choices?.[0]?.delta?.reasoning_content || "";
+                            const delta = parsed.content;
+                            const reasoningContent = parsed.reasoningContent;
 
-                                    // Handle Reasoning Content (Thinking Process)
-                                    // Skip reasoning_content for K2.5 + web search to avoid duplicated thinking blocks
-                                    if (reasoningContent && !_isK25WebSearch) {
-                                        if (!assistantMessage.isThinking) {
-                                            assistantMessage.content += "<think>";
-                                            assistantMessage.isThinking = true;
-                                        }
-                                        assistantMessage.content += reasoningContent;
-                                        if (contentDiv && this.activeSessionId === _streamSessionId) {
-                                            if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
-                                                contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                                try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
-                                                this._lastStreamRender = Date.now();
-                                            }
-                                        }
+                            // Handle Reasoning Content (Thinking Process)
+                            // Skip reasoning_content for K2.5 + web search to avoid duplicated thinking blocks
+                            if (reasoningContent && !_isK25WebSearch) {
+                                if (!assistantMessage.isThinking) {
+                                    assistantMessage.content += "<think>";
+                                    assistantMessage.isThinking = true;
+                                }
+                                assistantMessage.content += reasoningContent;
+                                if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                    if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                        try { contentDiv.parentElement.scrollIntoView(false); } catch (e) { }
+                                        this._lastStreamRender = Date.now();
                                     }
+                                }
+                            }
 
-                                    // Handle Standard Content
-                                    if (delta) {
-                                        if (assistantMessage.isThinking) {
-                                            assistantMessage.content += "</think>";
-                                            assistantMessage.isThinking = false;
-                                        }
-                                        assistantMessage.content += delta;
-                                        // Throttle DOM updates — only write to DOM if still on same tab
-                                        if (contentDiv && this.activeSessionId === _streamSessionId) {
-                                            if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
-                                                contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
-                                                try { contentDiv.parentElement.scrollIntoView(false); } catch(e) {}
-                                                this._lastStreamRender = Date.now();
-                                            }
-                                        }
+                            // Handle Standard Content
+                            if (delta) {
+                                if (assistantMessage.isThinking) {
+                                    assistantMessage.content += "</think>";
+                                    assistantMessage.isThinking = false;
+                                }
+                                assistantMessage.content += delta;
+                                // Throttle DOM updates — only write to DOM if still on same tab
+                                if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                    if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                        try { contentDiv.parentElement.scrollIntoView(false); } catch (e) { }
+                                        this._lastStreamRender = Date.now();
                                     }
-                                } catch (e) { }
+                                }
                             }
                         });
                     }
