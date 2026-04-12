@@ -3266,8 +3266,17 @@
                     return null;
                 }
 
+                // Determine CORS proxy URL: use it only if this provider needs it
+                let proxyUrl = '';
+                if (isCustomProvider) {
+                    const cpConfig = this.customProviders.find(p => p.id === providerId);
+                    if (cpConfig && cpConfig.useCorsProxy) proxyUrl = this.corsProxyUrl;
+                } else if (['nvidia'].includes(providerId)) {
+                    proxyUrl = this.corsProxyUrl;
+                }
+
                 this.showStatus('Fetching models...', 'info');
-                const models = await provider.fetchModels(apiKey, this.corsProxyUrl);
+                const models = await provider.fetchModels(apiKey, proxyUrl);
 
                 if (models && models.length > 0) {
                     provider.models = models;
@@ -3285,7 +3294,8 @@
                     name: config.name,
                     baseUrl: config.baseUrl,
                     defaultModel: config.defaultModel || '',
-                    models: config.models || []
+                    models: config.models || [],
+                    useCorsProxy: config.useCorsProxy || false
                 };
 
                 this.customProviders.push(provider);
@@ -3338,12 +3348,13 @@
 
                 container.innerHTML = this.customProviders.map(p => `
                     <div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px; margin-bottom:8px;">
-                        <div style="flex:1;">
-                            <b>${p.name}</b><br>
+                        <div style="flex:1; min-width:0;">
+                            <b>${p.name}</b>${p.useCorsProxy ? ' <span style="font-size:10px; background:var(--color-primary); color:#fff; padding:1px 5px; border-radius:3px;">CORS</span>' : ''}<br>
                             <small style="color:var(--color-text-secondary); word-break:break-all;">${p.baseUrl}</small>
                         </div>
-                        <div style="display:flex; gap:4px;">
-                            <button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteCustomProvider('${p.id}')">🗑️</button>
+                        <div style="display:flex; gap:4px; align-items:flex-start;">
+                            <button class="btn btn--secondary btn--sm" onclick="window.chatApp.openEditProviderModal('${p.id}')" title="Edit">✏️</button>
+                            <button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteCustomProvider('${p.id}')" title="Delete">🗑️</button>
                         </div>
                     </div>
                 `).join('');
@@ -3361,19 +3372,97 @@
                 `).join('');
             }
 
-            openAddProviderModal() {
-                const name = prompt('Provider Name (e.g., DeepSeek):');
-                if (!name) return;
+            openAddProviderModal(editId) {
+                const existing = editId ? this.customProviders.find(p => p.id === editId) : null;
+                const isEdit = !!existing;
+                const title = isEdit ? 'Edit Provider' : 'Add Custom Provider';
 
-                const baseUrl = prompt('Base URL (e.g., https://api.deepseek.com/v1/chat/completions):');
-                if (!baseUrl) return;
+                // Build inline modal
+                const overlay = document.createElement('div');
+                overlay.id = 'providerModal';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML = `
+                    <div style="background:var(--color-surface);border-radius:12px;padding:20px;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                        <h3 style="margin:0 0 16px;">${title}</h3>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <div>
+                                <label style="font-size:12px;font-weight:600;">Provider Name</label>
+                                <input type="text" id="_provName" class="form-control" placeholder="e.g. Ollama, DeepSeek" value="${isEdit ? existing.name : ''}">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;font-weight:600;">Base URL</label>
+                                <input type="text" id="_provUrl" class="form-control" placeholder="https://...../v1/chat/completions" value="${isEdit ? existing.baseUrl : ''}">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;font-weight:600;">Default Model ID (optional)</label>
+                                <input type="text" id="_provModel" class="form-control" placeholder="e.g. llama3" value="${isEdit ? (existing.defaultModel || '') : ''}">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;font-weight:600;">API Key (optional)</label>
+                                <input type="password" id="_provKey" class="form-control" placeholder="Leave blank if not required" value="${isEdit ? (this.apiKeys[existing.id] || '') : ''}">
+                            </div>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="checkbox" id="_provCors" ${isEdit && existing.useCorsProxy ? 'checked' : ''}>
+                                Route through CORS Proxy
+                                <span style="font-size:10px;color:var(--color-text-secondary);">(only needed for APIs that block browser requests)</span>
+                            </label>
+                            <div style="display:flex;gap:8px;margin-top:4px;">
+                                <button id="_provCancel" class="btn btn--secondary btn--sm" style="flex:1;">Cancel</button>
+                                <button id="_provSave" class="btn btn--primary btn--sm" style="flex:1;">${isEdit ? 'Save Changes' : 'Add Provider'}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
 
-                const defaultModel = prompt('Default Model ID (optional):') || '';
-                const apiKey = prompt('API Key (optional):') || '';
+                // Focus first field
+                document.getElementById('_provName').focus();
 
-                this.addCustomProvider({ name, baseUrl, defaultModel, apiKey });
-                this.renderCustomProvidersList();
-                this.renderCustomProviderKeysInPopup();
+                // Cancel
+                document.getElementById('_provCancel').onclick = () => overlay.remove();
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+                // Save
+                document.getElementById('_provSave').onclick = () => {
+                    const name = document.getElementById('_provName').value.trim();
+                    const baseUrl = document.getElementById('_provUrl').value.trim();
+                    const defaultModel = document.getElementById('_provModel').value.trim();
+                    const apiKey = document.getElementById('_provKey').value.trim();
+                    const useCorsProxy = document.getElementById('_provCors').checked;
+
+                    if (!name) { this.showStatus('Provider name is required', 'warning'); return; }
+                    if (!baseUrl) { this.showStatus('Base URL is required', 'warning'); return; }
+
+                    if (isEdit) {
+                        // Update existing provider
+                        existing.name = name;
+                        existing.baseUrl = baseUrl;
+                        existing.defaultModel = defaultModel;
+                        existing.useCorsProxy = useCorsProxy;
+                        localStorage.setItem('custom_providers', JSON.stringify(this.customProviders));
+
+                        // Update API key
+                        if (apiKey) {
+                            this.apiKeys[existing.id] = apiKey;
+                            localStorage.setItem(existing.id + '_api_key', apiKey);
+                        }
+
+                        // Rebuild registry
+                        this.providerRegistry = this.buildProviderRegistry();
+                        this.showStatus('Provider updated', 'success');
+                    } else {
+                        this.addCustomProvider({ name, baseUrl, defaultModel, apiKey, useCorsProxy });
+                    }
+
+                    this.renderCustomProvidersList();
+                    this.renderCustomProviderKeysInPopup();
+                    this.renderCustomProvidersModelSection();
+                    overlay.remove();
+                };
+            }
+
+            openEditProviderModal(id) {
+                this.openAddProviderModal(id);
             }
 
             renderNIMModelsContainer() {
@@ -5020,7 +5109,8 @@
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
                 const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
-                const needsProxy = ['nvidia'].includes(this.currentAPI);
+                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
+                const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig && cpConfig.useCorsProxy);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
@@ -5267,7 +5357,8 @@
                     apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
                 }
                 const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
-                const needsProxy = ['nvidia'].includes(this.currentAPI);
+                const cpConfig2 = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
+                const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig2 && cpConfig2.useCorsProxy);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
