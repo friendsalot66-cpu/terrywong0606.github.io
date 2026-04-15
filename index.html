@@ -2492,21 +2492,36 @@
 
             async fetchModels(apiKey, proxyUrl) {
                 if (!this.supportsModelList) return null;
-                try {
-                    let modelsUrl = this.baseUrl.replace('/chat/completions', '/models');
-                    // Route through CORS proxy if configured
-                    if (proxyUrl && proxyUrl.trim()) {
-                        const sep = proxyUrl.includes('?') ? '&' : '?';
-                        modelsUrl = proxyUrl.trim() + sep + 'url=' + encodeURIComponent(modelsUrl);
+                const MAX_RETRIES = 3;
+                for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                    try {
+                        let modelsUrl = this.baseUrl.replace('/chat/completions', '/models');
+                        // Route through CORS proxy if configured
+                        if (proxyUrl && proxyUrl.trim()) {
+                            const sep = proxyUrl.includes('?') ? '&' : '?';
+                            modelsUrl = proxyUrl.trim() + sep + 'url=' + encodeURIComponent(modelsUrl);
+                        }
+                        const res = await fetch(modelsUrl, { headers: this.getHeaders(apiKey) });
+                        // Retry on transient gateway errors
+                        if ([502, 503, 504].includes(res.status) && attempt < MAX_RETRIES) {
+                            console.warn(`fetchModels attempt ${attempt + 1} got ${res.status}, retrying...`);
+                            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+                            continue;
+                        }
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        return data.data?.map(m => m.id) || [];
+                    } catch (e) {
+                        if (attempt < MAX_RETRIES) {
+                            console.warn(`fetchModels attempt ${attempt + 1} error: ${e.message}, retrying...`);
+                            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+                            continue;
+                        }
+                        console.warn('Failed to fetch models after retries:', e);
+                        return null;
                     }
-                    const res = await fetch(modelsUrl, { headers: this.getHeaders(apiKey) });
-                    if (!res.ok) return null;
-                    const data = await res.json();
-                    return data.data?.map(m => m.id) || [];
-                } catch (e) {
-                    console.warn('Failed to fetch models:', e);
-                    return null;
                 }
+                return null;
             }
         }
 
