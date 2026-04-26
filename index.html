@@ -1660,6 +1660,7 @@
                             <button class="action-btn" id="imageUpload" title="Upload Image/File"
                                 onclick="document.getElementById('fileInput').click()">📎</button>
                             <button class="action-btn" id="modelToggle" title="Change Model">🧠</button>
+                            <button class="action-btn active hidden" id="useToolsToggle" title="Enable/Disable Tools" style="font-size: 16px; opacity: 1; transition: opacity 0.3s;">???</button>
                         </div>
                         <div style="display:flex; align-items:center;">
                             <span id="tokenEst" class="token-est hidden">~0 toks</span>
@@ -2913,6 +2914,7 @@
                 this.currentReference = { num: '', url: '', snippet: '', title: '' };
                 this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
                 this.streamMode = localStorage.getItem('streamMode') !== 'false'; // Default to true for better UX and CF timeout prevention
+                this.useToolsEnabled = true;
 
                 this.savedChats = {}; // Now only metadata: { id: {id, name, timestamp} }
                 this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
@@ -3280,6 +3282,7 @@
                 this.fileInput = document.getElementById('fileInput');
                 this.folderInput = document.getElementById('folderInput');
                 this.modelToggle = document.getElementById('modelToggle');
+                this.useToolsToggle = document.getElementById('useToolsToggle');
                 this.togglePartialModeBtn = document.getElementById('togglePartialMode');
                 this.partialModeContainer = document.getElementById('partialModeContainer');
                 this.prefillInput = document.getElementById('prefillInput');
@@ -4049,7 +4052,19 @@
                 this.manualImageInput.addEventListener('click', () => this.togglePopup('imageInput'));
                 this.saveImageInputBtn.addEventListener('click', () => this.saveImageInput());
                 this.cancelImageInputBtn.addEventListener('click', () => this.togglePopup('imageInput'));
-                this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+                                this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+                if (this.useToolsToggle) {
+                    this.useToolsToggle.addEventListener('click', () => {
+                        this.useToolsEnabled = !this.useToolsEnabled;
+                        if (this.useToolsEnabled) {
+                            this.useToolsToggle.classList.add('active');
+                            this.useToolsToggle.style.opacity = '1';
+                        } else {
+                            this.useToolsToggle.classList.remove('active');
+                            this.useToolsToggle.style.opacity = '0.5';
+                        }
+                    });
+                }
 
                 this.themeToggle.addEventListener('change', (e) => this.setTheme(e.target.checked ? 'dark' : 'light'));
                 this.streamToggle.addEventListener('change', (e) => {
@@ -5167,6 +5182,16 @@
                         moonshotRow.style.display = 'none';
                     }
                 }
+
+                // Show/hide tool toggle for custom providers only
+                if (this.useToolsToggle) {
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.currentAPI);
+                    if (isCustom) {
+                        this.useToolsToggle.classList.remove('hidden');
+                    } else {
+                        this.useToolsToggle.classList.add('hidden');
+                    }
+                }
             }
             setPersona(p) {
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
@@ -5362,6 +5387,16 @@
                         moonshotRow.style.display = 'none';
                     }
                 }
+
+                // Show/hide tool toggle for custom providers only
+                if (this.useToolsToggle) {
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.currentAPI);
+                    if (isCustom) {
+                        this.useToolsToggle.classList.remove('hidden');
+                    } else {
+                        this.useToolsToggle.classList.add('hidden');
+                    }
+                }
             }
             setPersona(p) {
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
@@ -5497,7 +5532,8 @@
 
             async callAPI(msg, pre, sessionId = this.activeSessionId) {
                 const msgs = this.buildMessagesForAPI(pre);
-                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens, temperature: 0.2, stream: false };
+                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                        use_tools: this.useToolsEnabled, temperature: 0.2, stream: false};
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
                 if (this.currentAPI === 'nvidia') {
@@ -5663,6 +5699,7 @@
                         model: this.currentModel,
                         messages: conversationMsgs,
                         max_tokens: this.maxTokens,
+                        use_tools: this.useToolsEnabled,
                         tools: [{ type: 'builtin_function', function: { name: '$web_search' } }]
                     };
 
@@ -5740,7 +5777,8 @@
                 const _streamRefs = this.references;
 
                 const msgs = this.buildMessagesForAPI(pre);
-                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens, temperature: 0.2, stream: true };
+                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                        use_tools: this.useToolsEnabled, temperature: 0.2, stream: true};
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
                 if (this.currentAPI === 'nvidia') {
@@ -5944,6 +5982,32 @@
                     }
 
                     assistantMessage.isStreaming = false;
+                    
+                    // AUTO-COLLAPSE TOOL BLOCKS
+                    let finalContent = assistantMessage.content;
+                    if (finalContent && finalContent.includes('**Executing Tool:**')) {
+                        const firstIndex = finalContent.indexOf('> ');
+                        const toolStart = finalContent.indexOf('**Executing Tool:**');
+                        // Find the actual line start before '**Executing Tool:**'
+                        const lineStart = finalContent.lastIndexOf('\n', toolStart);
+                        const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
+                        
+                        let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
+                        const w1 = finalContent.lastIndexOf('**10 consecutive');
+                        const w2 = finalContent.lastIndexOf('**Max tool');
+                        lastIndex = Math.max(lastIndex, w1, w2);
+                        
+                        if (blockStart >= 0 && lastIndex !== -1) {
+                            const endOfLine = finalContent.indexOf('\n\n', lastIndex);
+                            const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
+                            
+                            const before = finalContent.substring(0, blockStart);
+                            const toolsStr = finalContent.substring(blockStart, actualEnd);
+                            const after = finalContent.substring(actualEnd);
+                            
+                            assistantMessage.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">\ud83d\udee0\ufe0f View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
+                        }
+                    }
                     if (assistantMessage.citations) Object.assign(_streamRefs, this.extractReferencesFromResponse(assistantMessage));
 
                     // Save to the correct session regardless of which tab is active
@@ -6368,7 +6432,31 @@
                                 await this.streamResponse(null, null, sessionId);
                             } else {
                                 const res = await this.callAPI(null, null, sessionId);
-                                this.messages.push({
+                                
+                    // AUTO-COLLAPSE TOOL BLOCKS
+                    let finalContent = res.content;
+                    if (finalContent && finalContent.includes('**Executing Tool:**')) {
+                        const toolStart = finalContent.indexOf('**Executing Tool:**');
+                        const lineStart = finalContent.lastIndexOf('\n', toolStart);
+                        const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
+                        
+                        let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
+                        const w1 = finalContent.lastIndexOf('**10 consecutive');
+                        const w2 = finalContent.lastIndexOf('**Max tool');
+                        lastIndex = Math.max(lastIndex, w1, w2);
+                        
+                        if (blockStart >= 0 && lastIndex !== -1) {
+                            const endOfLine = finalContent.indexOf('\n\n', lastIndex);
+                            const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
+                            
+                            const before = finalContent.substring(0, blockStart);
+                            const toolsStr = finalContent.substring(blockStart, actualEnd);
+                            const after = finalContent.substring(actualEnd);
+                            
+                            res.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">🛠️ View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
+                        }
+                    }
+                    this.messages.push({
                                     role: 'assistant',
                                     content: res.content,
                                     timestamp: new Date(),
