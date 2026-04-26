@@ -900,6 +900,52 @@
             padding: 4px;
         }
 
+        /* Tools Toggle Pill */
+        .tools-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px 3px 6px;
+            border-radius: 20px;
+            border: 1.5px solid var(--color-border);
+            background: var(--color-bg-1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            line-height: 1;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .tools-toggle.active {
+            border-color: #10a37f;
+            background: rgba(16, 163, 127, 0.1);
+            color: #10a37f;
+        }
+        .tools-toggle:hover {
+            border-color: var(--color-primary);
+        }
+        .tools-toggle-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--color-text-secondary);
+            opacity: 0.4;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        .tools-toggle.active .tools-toggle-dot {
+            background: #10a37f;
+            opacity: 1;
+            box-shadow: 0 0 6px rgba(16, 163, 127, 0.5);
+        }
+        .tools-toggle-label {
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
         .action-btn:hover {
             color: var(--color-primary);
             opacity: 1;
@@ -1660,7 +1706,10 @@
                             <button class="action-btn" id="imageUpload" title="Upload Image/File"
                                 onclick="document.getElementById('fileInput').click()">📎</button>
                             <button class="action-btn" id="modelToggle" title="Change Model">🧠</button>
-                            <button class="action-btn active hidden" id="useToolsToggle" title="Enable/Disable Tools" style="font-size: 16px; opacity: 1; transition: opacity 0.3s;">???</button>
+                            <button class="tools-toggle hidden" id="useToolsToggle" title="Enable/Disable Tools">
+                                <span class="tools-toggle-dot"></span>
+                                <span class="tools-toggle-label">Tools</span>
+                            </button>
                         </div>
                         <div style="display:flex; align-items:center;">
                             <span id="tokenEst" class="token-est hidden">~0 toks</span>
@@ -4054,15 +4103,11 @@
                 this.cancelImageInputBtn.addEventListener('click', () => this.togglePopup('imageInput'));
                                 this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
                 if (this.useToolsToggle) {
+                    // Start with tools enabled (add active class)
+                    this.useToolsToggle.classList.add('active');
                     this.useToolsToggle.addEventListener('click', () => {
                         this.useToolsEnabled = !this.useToolsEnabled;
-                        if (this.useToolsEnabled) {
-                            this.useToolsToggle.classList.add('active');
-                            this.useToolsToggle.style.opacity = '1';
-                        } else {
-                            this.useToolsToggle.classList.remove('active');
-                            this.useToolsToggle.style.opacity = '0.5';
-                        }
+                        this.useToolsToggle.classList.toggle('active', this.useToolsEnabled);
                     });
                 }
 
