@@ -918,14 +918,17 @@
             vertical-align: middle;
             margin-left: 4px;
         }
+
         .tools-toggle.active {
             border-color: #10a37f;
             background: rgba(16, 163, 127, 0.1);
             color: #10a37f;
         }
+
         .tools-toggle:hover {
             border-color: var(--color-primary);
         }
+
         .tools-toggle-dot {
             display: inline-block;
             width: 10px;
@@ -936,11 +939,13 @@
             transition: all 0.3s ease;
             flex-shrink: 0;
         }
+
         .tools-toggle.active .tools-toggle-dot {
             background: #10a37f;
             opacity: 1;
             box-shadow: 0 0 6px rgba(16, 163, 127, 0.5);
         }
+
         .tools-toggle-label {
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -1627,6 +1632,145 @@
                 max-height: 90vh;
             }
         }
+
+        /* Collapsible Provider Sections */
+        .provider-collapse {
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .provider-collapse summary {
+            cursor: pointer;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--color-text);
+            background: var(--color-secondary);
+            user-select: none;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+
+        .provider-collapse summary:hover {
+            background: var(--color-secondary-hover);
+        }
+
+        .provider-collapse summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .provider-collapse summary::before {
+            content: '▶';
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: var(--color-text-secondary);
+        }
+
+        .provider-collapse[open] summary::before {
+            transform: rotate(90deg);
+        }
+
+        .provider-collapse .collapse-body {
+            padding: 8px 12px 12px;
+        }
+
+        /* Model Search Input */
+        .model-search-input {
+            width: 100%;
+            padding: 6px 10px 6px 28px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            background: var(--color-background);
+            color: var(--color-text);
+            margin-bottom: 6px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .model-search-input:focus {
+            border-color: var(--color-primary);
+        }
+
+        .model-search-wrap {
+            position: relative;
+        }
+
+        .model-search-wrap::before {
+            content: '🔍';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Scrollable Model List */
+        .model-list-scroll {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) transparent;
+        }
+
+        .model-list-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .model-list-scroll::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 4px;
+        }
+
+        .model-list-scroll .model-option {
+            border-radius: 0;
+            border: none;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 11px;
+            padding: 6px 10px;
+        }
+
+        .model-list-scroll .model-option:last-child {
+            border-bottom: none;
+        }
+
+        .model-list-count {
+            font-size: 10px;
+            color: var(--color-text-secondary);
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .default-model-btn {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            border: 2px solid var(--color-primary);
+            border-radius: var(--radius-sm);
+            background: var(--color-bg-1);
+            color: var(--color-primary);
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .default-model-btn:hover {
+            background: var(--color-primary);
+            color: var(--color-btn-primary-text);
+        }
     </style>
 </head>
 
@@ -1853,124 +1997,112 @@
                 <input type="number" id="maxTokensInput" class="form-control" style="width: 100%; margin-top: 4px;"
                     value="4096">
             </div>
-            <h4 style="margin-top:16px;">Perplexity</h4>
-            <div class="model-options">
-                <div class="settings-row"
-                    style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
-                    <span>Enable Web Search</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="pplxSearchToggle" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row"
-                    style="margin-top:8px; border-bottom:1px solid var(--color-border); padding-bottom:8px;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span>Recency Filter</span>
-                        <span id="recencyInfoIcon"
-                            title="Month, Week, and Day use the native Perplexity API filter. Year and Custom Range use System Prompts to guide the model."
-                            style="cursor:pointer; font-size:12px; opacity:0.7;">ⓘ</span>
+            <!-- Perplexity (Collapsible) -->
+            <details class="provider-collapse" id="perplexityCollapse">
+                <summary>🔍 Perplexity</summary>
+                <div class="collapse-body">
+                    <div class="model-options">
+                        <div class="settings-row"
+                            style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
+                            <span>Enable Web Search</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pplxSearchToggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row"
+                            style="margin-top:8px; border-bottom:1px solid var(--color-border); padding-bottom:8px;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <span>Recency Filter</span>
+                                <span id="recencyInfoIcon"
+                                    title="Month, Week, and Day use the native Perplexity API filter. Year and Custom Range use System Prompts to guide the model."
+                                    style="cursor:pointer; font-size:12px; opacity:0.7;">ⓘ</span>
+                            </div>
+                            <select id="pplxRecencySelect" class="form-control" style="width:120px; padding:2px;">
+                                <option value="">Any Time</option>
+                                <option value="month">Month</option>
+                                <option value="week">Week</option>
+                                <option value="day">Day</option>
+                                <option value="year">Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div id="pplxCustomDateContainer" class="hidden"
+                            style="margin-top:8px; display:flex; gap:4px; align-items:center;">
+                            <input type="date" id="pplxStartDate" class="form-control" style="font-size:11px; padding:4px;">
+                            <span>to</span>
+                            <input type="date" id="pplxEndDate" class="form-control" style="font-size:11px; padding:4px;">
+                        </div>
+                        <button class="model-option" data-model="sonar" data-api="perplexity"><span>🔍</span> Sonar</button>
+                        <button class="model-option" data-model="sonar-pro" data-api="perplexity"><span>🔍</span> Sonar Pro</button>
+                        <button class="model-option" data-model="sonar-reasoning-pro" data-api="perplexity"><span>🧠</span> Sonar Reasoning Pro</button>
+                        <button class="model-option" data-model="sonar-deep-research" data-api="perplexity"><span>📚</span> Sonar Deep Research</button>
                     </div>
-                    <select id="pplxRecencySelect" class="form-control" style="width:120px; padding:2px;">
-                        <option value="">Any Time</option>
-                        <option value="month">Month</option>
-                        <option value="week">Week</option>
-                        <option value="day">Day</option>
-                        <option value="year">Year</option>
-                        <option value="custom">Custom Range</option>
-                    </select>
                 </div>
-                <div id="pplxCustomDateContainer" class="hidden"
-                    style="margin-top:8px; display:flex; gap:4px; align-items:center;">
-                    <input type="date" id="pplxStartDate" class="form-control" style="font-size:11px; padding:4px;">
-                    <span>to</span>
-                    <input type="date" id="pplxEndDate" class="form-control" style="font-size:11px; padding:4px;">
+            </details>
+
+            <!-- Moonshot (Collapsible) -->
+            <details class="provider-collapse" id="moonshotCollapse">
+                <summary>🌙 Moonshot</summary>
+                <div class="collapse-body">
+                    <div class="model-options">
+                        <div class="settings-row"
+                            style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
+                            <span>Enable Web Search</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="moonshotSearchToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row" id="moonshotReasoningRow"
+                            style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
+                            <span>Enable Reasoning (Thinking)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="moonshotReasoningToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p style="font-size:10px; color:var(--color-text-tertiary); margin:0 0 8px;">Note: K2.5 web search requires reasoning OFF</p>
+                        <button class="model-option" data-model="kimi-k2.5" data-api="moonshot"><span>🌟</span> Kimi K2.5</button>
+                        <button class="model-option" data-model="kimi-k2-turbo-preview" data-api="moonshot"><span>🚀</span> Kimi k2 Turbo</button>
+                        <button class="model-option" data-model="kimi-k2-thinking" data-api="moonshot"><span>🧠</span> Kimi k2 Thinking</button>
+                        <button class="model-option" data-model="kimi-k2-thinking-turbo" data-api="moonshot"><span>🧠</span> Kimi k2 Thinking Turbo</button>
+                    </div>
                 </div>
-                <button class="model-option" data-model="sonar" data-api="perplexity"><span>🔍</span> Sonar</button>
-                <button class="model-option" data-model="sonar-pro" data-api="perplexity"><span>🔍</span> Sonar
-                    Pro</button>
-                <button class="model-option" data-model="sonar-reasoning-pro" data-api="perplexity"><span>🧠</span>
-                    Sonar Reasoning Pro</button>
-                <button class="model-option" data-model="sonar-deep-research" data-api="perplexity"><span>📚</span>
-                    Sonar Deep Research</button>
-            </div>
-            <h4 style="margin-top:16px;">Moonshot</h4>
-            <div class="model-options">
-                <div class="settings-row"
-                    style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
-                    <span>Enable Web Search</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="moonshotSearchToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row" id="moonshotReasoningRow"
-                    style="padding: 4px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
-                    <span>Enable Reasoning (Thinking)</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="moonshotReasoningToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <p style="font-size:10px; color:var(--color-text-tertiary); margin:0 0 8px;">Note: K2.5 web search
-                    requires reasoning OFF</p>
-                <button class="model-option" data-model="kimi-k2.5" data-api="moonshot"><span>🌟</span> Kimi
-                    K2.5</button>
-                <button class="model-option" data-model="kimi-k2-turbo-preview" data-api="moonshot"><span>🚀</span> Kimi
-                    k2 Turbo</button>
-                <button class="model-option" data-model="kimi-k2-thinking" data-api="moonshot"><span>🧠</span> Kimi k2
-                    Thinking</button>
-                <button class="model-option" data-model="kimi-k2-thinking-turbo" data-api="moonshot"><span>🧠</span>
-                    Kimi k2 Thinking Turbo</button>
-            </div>
+            </details>
+
+            <!-- NVIDIA NIM (Fetch + Search) -->
             <h4 style="margin-top:16px;">NVIDIA NIM</h4>
             <div class="model-options">
                 <div id="nimSettingsSection"
                     style="padding: 8px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <select id="nimModelSelect" class="form-control" style="flex:1; min-width:200px; padding:8px;">
-                            <option value="minimaxai/minimax-m2.1">🚀 MiniMax M2.1</option>
-                            <option value="moonshotai/kimi-k2.5">🌙 Kimi K2.5</option>
-                            <option value="z-ai/glm5">🧠 GLM-5</option>
-
-                            <option value="nvidia/nemotron-3-super-120b-a12b">🚀 Nemotron 3 Super 120B</option>
-                            <option value="deepseek-ai/deepseek-v3.2">🔍 DeepSeek V3.2</option>
-                            <option value="qwen/qwen3-coder-480b-a35b-instruct">💻 Qwen3 Coder 480B</option>
-                        </select>
-                        <button id="selectNimModelBtn" class="btn btn-primary" style="padding:8px 16px;">Select</button>
-                    </div>
-                    <label style="font-size:11px; display:flex; align-items:center; gap:4px; margin-top:8px;">
+                    <label style="font-size:11px; display:flex; align-items:center; gap:4px; margin-bottom:8px;">
                         <input type="checkbox" id="nimReasoningToggle"> Enable Reasoning Mode
                     </label>
+                    <button id="fetchNimModelsBtn" class="btn btn--secondary btn--sm" style="width:100%;">🔄 Fetch Models</button>
+                    <div id="nimFetchedModelsContainer" class="hidden" style="margin-top:8px;">
+                        <div class="model-search-wrap">
+                            <input type="text" class="model-search-input" id="nimModelSearch" placeholder="Search models...">
+                        </div>
+                        <div class="model-list-scroll" id="nimModelList"></div>
+                        <div class="model-list-count" id="nimModelCount"></div>
+                    </div>
                 </div>
             </div>
+
+            <!-- OpenRouter (Fetch + Search) -->
             <h4 style="margin-top:16px;">OpenRouter</h4>
             <div class="model-options">
                 <div id="openrouterSettingsSection"
                     style="padding: 8px 0; border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <select id="openrouterModelSelect" class="form-control"
-                            style="flex:1; min-width:200px; padding:8px;">
-                            <option value="openai/gpt-4o">🔵 GPT-4o</option>
-                            <option value="openai/gpt-4o-mini">🔵 GPT-4o Mini</option>
-                            <option value="anthropic/claude-sonnet-4">🟣 Claude Sonnet 4</option>
-                            <option value="anthropic/claude-3.5-haiku">🟣 Claude 3.5 Haiku</option>
-                            <option value="google/gemini-2.5-pro-preview">🟢 Gemini 2.5 Pro</option>
-                            <option value="google/gemini-2.5-flash-preview">🟢 Gemini 2.5 Flash</option>
-                            <option value="deepseek/deepseek-r1">🔍 DeepSeek R1</option>
-                            <option value="deepseek/deepseek-chat-v3-0324">🔍 DeepSeek V3</option>
-                            <option value="meta-llama/llama-4-maverick">🦙 Llama 4 Maverick</option>
-                            <option value="meta-llama/llama-4-scout">🦙 Llama 4 Scout</option>
-                            <option value="qwen/qwen3-235b-a22b">💜 Qwen3 235B</option>
-                        </select>
-                        <button id="selectOpenrouterModelBtn" class="btn btn-primary"
-                            style="padding:8px 16px;">Select</button>
-                        <button id="loadOpenrouterModelsBtn" class="btn btn-primary"
-                            style="padding:8px 16px; background:var(--color-success);">🔄 Load Models</button>
+                    <button id="fetchOpenrouterModelsBtn" class="btn btn--secondary btn--sm" style="width:100%;">🔄 Fetch Models</button>
+                    <div id="openrouterFetchedModelsContainer" class="hidden" style="margin-top:8px;">
+                        <div class="model-search-wrap">
+                            <input type="text" class="model-search-input" id="openrouterModelSearch" placeholder="Search models...">
+                        </div>
+                        <div class="model-list-scroll" id="openrouterModelList"></div>
+                        <div class="model-list-count" id="openrouterModelCount"></div>
                     </div>
-                    <input type="text" id="openrouterCustomModel" class="form-control"
-                        placeholder="Or type any model ID (e.g. mistralai/mistral-large)"
-                        style="margin-top:8px; font-size:12px;">
                 </div>
             </div>
             <h4 style="margin-top:16px;">Custom Providers</h4>
@@ -2683,21 +2815,33 @@
                     name: 'NVIDIA NIM',
                     baseUrl: 'https://integrate.api.nvidia.com/v1/chat/completions',
                     type: 'native',
-                    // CORS blocks /v1/models from browser, so we pre-populate common models
-                    models: [
-                        'meta/llama-3.1-8b-instruct',
-                        'meta/llama-3.1-70b-instruct',
-                        'meta/llama-3.1-405b-instruct',
-                        'meta/llama-3.3-70b-instruct',
-                        'nvidia/nemotron-4-340b-instruct',
-                        'google/gemma-2-27b-it',
-                        'mistralai/mistral-7b-instruct-v0.3',
-                        'mistralai/mixtral-8x7b-instruct-v0.1',
-                        'deepseek-ai/deepseek-r1',
-                        'qwen/qwen3.5-122b-a10b'
-                    ],
-                    supportsModelList: false  // CORS blocks this from frontend
+                    models: [],
+                    supportsModelList: true
                 });
+            }
+
+            async fetchModels(apiKey, proxyUrl) {
+                try {
+                    let modelsUrl = 'https://integrate.api.nvidia.com/v1/models';
+                    // NVIDIA requires CORS proxy for browser requests
+                    if (proxyUrl && proxyUrl.trim()) {
+                        const sep = proxyUrl.includes('?') ? '&' : '?';
+                        modelsUrl = proxyUrl.trim() + sep + 'url=' + encodeURIComponent(modelsUrl);
+                    }
+                    const headers = this.getHeaders(apiKey);
+                    const res = await fetch(modelsUrl, { headers });
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    if (data.data && Array.isArray(data.data)) {
+                        return data.data
+                            .sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+                            .map(m => m.id);
+                    }
+                    return null;
+                } catch (e) {
+                    console.warn('NVIDIA fetchModels error:', e);
+                    return null;
+                }
             }
 
             buildRequestBody(model, messages, params, app) {
@@ -2856,19 +3000,7 @@
                     name: 'OpenRouter',
                     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
                     type: 'native',
-                    models: [
-                        'openai/gpt-4o',
-                        'openai/gpt-4o-mini',
-                        'anthropic/claude-sonnet-4',
-                        'anthropic/claude-3.5-haiku',
-                        'google/gemini-2.5-pro-preview',
-                        'google/gemini-2.5-flash-preview',
-                        'deepseek/deepseek-r1',
-                        'deepseek/deepseek-chat-v3-0324',
-                        'meta-llama/llama-4-maverick',
-                        'meta-llama/llama-4-scout',
-                        'qwen/qwen3-235b-a22b'
-                    ],
+                    models: [],
                     supportsModelList: true
                 });
             }
@@ -3687,18 +3819,6 @@
                 this.openAddProviderModal(id);
             }
 
-            renderNIMModelsContainer() {
-                const container = document.getElementById('nimModelsContainer');
-                if (!container) return;
-
-                const provider = this.providerRegistry.nvidia;
-                if (!provider || !provider.models) return;
-
-                container.innerHTML = provider.models.map(model => {
-                    const modelName = model.split('/').pop();
-                    return `<button class="model-option" data-model="${model}" data-api="nvidia"><span>🦙</span> ${modelName}</button>`;
-                }).join('');
-            }
 
             renderCustomProvidersModelSection() {
                 const container = document.getElementById('customProvidersModelSection');
@@ -3713,17 +3833,49 @@
 
                 container.innerHTML = this.customProviders.map(p => {
                     const provider = this.providerRegistry[p.id];
-                    const models = provider?.models || [p.defaultModel || 'default'];
+                    const models = provider?.models || [];
                     const emoji = _protoEmoji[p.apiProtocol || 'openai'] || '🤖';
+                    const hasModels = models.length > 0;
+                    const searchId = `customSearch_${p.id}`;
+                    const listId = `customList_${p.id}`;
+                    const countId = `customCount_${p.id}`;
+
+                    let defaultModelHtml = '';
+                    if (p.defaultModel) {
+                        defaultModelHtml = `<button class="default-model-btn" data-model="${p.defaultModel}" data-api="${p.id}" onclick="window.chatApp.setModel('${p.defaultModel}', '${p.id}')">⭐ Use Default: ${p.defaultModel}</button>`;
+                    }
+
+                    let modelsHtml = '';
+                    if (hasModels) {
+                        modelsHtml = `
+                            <div class="model-search-wrap" style="margin-top:6px;">
+                                <input type="text" class="model-search-input custom-provider-search" id="${searchId}" data-list-id="${listId}" data-count-id="${countId}" placeholder="Search ${models.length} models...">
+                            </div>
+                            <div class="model-list-scroll" id="${listId}">
+                                ${models.map(m => `<button class="model-option" data-model="${m}" data-api="${p.id}"><span>${emoji}</span> ${m}</button>`).join('')}
+                            </div>
+                            <div class="model-list-count" id="${countId}">${models.length} models</div>
+                        `;
+                    }
 
                     return `
                         <h5 style="margin:8px 0 4px; font-size:11px; color:var(--color-text-secondary);">${p.name}</h5>
                         <div class="model-options">
-                            ${models.map(m => `<button class="model-option" data-model="${m}" data-api="${p.id}"><span>${emoji}</span> ${m}</button>`).join('')}
+                            ${defaultModelHtml}
+                            ${modelsHtml}
                             <button class="btn btn--secondary btn--sm" onclick="window.chatApp.fetchModelsForCustomProvider('${p.id}')" style="margin-top:4px; width:100%;">🔄 Fetch Models</button>
                         </div>
                     `;
                 }).join('');
+
+                // Attach search listeners for custom providers
+                container.querySelectorAll('.custom-provider-search').forEach(searchInput => {
+                    searchInput.addEventListener('input', () => {
+                        const listEl = document.getElementById(searchInput.dataset.listId);
+                        const countEl = document.getElementById(searchInput.dataset.countId);
+                        this.filterModelList(searchInput, listEl, countEl);
+                    });
+                });
             }
 
             async fetchModelsForCustomProvider(providerId) {
@@ -3731,6 +3883,43 @@
                 if (models) {
                     this.renderCustomProvidersModelSection();
                 }
+            }
+
+            // Shared utility: render a fetched model list into a scrollable container
+            renderFetchedModelList(listElId, countElId, searchElId, models, apiId, isObjectList = false) {
+                const listEl = document.getElementById(listElId);
+                const countEl = document.getElementById(countElId);
+                const searchEl = document.getElementById(searchElId);
+                if (!listEl) return;
+
+                listEl.innerHTML = models.map(m => {
+                    if (isObjectList) {
+                        const displayName = m.name || m.id;
+                        const ctxStr = m.context_length ? ` (${Math.round(m.context_length / 1000)}k)` : '';
+                        return `<button class="model-option" data-model="${m.id}" data-api="${apiId}"><span>🤖</span> ${displayName}${ctxStr}</button>`;
+                    } else {
+                        return `<button class="model-option" data-model="${m}" data-api="${apiId}"><span>🤖</span> ${m}</button>`;
+                    }
+                }).join('');
+
+                if (countEl) countEl.textContent = `${models.length} models`;
+                if (searchEl) searchEl.value = '';
+            }
+
+            // Shared utility: filter model list based on search input
+            filterModelList(searchInput, listEl, countEl) {
+                if (!searchInput || !listEl) return;
+                const query = searchInput.value.toLowerCase().trim();
+                const buttons = listEl.querySelectorAll('.model-option');
+                let visible = 0;
+                buttons.forEach(btn => {
+                    const text = (btn.textContent || '').toLowerCase();
+                    const modelId = (btn.dataset.model || '').toLowerCase();
+                    const match = !query || text.includes(query) || modelId.includes(query);
+                    btn.style.display = match ? '' : 'none';
+                    if (match) visible++;
+                });
+                if (countEl) countEl.textContent = query ? `${visible} / ${buttons.length} models` : `${buttons.length} models`;
             }
 
             initProviderUI() {
@@ -4101,7 +4290,7 @@
                 this.manualImageInput.addEventListener('click', () => this.togglePopup('imageInput'));
                 this.saveImageInputBtn.addEventListener('click', () => this.saveImageInput());
                 this.cancelImageInputBtn.addEventListener('click', () => this.togglePopup('imageInput'));
-                                this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+                this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
                 if (this.useToolsToggle) {
                     // Start with tools enabled (add active class)
                     this.useToolsToggle.classList.add('active');
@@ -4249,57 +4438,54 @@
                     });
                 }
 
-                // NVIDIA NIM Model Select Button
-                const selectNimModelBtn = document.getElementById('selectNimModelBtn');
-                if (selectNimModelBtn) {
-                    selectNimModelBtn.addEventListener('click', () => {
-                        const nimModelSelect = document.getElementById('nimModelSelect');
-                        if (nimModelSelect) {
-                            this.setModel(nimModelSelect.value, 'nvidia', false);
-                            this.modelPopup.classList.add('hidden');
-                            this.showStatus(`Selected: ${nimModelSelect.options[nimModelSelect.selectedIndex].text}`, 'success');
+                // NVIDIA NIM Fetch Models Button
+                const fetchNimModelsBtn = document.getElementById('fetchNimModelsBtn');
+                if (fetchNimModelsBtn) {
+                    fetchNimModelsBtn.addEventListener('click', async () => {
+                        const apiKey = this.apiKeys.nvidia || '';
+                        if (!apiKey) { this.showStatus('Enter NVIDIA API key first', 'error'); return; }
+                        if (!this.corsProxyUrl) { this.showStatus('CORS Proxy URL required for NVIDIA', 'error'); return; }
+                        fetchNimModelsBtn.textContent = '⏳ Loading...';
+                        fetchNimModelsBtn.disabled = true;
+                        try {
+                            const models = await this.fetchModelsForProvider('nvidia');
+                            if (models && models.length > 0) {
+                                this.renderFetchedModelList('nimModelList', 'nimModelCount', 'nimModelSearch', models, 'nvidia');
+                                document.getElementById('nimFetchedModelsContainer').classList.remove('hidden');
+                            }
+                        } catch (e) {
+                            this.showStatus('Failed: ' + e.message, 'error');
+                        } finally {
+                            fetchNimModelsBtn.textContent = '🔄 Fetch Models';
+                            fetchNimModelsBtn.disabled = false;
                         }
                     });
                 }
 
-                // OpenRouter Model Select Button
-                const selectOpenrouterModelBtn = document.getElementById('selectOpenrouterModelBtn');
-                if (selectOpenrouterModelBtn) {
-                    selectOpenrouterModelBtn.addEventListener('click', () => {
-                        const select = document.getElementById('openrouterModelSelect');
-                        const customInput = document.getElementById('openrouterCustomModel');
-                        const modelId = (customInput && customInput.value.trim()) ? customInput.value.trim() : select.value;
-                        this.setModel(modelId, 'openrouter', false);
-                        this.modelPopup.classList.add('hidden');
-                        this.showStatus('OpenRouter: ' + modelId, 'success');
-                        if (customInput) customInput.value = '';
+                // NVIDIA NIM Model Search
+                const nimModelSearch = document.getElementById('nimModelSearch');
+                if (nimModelSearch) {
+                    nimModelSearch.addEventListener('input', () => {
+                        this.filterModelList(nimModelSearch, document.getElementById('nimModelList'), document.getElementById('nimModelCount'));
                     });
                 }
 
-                // OpenRouter Load Models Button
-                const loadOpenrouterModelsBtn = document.getElementById('loadOpenrouterModelsBtn');
-                if (loadOpenrouterModelsBtn) {
-                    loadOpenrouterModelsBtn.addEventListener('click', async () => {
-                        // Read key from DOM in case user just typed it
-                        let apiKey = this.apiKeys.openrouter;
+                // OpenRouter Fetch Models Button
+                const fetchOpenrouterModelsBtn = document.getElementById('fetchOpenrouterModelsBtn');
+                if (fetchOpenrouterModelsBtn) {
+                    fetchOpenrouterModelsBtn.addEventListener('click', async () => {
+                        let apiKey = this.apiKeys.openrouter || '';
                         const orKeyInput = document.getElementById('openrouterApiKey');
                         if (orKeyInput && orKeyInput.value.trim()) apiKey = orKeyInput.value.trim();
-                        if (!apiKey) { this.showStatus('Enter OpenRouter API key first', 'error'); return; }
-                        loadOpenrouterModelsBtn.textContent = '⏳ Loading...';
-                        loadOpenrouterModelsBtn.disabled = true;
+                        fetchOpenrouterModelsBtn.textContent = '⏳ Loading...';
+                        fetchOpenrouterModelsBtn.disabled = true;
                         try {
                             const provider = this.providerRegistry.openrouter;
                             const models = await provider.fetchModels(apiKey);
                             if (models && models.length > 0) {
-                                const select = document.getElementById('openrouterModelSelect');
-                                select.innerHTML = '';
-                                models.forEach(m => {
-                                    const opt = document.createElement('option');
-                                    opt.value = m.id;
-                                    opt.textContent = m.name || m.id;
-                                    if (m.context_length) opt.textContent += ` (${Math.round(m.context_length / 1000)}k)`;
-                                    select.appendChild(opt);
-                                });
+                                // OpenRouter returns objects with {id, name, context_length}
+                                this.renderFetchedModelList('openrouterModelList', 'openrouterModelCount', 'openrouterModelSearch', models, 'openrouter', true);
+                                document.getElementById('openrouterFetchedModelsContainer').classList.remove('hidden');
                                 this.showStatus(`Loaded ${models.length} OpenRouter models`, 'success');
                             } else {
                                 this.showStatus('No models returned', 'error');
@@ -4307,9 +4493,17 @@
                         } catch (e) {
                             this.showStatus('Failed: ' + e.message, 'error');
                         } finally {
-                            loadOpenrouterModelsBtn.textContent = '🔄 Load Models';
-                            loadOpenrouterModelsBtn.disabled = false;
+                            fetchOpenrouterModelsBtn.textContent = '🔄 Fetch Models';
+                            fetchOpenrouterModelsBtn.disabled = false;
                         }
+                    });
+                }
+
+                // OpenRouter Model Search
+                const openrouterModelSearch = document.getElementById('openrouterModelSearch');
+                if (openrouterModelSearch) {
+                    openrouterModelSearch.addEventListener('input', () => {
+                        this.filterModelList(openrouterModelSearch, document.getElementById('openrouterModelList'), document.getElementById('openrouterModelCount'));
                     });
                 }
 
@@ -5577,8 +5771,10 @@
 
             async callAPI(msg, pre, sessionId = this.activeSessionId) {
                 const msgs = this.buildMessagesForAPI(pre);
-                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
-                        use_tools: this.useToolsEnabled, temperature: 0.2, stream: false};
+                const body = {
+                    model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                    use_tools: this.useToolsEnabled, temperature: 0.2, stream: false
+                };
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
                 if (this.currentAPI === 'nvidia') {
@@ -5822,8 +6018,10 @@
                 const _streamRefs = this.references;
 
                 const msgs = this.buildMessagesForAPI(pre);
-                const body = { model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
-                        use_tools: this.useToolsEnabled, temperature: 0.2, stream: true};
+                const body = {
+                    model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                    use_tools: this.useToolsEnabled, temperature: 0.2, stream: true
+                };
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
                 if (this.currentAPI === 'nvidia') {
@@ -6027,7 +6225,7 @@
                     }
 
                     assistantMessage.isStreaming = false;
-                    
+
                     // AUTO-COLLAPSE TOOL BLOCKS
                     let finalContent = assistantMessage.content;
                     if (finalContent && finalContent.includes('**Executing Tool:**')) {
@@ -6036,20 +6234,20 @@
                         // Find the actual line start before '**Executing Tool:**'
                         const lineStart = finalContent.lastIndexOf('\n', toolStart);
                         const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
-                        
+
                         let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
                         const w1 = finalContent.lastIndexOf('**10 consecutive');
                         const w2 = finalContent.lastIndexOf('**Max tool');
                         lastIndex = Math.max(lastIndex, w1, w2);
-                        
+
                         if (blockStart >= 0 && lastIndex !== -1) {
                             const endOfLine = finalContent.indexOf('\n\n', lastIndex);
                             const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
-                            
+
                             const before = finalContent.substring(0, blockStart);
                             const toolsStr = finalContent.substring(blockStart, actualEnd);
                             const after = finalContent.substring(actualEnd);
-                            
+
                             assistantMessage.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">\ud83d\udee0\ufe0f View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
                         }
                     }
@@ -6477,31 +6675,31 @@
                                 await this.streamResponse(null, null, sessionId);
                             } else {
                                 const res = await this.callAPI(null, null, sessionId);
-                                
-                    // AUTO-COLLAPSE TOOL BLOCKS
-                    let finalContent = res.content;
-                    if (finalContent && finalContent.includes('**Executing Tool:**')) {
-                        const toolStart = finalContent.indexOf('**Executing Tool:**');
-                        const lineStart = finalContent.lastIndexOf('\n', toolStart);
-                        const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
-                        
-                        let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
-                        const w1 = finalContent.lastIndexOf('**10 consecutive');
-                        const w2 = finalContent.lastIndexOf('**Max tool');
-                        lastIndex = Math.max(lastIndex, w1, w2);
-                        
-                        if (blockStart >= 0 && lastIndex !== -1) {
-                            const endOfLine = finalContent.indexOf('\n\n', lastIndex);
-                            const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
-                            
-                            const before = finalContent.substring(0, blockStart);
-                            const toolsStr = finalContent.substring(blockStart, actualEnd);
-                            const after = finalContent.substring(actualEnd);
-                            
-                            res.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">🛠️ View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
-                        }
-                    }
-                    this.messages.push({
+
+                                // AUTO-COLLAPSE TOOL BLOCKS
+                                let finalContent = res.content;
+                                if (finalContent && finalContent.includes('**Executing Tool:**')) {
+                                    const toolStart = finalContent.indexOf('**Executing Tool:**');
+                                    const lineStart = finalContent.lastIndexOf('\n', toolStart);
+                                    const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
+
+                                    let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
+                                    const w1 = finalContent.lastIndexOf('**10 consecutive');
+                                    const w2 = finalContent.lastIndexOf('**Max tool');
+                                    lastIndex = Math.max(lastIndex, w1, w2);
+
+                                    if (blockStart >= 0 && lastIndex !== -1) {
+                                        const endOfLine = finalContent.indexOf('\n\n', lastIndex);
+                                        const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
+
+                                        const before = finalContent.substring(0, blockStart);
+                                        const toolsStr = finalContent.substring(blockStart, actualEnd);
+                                        const after = finalContent.substring(actualEnd);
+
+                                        res.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">🛠️ View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
+                                    }
+                                }
+                                this.messages.push({
                                     role: 'assistant',
                                     content: res.content,
                                     timestamp: new Date(),
