@@ -560,6 +560,21 @@
             margin: 0 4px;
         }
 
+        .tab-lock-icon {
+            opacity: 0;
+            font-size: 10px;
+            margin: 0 2px;
+            color: var(--color-warning);
+        }
+
+        .tab:hover .tab-lock-icon {
+            opacity: 0.7;
+        }
+
+        .tab.locked .tab-lock-icon {
+            opacity: 1;
+        }
+
         .tab:hover .tab-edit {
             opacity: 0.5;
         }
@@ -889,6 +904,37 @@
             background: var(--color-error);
         }
 
+        /* Image generation parameter dropdowns */
+        .image-params-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .image-params-row.hidden {
+            display: none;
+        }
+        .image-param-select {
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            padding: 4px 8px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .image-param-select:focus {
+            border-color: var(--color-primary);
+            outline: none;
+        }
+        .image-param-label {
+            color: var(--color-text-secondary);
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
         .action-btn {
             background: none;
             border: none;
@@ -900,7 +946,35 @@
             padding: 4px;
         }
 
-        /* Tools Toggle Pill */
+        /* Model Lock Toggle Button */
+        .lock-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            opacity: 0.8;
+            transition: all 0.2s;
+            padding: 4px;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .lock-btn:hover {
+            color: var(--color-primary);
+            opacity: 1;
+            background: var(--color-secondary);
+            border-radius: 4px;
+        }
+
+        .lock-btn.locked {
+            color: var(--color-warning);
+            opacity: 1;
+        }
+
+        .lock-btn.locked:hover {
+            color: var(--color-error);
+        }
         .tools-toggle {
             display: inline-flex;
             align-items: center;
@@ -1843,6 +1917,39 @@
 
                     <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
 
+                    <div id="imageParamsRow" class="image-params-row hidden">
+                        <span id="imageAspectGroup">
+                            <span class="image-param-label">Aspect:</span>
+                            <select id="imageAspectSelect" class="image-param-select">
+                                <option value="1:1">1:1</option>
+                                <option value="16:9" selected>16:9</option>
+                                <option value="9:16">9:16</option>
+                                <option value="4:3">4:3</option>
+                                <option value="3:4">3:4</option>
+                                <option value="3:2">3:2</option>
+                                <option value="2:3">2:3</option>
+                                <option value="21:9">21:9</option>
+                            </select>
+                        </span>
+                        <span class="image-param-label" id="imageSizeLabel">Quality:</span>
+                        <select id="imageQualitySelect" class="image-param-select">
+                            <option value="auto" selected>auto</option>
+                            <option value="high">high</option>
+                            <option value="medium">medium</option>
+                            <option value="low">low</option>
+                        </select>
+                        <select id="imageSizeSelect" class="image-param-select hidden">
+                            <option value="1024x1024" selected>1024x1024</option>
+                            <option value="1536x1024">1536x1024</option>
+                            <option value="1024x1536">1024x1536</option>
+                        </select>
+                        <span class="image-param-label">Format:</span>
+                        <select id="imageFormatSelect" class="image-param-select">
+                            <option value="url" selected>url</option>
+                            <option value="b64_json">b64_json</option>
+                        </select>
+                    </div>
+
                     <div class="input-footer">
                         <div class="left-tools">
                             <button class="action-btn hidden" id="togglePartialMode" title="Partial Mode">📝</button>
@@ -1850,6 +1957,7 @@
                             <button class="action-btn" id="imageUpload" title="Upload Image/File"
                                 onclick="document.getElementById('fileInput').click()">📎</button>
                             <button class="action-btn" id="modelToggle" title="Change Model">🧠</button>
+                            <button class="lock-btn" id="lockToggle" title="Lock Model for This Tab" title-unlocked="Lock model for this tab" title-locked="Unlock model lock">🔓</button>
                             <button class="tools-toggle hidden" id="useToolsToggle" title="Enable/Disable Tools">
                                 <span class="tools-toggle-dot"></span>
                                 <span class="tools-toggle-label">Tools</span>
@@ -3201,6 +3309,7 @@
                 this.updatePartialModeButton();
                 this.initProviderUI();
                 this.detectIframe();
+                this.toggleImageModeUI();
 
                 // Request Persistence
                 if (navigator.storage && navigator.storage.persist) {
@@ -3463,6 +3572,7 @@
                 this.fileInput = document.getElementById('fileInput');
                 this.folderInput = document.getElementById('folderInput');
                 this.modelToggle = document.getElementById('modelToggle');
+                this.lockToggle = document.getElementById('lockToggle');
                 this.useToolsToggle = document.getElementById('useToolsToggle');
                 this.togglePartialModeBtn = document.getElementById('togglePartialMode');
                 this.partialModeContainer = document.getElementById('partialModeContainer');
@@ -3475,6 +3585,12 @@
                 this.imagePreview = document.getElementById('imagePreview');
                 this.statusIndicator = document.getElementById('statusIndicator');
                 this.tokenEst = document.getElementById('tokenEst');
+                this.imageParamsRow = document.getElementById('imageParamsRow');
+                this.imageAspectSelect = document.getElementById('imageAspectSelect');
+                this.imageQualitySelect = document.getElementById('imageQualitySelect');
+                this.imageSizeSelect = document.getElementById('imageSizeSelect');
+                this.imageSizeLabel = document.getElementById('imageSizeLabel');
+                this.imageFormatSelect = document.getElementById('imageFormatSelect');
 
                 // Popups
                 this.settingsPopup = document.getElementById('settingsPopup');
@@ -3566,7 +3682,7 @@
             }
 
             getActiveProvider() {
-                return this.providerRegistry[this.currentAPI] || this.providerRegistry.perplexity;
+                return this.providerRegistry[this.effectiveAPI] || this.providerRegistry.perplexity;
             }
 
             async fetchModelsForProvider(providerId) {
@@ -3967,9 +4083,10 @@
             // ========== PROTOCOL TRANSLATION HELPERS ==========
 
             _getProviderProtocol() {
-                const isCustom = this.customProviders.some(p => p.id === this.currentAPI);
+                const effAPI = this.effectiveAPI;
+                const isCustom = this.customProviders.some(p => p.id === effAPI);
                 if (!isCustom) return 'openai'; // Native providers all use OpenAI-compat format
-                const cp = this.customProviders.find(p => p.id === this.currentAPI);
+                const cp = this.customProviders.find(p => p.id === effAPI);
                 return cp?.apiProtocol || 'openai';
             }
 
@@ -4133,98 +4250,164 @@
                 }
 
                 // OpenAI default
-                const choice = data.choices?.[0];
-                const message = choice?.message || {};
-                return {
-                    content: message.content || '',
-                    tokenUsage: data.usage || {},
-                    searchResults: message.search_results || data.search_results || [],
-                    citations: data.citations || []
-                };
+                                const choice = data.choices?.[0];
+                                const message = choice?.message || {};
+                                let content = message.content || '';
+                                let images = [];
+                                // Handle array content with image_url blocks (e.g. gpt-image-2, gpt-4o image gen)
+                                if (Array.isArray(message.content)) {
+                                    content = message.content
+                                        .filter(c => c.type === 'text')
+                                        .map(c => c.text)
+                                        .join('\n');
+                                    images = message.content
+                                        .filter(c => c.type === 'image_url' && c.image_url?.url)
+                                        .map(c => c.image_url.url);
+                                }
+                                // Also check for images at message level (some providers use message.images)
+                                if (Array.isArray(message.images) && message.images.length > 0) {
+                                    images = [...images, ...message.images.filter(u => typeof u === 'string')];
+                                }
+                                // Fallback: if content is a single data URL string (raw base64 image)
+                                if (!images.length && typeof message.content === 'string' && /^data:image\/[^;]+;base64,/.test(message.content)) {
+                                    images = [message.content];
+                                    content = '';
+                                }
+                                console.log('[DEBUG] _parseApiResponse — content length:', (content || '').length, 'images:', images.length, 'raw message keys:', Object.keys(message));
+                                return {
+                                    content,
+                                    images,
+                                    tokenUsage: data.usage || {},
+                                    searchResults: message.search_results || data.search_results || [],
+                                    citations: data.citations || []
+                                };
             }
 
-            // Parse a single SSE stream line and return { content, reasoningContent, done, usage }
-            // `state` is a mutable object for tracking Anthropic event types across lines
-            _parseStreamLine(line, protocol, state) {
-                const result = { content: '', reasoningContent: '', done: false, usage: null, citations: null, searchResults: null };
+            // Parse a single SSE stream line and return { content, reasoningContent, done, usage, citations, searchResults, images }
+                        // `state` is a mutable object for tracking Anthropic event types across lines
+                        _parseStreamLine(line, protocol, state) {
+                            const result = { content: '', reasoningContent: '', done: false, usage: null, citations: null, searchResults: null, images: [] };
 
-                if (protocol === 'gemini') {
-                    if (!line.startsWith('data: ')) return result;
-                    const dataStr = line.slice(6).trim();
-                    if (dataStr === '[DONE]') { result.done = true; return result; }
-                    try {
-                        const data = JSON.parse(dataStr);
-                        result.content = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-                        if (data.usageMetadata) {
-                            result.usage = {
-                                prompt_tokens: data.usageMetadata.promptTokenCount || 0,
-                                completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
-                                total_tokens: data.usageMetadata.totalTokenCount || 0
-                            };
+                            if (protocol === 'gemini') {
+                                if (!line.startsWith('data: ')) return result;
+                                const dataStr = line.slice(6).trim();
+                                if (dataStr === '[DONE]') { result.done = true; return result; }
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    result.content = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+                                    if (data.usageMetadata) {
+                                        result.usage = {
+                                            prompt_tokens: data.usageMetadata.promptTokenCount || 0,
+                                            completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
+                                            total_tokens: data.usageMetadata.totalTokenCount || 0
+                                        };
+                                    }
+                                } catch (e) { }
+                                return result;
+                            }
+
+                            if (protocol === 'anthropic') {
+                                // Anthropic uses typed events: event: <type>\ndata: <json>
+                                if (line.startsWith('event: ')) {
+                                    state._anthropicEventType = line.slice(7).trim();
+                                    return result; // Wait for the data line
+                                }
+                                if (!line.startsWith('data: ')) return result;
+                                const dataStr = line.slice(6).trim();
+                                const eventType = state._anthropicEventType || '';
+
+                                try {
+                                    const data = JSON.parse(dataStr);
+
+                                    if (eventType === 'content_block_delta') {
+                                        if (data.delta?.type === 'text_delta') {
+                                            result.content = data.delta.text || '';
+                                        } else if (data.delta?.type === 'thinking_delta') {
+                                            result.reasoningContent = data.delta.thinking || '';
+                                        }
+                                    } else if (eventType === 'message_delta') {
+                                        if (data.usage) {
+                                            result.usage = {
+                                                prompt_tokens: data.usage.input_tokens || 0,
+                                                completion_tokens: data.usage.output_tokens || 0,
+                                                total_tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
+                                            };
+                                        }
+                                    } else if (eventType === 'message_start') {
+                                        // Extract initial usage from message_start
+                                        if (data.message?.usage) {
+                                            result.usage = {
+                                                prompt_tokens: data.message.usage.input_tokens || 0,
+                                                completion_tokens: 0,
+                                                total_tokens: data.message.usage.input_tokens || 0
+                                            };
+                                        }
+                                    } else if (eventType === 'message_stop') {
+                                        result.done = true;
+                                    }
+                                } catch (e) { }
+                                state._anthropicEventType = ''; // Reset after processing
+                                return result;
+                            }
+
+                            // OpenAI default
+                            if (!line.startsWith('data: ')) return result;
+                            const dataStr = line.slice(6).trim();
+                            if (dataStr === '[DONE]') { result.done = true; return result; }
+                            try {
+                                const data = JSON.parse(dataStr);
+                                const choice = data.choices?.[0];
+                                const delta = choice?.delta || {};
+                                const message = choice?.message || {};
+
+                                // Handle content - could be string or array (for image_url blocks)
+                                let content = '';
+                                let images = [];
+
+                                // Check delta first (streaming increments)
+                                if (delta.content !== undefined) {
+                                    if (typeof delta.content === 'string') {
+                                        content = delta.content;
+                                    } else if (Array.isArray(delta.content)) {
+                                        content = delta.content
+                                            .filter(c => c.type === 'text')
+                                            .map(c => c.text)
+                                            .join('');
+                                        images = delta.content
+                                            .filter(c => c.type === 'image_url' && c.image_url?.url)
+                                            .map(c => c.image_url.url);
+                                    }
+                                }
+
+                                // Also check message (for final message object)
+                                                                if (!content && message.content !== undefined) {
+                                                                    if (typeof message.content === 'string') {
+                                                                        content = message.content;
+                                                                    } else if (Array.isArray(message.content)) {
+                                                                        content = message.content
+                                                                            .filter(c => c.type === 'text')
+                                                                            .map(c => c.text)
+                                                                            .join('');
+                                                                        images = message.content
+                                                                            .filter(c => c.type === 'image_url' && c.image_url?.url)
+                                                                            .map(c => c.image_url.url);
+                                                                    }
+                                                                }
+                                                                // Also check message.images (some providers use top-level images array)
+                                                                if (Array.isArray(message.images) && message.images.length > 0) {
+                                                                    images = [...images, ...message.images.filter(u => typeof u === 'string')];
+                                                                }
+
+                                                                result.content = content;
+                                                                result.images = images;
+                                result.reasoningContent = delta.reasoning_content || message.reasoning_content || '';
+                                if (data.usage) result.usage = data.usage;
+                                if (data.citations) result.citations = data.citations;
+                                if (data.search_results) result.searchResults = data.search_results;
+                                else if (choice?.message?.search_results) result.searchResults = choice.message.search_results;
+                            } catch (e) { }
+                            return result;
                         }
-                    } catch (e) { }
-                    return result;
-                }
-
-                if (protocol === 'anthropic') {
-                    // Anthropic uses typed events: event: <type>\ndata: <json>
-                    if (line.startsWith('event: ')) {
-                        state._anthropicEventType = line.slice(7).trim();
-                        return result; // Wait for the data line
-                    }
-                    if (!line.startsWith('data: ')) return result;
-                    const dataStr = line.slice(6).trim();
-                    const eventType = state._anthropicEventType || '';
-
-                    try {
-                        const data = JSON.parse(dataStr);
-
-                        if (eventType === 'content_block_delta') {
-                            if (data.delta?.type === 'text_delta') {
-                                result.content = data.delta.text || '';
-                            } else if (data.delta?.type === 'thinking_delta') {
-                                result.reasoningContent = data.delta.thinking || '';
-                            }
-                        } else if (eventType === 'message_delta') {
-                            if (data.usage) {
-                                result.usage = {
-                                    prompt_tokens: data.usage.input_tokens || 0,
-                                    completion_tokens: data.usage.output_tokens || 0,
-                                    total_tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
-                                };
-                            }
-                        } else if (eventType === 'message_start') {
-                            // Extract initial usage from message_start
-                            if (data.message?.usage) {
-                                result.usage = {
-                                    prompt_tokens: data.message.usage.input_tokens || 0,
-                                    completion_tokens: 0,
-                                    total_tokens: data.message.usage.input_tokens || 0
-                                };
-                            }
-                        } else if (eventType === 'message_stop') {
-                            result.done = true;
-                        }
-                    } catch (e) { }
-                    state._anthropicEventType = ''; // Reset after processing
-                    return result;
-                }
-
-                // OpenAI default
-                if (!line.startsWith('data: ')) return result;
-                const dataStr = line.slice(6).trim();
-                if (dataStr === '[DONE]') { result.done = true; return result; }
-                try {
-                    const data = JSON.parse(dataStr);
-                    result.content = data.choices?.[0]?.delta?.content || '';
-                    result.reasoningContent = data.choices?.[0]?.delta?.reasoning_content || '';
-                    if (data.usage) result.usage = data.usage;
-                    if (data.citations) result.citations = data.citations;
-                    if (data.search_results) result.searchResults = data.search_results;
-                    else if (data.choices?.[0]?.message?.search_results) result.searchResults = data.choices[0].message.search_results;
-                } catch (e) { }
-                return result;
-            }
 
             // ========== END PROVIDER REGISTRY METHODS ==========
 
@@ -4291,6 +4474,9 @@
                 this.saveImageInputBtn.addEventListener('click', () => this.saveImageInput());
                 this.cancelImageInputBtn.addEventListener('click', () => this.togglePopup('imageInput'));
                 this.modelToggle.addEventListener('click', () => this.togglePopup('model'));
+                if (this.lockToggle) {
+                    this.lockToggle.addEventListener('click', () => this.toggleLock());
+                }
                 if (this.useToolsToggle) {
                     // Start with tools enabled (add active class)
                     this.useToolsToggle.classList.add('active');
@@ -4646,7 +4832,7 @@
             }
             createNewSession() {
                 const id = Date.now().toString();
-                this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {} };
+                this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {}, isLocked: false, lockedModel: null, lockedAPI: null };
                 this.switchSession(id);
                 // Save immediately to ensure tab persists on reload even if empty
                 this.autoSaveChat();
@@ -4666,7 +4852,7 @@
                 }, 50);
                 if (!this.sessions[id]) return;
                 this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
-                this.renderTabs(); this.renderMessages();
+                this.renderTabs(); this.renderMessages(); this.updateHeaderStatus(); this.updateLockButton();
                 this.persistSessionState();
             }
 
@@ -4783,29 +4969,33 @@
                     contentEl.innerHTML += `<img src="${message.image}" class="message-image" alt="User Image">`;
                 }
                 if (message.content) {
-                    if (message.role === 'assistant') {
-                        Object.assign(this.references, this.extractReferencesFromResponse(message));
-                    }
-                    contentEl.innerHTML += this.renderEnhancedMarkdown(message.content);
-                    if (message.isStreaming) contentEl.classList.add('streaming-cursor');
+                                                    if (message.role === 'assistant') {
+                                                        Object.assign(this.references, this.extractReferencesFromResponse(message));
+                                                    }
+                                                    contentEl.innerHTML += this.renderEnhancedMarkdown(message.content);
+                                                    if (message.isStreaming) contentEl.classList.add('streaming-cursor');
 
-                    if (message.role === 'assistant') {
-                        this.attachReferenceHandlers(contentEl);
-                        this.processHighcharts(contentEl);
-                        this.processTables(contentEl);
-                        if (window.mermaid) { try { mermaid.init(undefined, contentEl.querySelectorAll('.mermaid')); } catch (e) { } }
-                        if (window.renderMathInElement) { try { renderMathInElement(contentEl, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }, { left: '\\(', right: '\\)', display: false }, { left: '\\[', right: '\\]', display: true }], throwOnError: false }); } catch (e) { } }
+                                                    if (message.role === 'assistant') {
+                                                        this.attachReferenceHandlers(contentEl);
+                                                        this.processHighcharts(contentEl);
+                                                        this.processTables(contentEl);
+                                                        if (window.mermaid) { try { mermaid.init(undefined, contentEl.querySelectorAll('.mermaid')); } catch (e) { } }
+                                                        if (window.renderMathInElement) { try { renderMathInElement(contentEl, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }, { left: '\\\\\\\\(', right: '\\\\\\\\)', display: false }, { left: '\\\\\\\\]', right: '\\\\\\\\]', display: true }], throwOnError: false }); } catch (e) { } }
+                                                    }
+                                                }
 
-                        const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📄'; exportBtn.title = 'Open in New Window';
-                        exportBtn.onclick = () => this.exportMessageToWindow(message.content);
-                        messageEl.appendChild(exportBtn);
+                                                // Render assistant message images (from image_url blocks) — outside content check
+                                                                                                if (message.role === 'assistant' && Array.isArray(message.images) && message.images.length > 0) {
+                                                                                                    console.log('[DEBUG] createMessageElement — rendering', message.images.length, 'images for message:', message.images.map(u => u.substring(0, 60)));
+                                                                                                    message.images.forEach((imageUrl, idx) => {
+                                                        contentEl.innerHTML += `<br><img src="${imageUrl}" class="assistant-image" alt="Generated image ${idx + 1}" style="max-width: 100%; border-radius: 8px; margin: 8px 0;">`;
+                                                    });
+                                                }
 
                         const forkBtn = document.createElement('button'); forkBtn.className = 'message-fork-btn'; forkBtn.innerHTML = '🌿'; forkBtn.title = 'Fork Conversation';
                         forkBtn.onclick = () => this.forkConversation(index);
                         messageEl.appendChild(forkBtn);
-                    }
                     if (window.hljs) contentEl.querySelectorAll('pre code').forEach(b => hljs.highlightBlock(b));
-                }
 
                 messageEl.append(headerEl, contentEl);
 
@@ -4837,7 +5027,7 @@
                 const currentRefs = { ...this.references };
                 const id = Date.now().toString();
                 const newName = `Fork of ${this.sessions[this.activeSessionId].name}`;
-                this.sessions[id] = { id: id, name: newName, messages: JSON.parse(JSON.stringify(currentMsgs)), references: currentRefs };
+                this.sessions[id] = { id: id, name: newName, messages: JSON.parse(JSON.stringify(currentMsgs)), references: currentRefs, isLocked: false, lockedModel: null, lockedAPI: null };
                 this.switchSession(id);
                 this.showStatus('Conversation Forked', 'success');
             }
@@ -5197,8 +5387,32 @@
                 localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
             }
 
+            /**
+             * Get the effective model for the current (active) session.
+             * If the session is locked, returns lockedModel; otherwise returns global currentModel.
+             */
+            get effectiveModel() {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedModel) {
+                    return session.lockedModel;
+                }
+                return this.currentModel;
+            }
+
+            /**
+             * Get the effective API for the current (active) session.
+             * If the session is locked, returns lockedAPI; otherwise returns global currentAPI.
+             */
+            get effectiveAPI() {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedAPI) {
+                    return session.lockedAPI;
+                }
+                return this.currentAPI;
+            }
+
             updateHeaderStatus() {
-                let modelName = this.currentModel;
+                let modelName = this.effectiveModel;
                 this.modelStatus.textContent = `Model: ${modelName}`;
                 this.personaStatus.textContent = `Persona: ${this.personas[this.currentPersona]?.name || 'Unknown'}`;
             }
@@ -5208,8 +5422,37 @@
                 this.maxTokensValue.textContent = this.maxTokens;
             }
             updatePartialModeButton() {
-                if (this.currentAPI === 'moonshot') this.togglePartialModeBtn.classList.remove('hidden');
+                if (this.effectiveAPI === 'moonshot') this.togglePartialModeBtn.classList.remove('hidden');
                 else { this.togglePartialModeBtn.classList.add('hidden'); this.partialModeContainer.classList.add('hidden'); }
+            }
+            updateLockButton() {
+                if (!this.lockToggle) return;
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    this.lockToggle.textContent = '🔒';
+                    this.lockToggle.title = 'Unlock Model for This Tab';
+                    this.lockToggle.classList.add('locked');
+                } else {
+                    this.lockToggle.textContent = '🔓';
+                    this.lockToggle.title = 'Lock Model for This Tab';
+                    this.lockToggle.classList.remove('locked');
+                }
+            }
+            toggleLock() {
+                const session = this.sessions[this.activeSessionId];
+                if (!session) return;
+                session.isLocked = !session.isLocked;
+                if (session.isLocked) {
+                    session.lockedModel = this.currentModel;
+                    session.lockedAPI = this.currentAPI;
+                    this.showStatus('Model locked for this tab', 'info');
+                } else {
+                    session.lockedModel = null;
+                    session.lockedAPI = null;
+                    this.showStatus('Model unlocked', 'info');
+                }
+                this.autoSaveChat();
+                this.updateLockButton();
             }
             togglePopup(type) { /* ... same ... */
                 const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
@@ -5404,18 +5647,25 @@
             }
             setModel(m, a, openPopup = true) {
                 if (!m || !a) return;
-                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton();
+                // If the current tab is locked, update the locked model to the new one
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    session.lockedModel = m;
+                    session.lockedAPI = a;
+                    this.autoSaveChat();
+                }
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton(); this.updateLockButton();
                 if (openPopup) this.togglePopup('model');
                 this.updateModelOptions();
             }
             updateModelOptions() {
-                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.currentModel));
+                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.effectiveModel));
 
                 // Moonshot Reasoning Visibility Logic
                 const moonshotRow = document.getElementById('moonshotReasoningRow');
                 if (moonshotRow) {
                     // Only show for Kimi K2.5 (K2 Thinking has it forced, others don't support)
-                    if (this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5') {
+                    if (this.effectiveAPI === 'moonshot' && this.effectiveModel === 'kimi-k2.5') {
                         moonshotRow.style.display = 'flex';
                     } else {
                         moonshotRow.style.display = 'none';
@@ -5424,13 +5674,16 @@
 
                 // Show/hide tool toggle for custom providers only
                 if (this.useToolsToggle) {
-                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.currentAPI);
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.effectiveAPI);
                     if (isCustom) {
                         this.useToolsToggle.classList.remove('hidden');
                     } else {
                         this.useToolsToggle.classList.add('hidden');
                     }
                 }
+
+                // Toggle image generation UI if image model is selected
+                this.toggleImageModeUI();
             }
             setPersona(p) {
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
@@ -5609,18 +5862,25 @@
             }
             setModel(m, a, openPopup = true) {
                 if (!m || !a) return;
-                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton();
+                // If the current tab is locked, update the locked model to the new one
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    session.lockedModel = m;
+                    session.lockedAPI = a;
+                    this.autoSaveChat();
+                }
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton(); this.updateLockButton();
                 if (openPopup) this.togglePopup('model');
                 this.updateModelOptions();
             }
             updateModelOptions() {
-                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.currentModel));
+                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.effectiveModel));
 
                 // Moonshot Reasoning Visibility Logic
                 const moonshotRow = document.getElementById('moonshotReasoningRow');
                 if (moonshotRow) {
                     // Only show for Kimi K2.5 (K2 Thinking has it forced, others don't support)
-                    if (this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5') {
+                    if (this.effectiveAPI === 'moonshot' && this.effectiveModel === 'kimi-k2.5') {
                         moonshotRow.style.display = 'flex';
                     } else {
                         moonshotRow.style.display = 'none';
@@ -5629,13 +5889,16 @@
 
                 // Show/hide tool toggle for custom providers only
                 if (this.useToolsToggle) {
-                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.currentAPI);
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.effectiveAPI);
                     if (isCustom) {
                         this.useToolsToggle.classList.remove('hidden');
                     } else {
                         this.useToolsToggle.classList.add('hidden');
                     }
                 }
+
+                // Toggle image generation UI if image model is selected
+                this.toggleImageModeUI();
             }
             setPersona(p) {
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
@@ -5708,8 +5971,10 @@
                     setTimeout(() => this.autoSaveChat(), 50);
                 });
 
-                const isCustomProvider = this.currentAPI.startsWith('custom_');
-                if (!this.apiKeys[this.currentAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); return; }
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const isCustomProvider = effAPI.startsWith('custom_');
+                if (!this.apiKeys[effAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); return; }
                 this.setLoading(true, sessionId);
                 if (!this._sessionLoading) this._sessionLoading = {};
                 this._sessionLoading[sessionId] = true;
@@ -5719,8 +5984,24 @@
                 const _sessionRefs = this.sessions[sessionId].references;
 
                 try {
+                    // Image generation models — route to image endpoints
+                    if (this._isImageModel) {
+                        const params = this.getImageParams();
+                        let res;
+                        if (this._isChatImageModel) {
+                            // Gemini-style: /v1/chat/completions with image_config
+                            res = await this.callChatImageAPI(msg, params, sessionId);
+                        } else {
+                            // DALL-E / gpt-image: /v1/images/generations
+                            res = await this.callImageGenAPI(msg, params, sessionId);
+                        }
+                        const content = res.content || '';
+                        _sessionMessages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, images: res.images || [], modelUsed: effModel });
+                        console.log('[DEBUG] sendMessage (image) — stored images:', res.images?.length || 0);
+                        this.renderMessages(); this.autoSaveChat();
+                    }
                     // Use dedicated handler for Moonshot web search (requires multi-turn tool calls)
-                    if (this.currentAPI === 'moonshot' && this.moonshotSearchEnabled) {
+                    else if (effAPI === 'moonshot' && this.moonshotSearchEnabled) {
                         const msgs = this.buildMessagesForAPI(pre);
                         const content = await this.moonshotWebSearchCall(msgs, sessionId);
                         _sessionMessages.push({ role: 'assistant', content: pre ? pre + content : content, timestamp: new Date() });
@@ -5729,7 +6010,8 @@
                     else {
                         const res = await this.callAPI(fullContent, pre, sessionId);
                         const content = pre ? pre + res.content : res.content;
-                        _sessionMessages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations, modelUsed: this.currentModel });
+                        _sessionMessages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations, images: res.images || [], modelUsed: effModel });
+                        console.log('[DEBUG] sendMessage — stored message images:', res.images?.length || 0, 'content length:', (content || '').length);
                         this.renderMessages(); this.autoSaveChat();
                     }
                 } catch (e) {
@@ -5763,38 +6045,248 @@
                         const div = document.createElement('div'); div.className = 'message assistant loading'; div.textContent = 'Loading...'; this.messagesContainer.appendChild(div);
                     }
                 } else {
-                    this.sendMessage.textContent = '→';
+                    this.sendMessage.textContent = this._getSendButtonIcon();
                     this.sendMessage.classList.remove('stop');
                     const loader = this.messagesContainer.querySelector('.loading'); if (loader) loader.remove();
                 }
             }
 
+            _getSendButtonIcon() {
+                if (this._isImageModel) return '🎨';
+                return '→';
+            }
+
+            get _isImageModel() {
+                const m = this.effectiveModel || '';
+                return /image|dall-e|imagen/i.test(m);
+            }
+
+            get _isChatImageModel() {
+                const m = this.effectiveModel || '';
+                return /gemini.*image|imagen/i.test(m);
+            }
+
+            getImageParams() {
+                const isChatImage = this._isChatImageModel;
+                return {
+                    aspect_ratio: this.imageAspectSelect?.value || '16:9',
+                    image_size: isChatImage ? (this.imageSizeSelect?.value || '2K') : undefined,
+                    size: !isChatImage ? (this.imageSizeSelect?.value || '1024x1024') : undefined,
+                    quality: !isChatImage ? (this.imageQualitySelect?.value || 'auto') : undefined,
+                    response_format: !isChatImage ? (this.imageFormatSelect?.value || 'url') : undefined,
+                    isChatImage
+                };
+            }
+
+            toggleImageModeUI() {
+                const isImage = this._isImageModel;
+                const isChatImage = this._isChatImageModel;
+
+                if (isImage) {
+                    this.imageParamsRow.classList.remove('hidden');
+                    this.messageInput.placeholder = isChatImage
+                        ? 'Describe the image you want to generate...'
+                        : 'Describe the image you want to generate...';
+                    // Show/hide correct dropdowns
+                    if (isChatImage) {
+                        // Chat image mode: aspect_ratio + image_size
+                        document.getElementById('imageAspectGroup').style.display = '';
+                        this.imageSizeLabel.textContent = 'Size:';
+                        this.imageQualitySelect.classList.add('hidden');
+                        this.imageSizeSelect.classList.remove('hidden');
+                        this.imageFormatSelect.classList.add('hidden');
+                        // Populate size dropdown for Chat mode
+                        this.imageSizeSelect.innerHTML = `
+                            <option value="1K">1K</option>
+                            <option value="2K" selected>2K</option>
+                            <option value="4K">4K</option>
+                        `;
+                    } else {
+                        // Images API mode: quality + size (resolution) + format
+                        document.getElementById('imageAspectGroup').style.display = 'none';
+                        this.imageSizeLabel.textContent = 'Size:';
+                        this.imageQualitySelect.classList.remove('hidden');
+                        this.imageSizeSelect.classList.remove('hidden');
+                        this.imageFormatSelect.classList.remove('hidden');
+                        // Populate size dropdown for Images API
+                        this.imageSizeSelect.innerHTML = `
+                            <option value="1024x1024" selected>1024x1024</option>
+                            <option value="1536x1024">1536x1024</option>
+                            <option value="1024x1536">1024x1536</option>
+                        `;
+                    }
+                    this.sendMessage.textContent = '🎨';
+                } else {
+                    this.imageParamsRow.classList.add('hidden');
+                    this.messageInput.placeholder = 'Type your message...';
+                    this.sendMessage.textContent = '→';
+                }
+            }
+
+            async callImageGenAPI(prompt, params, sessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const body = {
+                    model: effModel,
+                    prompt: prompt,
+                    n: 1,
+                    size: params.size || '1024x1024',
+                    quality: params.quality || 'auto',
+                    response_format: params.response_format || 'url'
+                };
+
+                // Use same URL/header building pipeline as callAPI()
+                const _protocol = this._getProviderProtocol();
+                let apiUrl = this.apiEndpoints[effAPI] || '';
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
+                }
+                // Replace /chat/completions with /images/generations (before _buildApiUrl for non-Gemini)
+                if (_protocol === 'openai' || _protocol === 'anthropic') {
+                    apiUrl = apiUrl.replace(/\/chat\/completions\/?$/, '/images/generations');
+                    if (!apiUrl.includes('/images/generations')) {
+                        apiUrl = apiUrl.replace(/\/v1\/?$/, '/v1/images/generations');
+                    }
+                }
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, false);
+
+                const isCustomProvider = this.customProviders?.some(p => p.id === effAPI);
+                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig && cpConfig.useCorsProxy);
+                if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
+                    const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
+                    apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
+                }
+
+                const headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
+
+                console.log('[DEBUG] callImageGenAPI → protocol:', _protocol, 'endpoint:', apiUrl, 'body:', JSON.stringify(body));
+
+                const ctrl = this._sessionAbort?.[sessionId];
+                const resp = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body),
+                    signal: ctrl?.signal
+                });
+                if (!resp.ok) {
+                    const err = await resp.text().catch(() => 'Unknown');
+                    throw new Error(`Image API ${resp.status}: ${err.slice(0, 300)}`);
+                }
+                const data = await resp.json();
+                console.log('[DEBUG] callImageGenAPI → raw response:', JSON.stringify(data));
+                return this._parseImageGenResponse(data);
+            }
+
+            _parseImageGenResponse(data) {
+                let images = [];
+                if (Array.isArray(data.data)) {
+                    for (const item of data.data) {
+                        if (item.url) images.push(item.url);
+                        else if (item.b64_json) images.push('data:image/png;base64,' + item.b64_json);
+                    }
+                }
+                console.log('[DEBUG] _parseImageGenResponse → extracted images:', images.length);
+                return { content: '', images, tokenUsage: null };
+            }
+
+            async callChatImageAPI(prompt, params, sessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const msgs = [{ role: 'user', content: prompt }];
+                const body = {
+                    model: effModel,
+                    messages: msgs,
+                    max_tokens: this.maxTokens,
+                    stream: false,
+                    modalities: ['image'],  // Required by OpenRouter for image generation
+                    image_config: {
+                        aspect_ratio: params.aspect_ratio || '16:9',
+                        image_size: params.image_size || '2K'
+                    }
+                };
+
+                // Use same URL/header/building pipeline as callAPI()
+                const _protocol = this._getProviderProtocol();
+                let apiUrl = this.apiEndpoints[effAPI] || '';
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
+                }
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, false);
+
+                const isCustomProvider = this.customProviders?.some(p => p.id === effAPI);
+                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig && cpConfig.useCorsProxy);
+                if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
+                    const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
+                    apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
+                }
+
+                // Protocol-aware headers
+                let headers;
+                if (_protocol !== 'openai') {
+                    headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
+                } else {
+                    headers = { 'Content-Type': 'application/json' };
+                    if (this.apiKeys[effAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[effAPI]}`;
+                    if (effAPI === 'openrouter') {
+                        headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                        headers['X-Title'] = 'Multi-API Chat Interface';
+                    }
+                }
+
+                // Protocol-aware body transformation (for Gemini etc.)
+                const finalBody = this._transformBody(body, msgs, _protocol);
+                // Re-inject image_config after transform (transformBody may strip non-standard fields)
+                if (finalBody.image_config === undefined && _protocol === 'openai') {
+                    finalBody.image_config = body.image_config;
+                }
+
+                console.log('[DEBUG] callChatImageAPI → protocol:', _protocol, 'endpoint:', apiUrl, 'body:', JSON.stringify(finalBody));
+
+                const ctrl = this._sessionAbort?.[sessionId];
+                const resp = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(finalBody),
+                    signal: ctrl?.signal
+                });
+                if (!resp.ok) {
+                    const err = await resp.text().catch(() => 'Unknown');
+                    throw new Error(`Chat Image API ${resp.status}: ${err.slice(0, 300)}`);
+                }
+                const data = await resp.json();
+                return this._parseApiResponse(data, null);
+            }
+
             async callAPI(msg, pre, sessionId = this.activeSessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
                 const msgs = this.buildMessagesForAPI(pre);
                 const body = {
-                    model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                    model: effModel, messages: msgs, max_tokens: this.maxTokens,
                     use_tools: this.useToolsEnabled, temperature: 0.2, stream: false
                 };
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
-                if (this.currentAPI === 'nvidia') {
+                if (effAPI === 'nvidia') {
                     const nimSettings = this.nimSettings || {};
                     body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
                 }
 
                 // Handle Moonshot Parameters
-                if (this.currentAPI === 'moonshot') {
-                    if (this.currentModel === 'kimi-k2.5') {
+                if (effAPI === 'moonshot') {
+                    if (effModel === 'kimi-k2.5') {
                         delete body.temperature;
                     }
-                    else if (this.currentModel.includes('thinking')) {
+                    else if (effModel.includes('thinking')) {
                         body.temperature = 1.0;
                     }
                     else {
                         body.temperature = 0.6;
                     }
 
-                    if (this.currentModel === 'kimi-k2.5') {
+                    if (effModel === 'kimi-k2.5') {
                         if (this.moonshotSearchEnabled || !this.moonshotReasoningEnabled) {
                             body.thinking = { type: 'disabled' };
                         } else {
@@ -5807,7 +6299,7 @@
                 }
 
                 // Perplexity Search Logic
-                if (this.currentAPI === 'perplexity') {
+                if (effAPI === 'perplexity') {
                     if (!this.pplxSearchEnabled) {
                         body.return_citations = false; // Disable citations if search implies off
                     } else if (this.pplxRecency && ['month', 'week', 'day'].includes(this.pplxRecency)) {
@@ -5817,16 +6309,16 @@
 
                 // Determine API URL (use CORS proxy if configured and needed)
                 const _protocol = this._getProviderProtocol();
-                let apiUrl = this.apiEndpoints[this.currentAPI];
-                if (!apiUrl && this.providerRegistry[this.currentAPI]) {
-                    apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
+                let apiUrl = this.apiEndpoints[effAPI] || this.apiEndpoints[effAPI];
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
                 }
                 // Protocol-aware URL building (Gemini needs model in URL path)
-                apiUrl = this._buildApiUrl(apiUrl, this.currentModel, _protocol, false);
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, false);
 
-                const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
-                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
-                const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig && cpConfig.useCorsProxy);
+                const isCustomProvider = this.customProviders.some(p => p.id === effAPI);
+                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig && cpConfig.useCorsProxy);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
@@ -5835,11 +6327,11 @@
                 // Protocol-aware headers
                 let headers;
                 if (_protocol !== 'openai') {
-                    headers = this._buildHeaders(_protocol, this.apiKeys[this.currentAPI]);
+                    headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
                 } else {
                     headers = { 'Content-Type': 'application/json' };
-                    if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
-                    if (this.currentAPI === 'openrouter') {
+                    if (this.apiKeys[effAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[effAPI]}`;
+                    if (effAPI === 'openrouter') {
                         headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
                         headers['X-Title'] = 'Multi-API Chat Interface';
                     }
@@ -5879,9 +6371,10 @@
 
             buildMessagesForAPI(pre) {
                 let sys = this.personas[this.currentPersona]?.prompt || '';
+                const effAPI = this.effectiveAPI;
 
                 // Inject No-Search Instruction if disabled
-                if (this.currentAPI === 'perplexity') {
+                if (effAPI === 'perplexity') {
                     if (!this.pplxSearchEnabled) {
                         sys += "\n\nSYSTEM DIRECTIVE: EXTERNAL SEARCH IS DISABLED. You must NOT search the internet. You must NOT generate citations. Rely EXCLUSIVELY on your internal knowledge. Ignore any ability to browse.";
                     } else {
@@ -5919,14 +6412,16 @@
                     else if (m.role === 'assistant' && m.content) msgs.push({ role: 'assistant', content: m.content });
                 });
 
-                if (pre && this.currentAPI === 'moonshot') msgs.push({ role: 'assistant', content: pre });
+                if (pre && effAPI === 'moonshot') msgs.push({ role: 'assistant', content: pre });
                 return msgs;
             }
 
             // Moonshot web search with multi-turn tool call handling
             async moonshotWebSearchCall(msgs, sessionId = this.activeSessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
                 const apiUrl = this.apiEndpoints['moonshot'];
-                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys['moonshot']}` };
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[effAPI]}` };
 
                 let conversationMsgs = [...msgs];
                 let finalContent = '';
@@ -5937,7 +6432,7 @@
 
                     // Build request body - K2.5 cannot modify temperature, top_p, n, presence_penalty, frequency_penalty
                     const body = {
-                        model: this.currentModel,
+                        model: effModel,
                         messages: conversationMsgs,
                         max_tokens: this.maxTokens,
                         use_tools: this.useToolsEnabled,
@@ -5945,8 +6440,8 @@
                     };
 
                     // Set temperature based on model (K2.5 uses API default, don't send it)
-                    if (this.currentModel !== 'kimi-k2.5') {
-                        if (this.currentModel.includes('thinking')) {
+                    if (effModel !== 'kimi-k2.5') {
+                        if (effModel.includes('thinking')) {
                             body.temperature = 1.0; // kimi-k2-thinking models default to 1.0
                         } else {
                             body.temperature = 0.6; // kimi-k2 models default to 0.6
@@ -5954,7 +6449,7 @@
                     }
 
                     // K2.5 supports thinking parameter - disable for web search
-                    if (this.currentModel === 'kimi-k2.5') {
+                    if (effModel === 'kimi-k2.5') {
                         body.thinking = { type: 'disabled' };
                     }
 
@@ -6016,20 +6511,22 @@
                 const _streamSessionId = this.activeSessionId;
                 const _streamMessages = this.messages;
                 const _streamRefs = this.references;
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
 
                 const msgs = this.buildMessagesForAPI(pre);
                 const body = {
-                    model: this.currentModel, messages: msgs, max_tokens: this.maxTokens,
+                    model: effModel, messages: msgs, max_tokens: this.maxTokens,
                     use_tools: this.useToolsEnabled, temperature: 0.2, stream: true
                 };
 
                 // NVIDIA: inject enable_thinking based on reasoning checkbox
-                if (this.currentAPI === 'nvidia') {
+                if (effAPI === 'nvidia') {
                     const nimSettings = this.nimSettings || {};
                     body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
                 }
 
-                if (this.currentAPI === 'perplexity') {
+                if (effAPI === 'perplexity') {
                     if (!this.pplxSearchEnabled) {
                         body.return_citations = false;
                     } else if (this.pplxRecency && ['month', 'week', 'day'].includes(this.pplxRecency)) {
@@ -6038,35 +6535,29 @@
                 }
 
                 // Moonshot web search - using builtin_function with $web_search
-                if (this.currentAPI === 'moonshot' && this.moonshotSearchEnabled) {
+                if (effAPI === 'moonshot' && this.moonshotSearchEnabled) {
                     body.tools = [{ type: 'builtin_function', function: { name: '$web_search' } }];
                 }
 
                 // Handle Moonshot Parameters
-                if (this.currentAPI === 'moonshot') {
-                    // K2.5 cannot have temperature set (use default)
-                    if (this.currentModel === 'kimi-k2.5') {
+                if (effAPI === 'moonshot') {
+                    if (effModel === 'kimi-k2.5') {
                         delete body.temperature;
                     }
-                    // Thinking models default to 1.0
-                    else if (this.currentModel.includes('thinking')) {
+                    else if (effModel.includes('thinking')) {
                         body.temperature = 1.0;
                     }
-                    // Other Moonshot models default to 0.6 (already set mostly, but good to be explicit if different from 0.2)
                     else {
                         body.temperature = 0.6;
                     }
 
-                    // Handle thinking parameter
-                    // K2.5: Advice from user - explicit enable/disable
-                    if (this.currentModel === 'kimi-k2.5') {
+                    if (effModel === 'kimi-k2.5') {
                         if (this.moonshotSearchEnabled || !this.moonshotReasoningEnabled) {
                             body.thinking = { type: 'disabled' };
                         } else {
                             body.thinking = { type: 'enabled' };
                         }
                     }
-                    // Other models (e.g. k2-thinking already has it forced, others might not support)
                     else if (this.moonshotReasoningEnabled) {
                         body.thinking = { type: 'enabled' };
                     }
@@ -6074,16 +6565,15 @@
 
                 // Determine API URL (use CORS proxy if configured and needed)
                 const _protocol = this._getProviderProtocol();
-                let apiUrl = this.apiEndpoints[this.currentAPI];
-                if (!apiUrl && this.providerRegistry[this.currentAPI]) {
-                    apiUrl = this.providerRegistry[this.currentAPI].baseUrl;
+                let apiUrl = this.apiEndpoints[effAPI] || this.apiEndpoints[effAPI];
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
                 }
-                // Protocol-aware URL building (Gemini uses different streaming endpoint)
-                apiUrl = this._buildApiUrl(apiUrl, this.currentModel, _protocol, true);
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, true);
 
-                const isCustomProvider = this.customProviders.some(p => p.id === this.currentAPI);
-                const cpConfig2 = isCustomProvider ? this.customProviders.find(p => p.id === this.currentAPI) : null;
-                const needsProxy = ['nvidia'].includes(this.currentAPI) || (cpConfig2 && cpConfig2.useCorsProxy);
+                const isCustomProvider = this.customProviders.some(p => p.id === effAPI);
+                const cpConfig2 = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig2 && cpConfig2.useCorsProxy);
                 if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
                     const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
                     apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
@@ -6092,11 +6582,11 @@
                 // Protocol-aware headers
                 let headers;
                 if (_protocol !== 'openai') {
-                    headers = this._buildHeaders(_protocol, this.apiKeys[this.currentAPI]);
+                    headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
                 } else {
                     headers = { 'Content-Type': 'application/json' };
-                    if (this.apiKeys[this.currentAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[this.currentAPI]}`;
-                    if (this.currentAPI === 'openrouter') {
+                    if (this.apiKeys[effAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[effAPI]}`;
+                    if (effAPI === 'openrouter') {
                         headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
                         headers['X-Title'] = 'Multi-API Chat Interface';
                     }
@@ -6135,10 +6625,8 @@
                     }
                 }
 
-                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [], modelUsed: this.currentModel };
-                // Push to captured session messages (immune to tab switching)
+                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [], modelUsed: effModel, images: [] };
                 _streamMessages.push(assistantMessage);
-                // Only render if we're still on the same tab
                 if (this.activeSessionId === _streamSessionId) this.renderMessages();
 
                 const reader = res.body.getReader();
@@ -6146,12 +6634,10 @@
                 let done = false;
                 let buffer = '';
 
-                // Find the correct element - use data attr for safety across tab switches
                 let msgElement = this.messagesContainer.lastElementChild;
                 let contentDiv = msgElement ? msgElement.querySelector('.message-content') : null;
 
-                // Track whether K2.5 web search is active (skip reasoning_content to avoid duplicates)
-                const _isK25WebSearch = this.currentAPI === 'moonshot' && this.currentModel === 'kimi-k2.5' && this.moonshotSearchEnabled;
+                const _isK25WebSearch = effAPI === 'moonshot' && effModel === 'kimi-k2.5' && this.moonshotSearchEnabled;
 
                 // Mutable state for Anthropic event tracking
                 const _streamState = {};
@@ -6166,16 +6652,19 @@
                         buffer = lines.pop();
 
                         lines.forEach(line => {
-                            // Use protocol-aware stream line parser
-                            const parsed = this._parseStreamLine(line, _protocol, _streamState);
+                                                    // Use protocol-aware stream line parser
+                                                    const parsed = this._parseStreamLine(line, _protocol, _streamState);
 
-                            if (parsed.done) return;
-                            if (parsed.citations) assistantMessage.citations = parsed.citations;
-                            if (parsed.searchResults) assistantMessage.searchResults = parsed.searchResults;
-                            if (parsed.usage) assistantMessage.tokenUsage = parsed.usage;
+                                                    if (parsed.done) return;
+                                                    if (parsed.citations) assistantMessage.citations = parsed.citations;
+                                                    if (parsed.searchResults) assistantMessage.searchResults = parsed.searchResults;
+                                                    if (parsed.usage) assistantMessage.tokenUsage = parsed.usage;
+                                                    if (parsed.images && parsed.images.length) {
+                                                        assistantMessage.images = [...assistantMessage.images, ...parsed.images];
+                                                    }
 
-                            const delta = parsed.content;
-                            const reasoningContent = parsed.reasoningContent;
+                                                    const delta = parsed.content;
+                                                    const reasoningContent = parsed.reasoningContent;
 
                             // Handle Reasoning Content (Thinking Process)
                             // Skip reasoning_content for K2.5 + web search to avoid duplicated thinking blocks
@@ -6444,7 +6933,7 @@
             async loadChat(id) {
                 const fullChat = await this.storageManager.getChat(id);
                 if (fullChat) {
-                    this.sessions[id] = { id, name: fullChat.name, messages: fullChat.messages, references: fullChat.references };
+                    this.sessions[id] = { id, name: fullChat.name, messages: fullChat.messages, references: fullChat.references, isLocked: fullChat.isLocked || false, lockedModel: fullChat.lockedModel || null, lockedAPI: fullChat.lockedAPI || null };
                     this.switchSession(id);
                 } else {
                     this.showStatus('Error loading chat', 'error');
@@ -6656,8 +7145,9 @@
                     const newText = textarea.value.trim();
                     if (newText) {
                         // FIX: Ensure API Key is present before regenerating
-                        const isCustomProvider = this.currentAPI.startsWith('custom_');
-                        if (!this.apiKeys[this.currentAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
+                        const effAPI = this.effectiveAPI;
+                        const isCustomProvider = effAPI.startsWith('custom_');
+                        if (!this.apiKeys[effAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
 
                         this.messages[index].content = newText;
                         this.messages = this.messages.slice(0, index + 1);
@@ -6700,14 +7190,15 @@
                                     }
                                 }
                                 this.messages.push({
-                                    role: 'assistant',
-                                    content: res.content,
-                                    timestamp: new Date(),
-                                    tokenUsage: res.tokenUsage,
-                                    searchResults: res.searchResults,
-                                    citations: res.citations,
-                                    modelUsed: this.currentModel
-                                });
+                                                                    role: 'assistant',
+                                                                    content: res.content,
+                                                                    timestamp: new Date(),
+                                                                    tokenUsage: res.tokenUsage,
+                                                                    searchResults: res.searchResults,
+                                                                    citations: res.citations,
+                                                                    images: res.images || [],
+                                                                    modelUsed: this.effectiveModel
+                                                                });
                                 this.renderMessages();
                                 await this.autoSaveChat();
                             }
@@ -6731,7 +7222,17 @@
             openReference() { window.open(document.getElementById('referenceUrl').textContent, '_blank'); }
 
             async autoSaveChat() {
-                const chatObj = { id: this.currentChatId, name: this.sessions[this.currentChatId].name, messages: this.messages, references: this.references, timestamp: Date.now() };
+                const session = this.sessions[this.currentChatId];
+                const chatObj = { 
+                    id: this.currentChatId, 
+                    name: session.name, 
+                    messages: this.messages, 
+                    references: this.references, 
+                    timestamp: Date.now(),
+                    isLocked: session.isLocked || false,
+                    lockedModel: session.lockedModel || null,
+                    lockedAPI: session.lockedAPI || null
+                };
                 try {
                     await this.storageManager.saveChat(chatObj);
                     // Update local metadata cache
