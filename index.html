@@ -1203,6 +1203,10 @@
             display: none;
         }
 
+        /* Prompt Library */
+        .prompt-library-item:hover { background: var(--color-bg-1); }
+        .prompt-library-item kbd { font-family: 'SF Mono', 'Fira Code', monospace; }
+
         /* Drawer for History */
         #historyPopup {
             justify-content: flex-start;
@@ -1859,6 +1863,7 @@
             <div class="sidebar-icon" id="refToggle" title="Toggle References"><span class="icon">🔗</span></div>
             <div class="sidebar-icon" id="toolsToggle" title="Tools & Links"><span class="icon">🛠️</span></div>
             <div class="sidebar-icon" id="historyToggle" title="History"><span class="icon">📂</span></div>
+            <div class="sidebar-icon" id="promptLibraryToggle" title="Prompt Library"><span class="icon">📋</span></div>
             <div class="sidebar-icon" id="apiKeyToggle" title="API Keys"><span class="icon">🔑</span></div>
         </div>
 
@@ -2335,6 +2340,43 @@
                 </div>
                 <div class="detail-content" id="detailContent"></div>
             </div>
+        </div>
+    </div>
+    <!-- Prompt Library Popup -->
+    <div class="popup hidden" id="promptLibraryPopup">
+        <div class="popup-content" style="max-width: 700px;">
+            <div class="popup-header">
+                <h3>📋 Prompt Library</h3>
+                <button class="btn btn--text" id="closePromptLibrary">Done</button>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input type="text" id="promptLibrarySearch" class="form-control" placeholder="🔍 Search prompts..." style="flex:1; font-size:13px; padding:6px 10px;">
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+                <button class="btn btn--primary btn--sm" id="promptLibraryAdd">+ Add Prompt</button>
+                <button class="btn btn--secondary btn--sm" id="promptLibraryImport">📥 Import</button>
+                <button class="btn btn--secondary btn--sm" id="promptLibraryExport">📤 Export All</button>
+                <span style="flex:1;"></span>
+                <button class="btn btn--danger btn--sm" id="promptLibraryDeleteAll">🗑 Delete All</button>
+            </div>
+            <div id="promptLibraryList" style="max-height:400px; overflow-y:auto; border-top:1px solid var(--color-border);">
+                <p style="font-size:12px; color:var(--color-text-secondary); padding:20px; text-align:center;">No prompts saved. Use <kbd>/save &lt;prompt&gt; /&lt;alias&gt;</kbd> + <kbd>Ctrl+Enter</kbd></p>
+            </div>
+            <!-- Inline Add/Edit form (hidden by default) -->
+            <div id="promptLibraryForm" style="display:none; margin-top:12px; padding:12px; background:var(--color-bg-1); border-radius:6px; border:1px solid var(--color-border);">
+                <h4 id="promptLibraryFormTitle" style="margin:0 0 8px;">Add Prompt</h4>
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="text" id="promptLibraryFormAlias" class="form-control" placeholder="Alias (e.g. greeting)" style="width:150px; font-size:12px; padding:4px 8px;">
+                    <span style="font-size:12px; color:var(--color-text-secondary); align-self:center;">← Use /alias + Ctrl+Enter to recall</span>
+                </div>
+                <textarea id="promptLibraryFormContent" class="form-control" rows="4" placeholder="Prompt content..." style="font-size:13px; width:100%; margin-bottom:8px;"></textarea>
+                <div style="display:flex; gap:6px;">
+                    <button class="btn btn--primary btn--sm" id="promptLibraryFormSave">💾 Save</button>
+                    <button class="btn btn--secondary btn--sm" id="promptLibraryFormCancel">Cancel</button>
+                </div>
+            </div>
+            <!-- Import file (hidden) -->
+            <input type="file" id="promptLibraryImportFile" accept=".md,.txt,.json" style="display:none;">
         </div>
     </div>
     <div class="popup hidden" id="referencePopup">
@@ -3559,6 +3601,7 @@
                 this.refToggle = document.getElementById('refToggle');
                 this.toolsToggle = document.getElementById('toolsToggle');
                 this.readmeToggle = document.getElementById('readmeToggle');
+                this.promptLibraryToggle = document.getElementById('promptLibraryToggle');
 
                 this.header = document.getElementById('header');
                 this.tabsBar = document.getElementById('tabsBar');
@@ -4432,6 +4475,7 @@
                 this.refToggle.addEventListener('click', () => this.toggleReferenceMode());
                 this.toolsToggle.addEventListener('click', () => { this.renderToolsList(); this.renderLinksList(); this.togglePopup('tools'); });
                 this.historyToggle.addEventListener('click', () => { this.renderChatHistory(); this.togglePopup('history'); });
+                this.promptLibraryToggle.addEventListener('click', () => this.showPromptLibrary());
                 this.readmeToggle.addEventListener('click', () => { this.showReadmeMain(); this.togglePopup('readme'); });
 
                 // Breakout Logic (Anchor Simulation for reliability)
@@ -4455,6 +4499,26 @@
 
                 this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
                 this._tokenDebounce = null;
+
+                // Prompt Library UI bindings
+                const closeBtn = document.getElementById('closePromptLibrary');
+                const addBtn = document.getElementById('promptLibraryAdd');
+                const impBtn = document.getElementById('promptLibraryImport');
+                const expBtn = document.getElementById('promptLibraryExport');
+                const delAllBtn = document.getElementById('promptLibraryDeleteAll');
+                const searchInput = document.getElementById('promptLibrarySearch');
+                const formSaveBtn = document.getElementById('promptLibraryFormSave');
+                const formCancelBtn = document.getElementById('promptLibraryFormCancel');
+                const importFile = document.getElementById('promptLibraryImportFile');
+                if (closeBtn) closeBtn.addEventListener('click', () => this.togglePopup('promptLibrary'));
+                if (addBtn) addBtn.addEventListener('click', () => this._showPromptForm('add'));
+                if (impBtn) impBtn.addEventListener('click', () => importFile && importFile.click());
+                if (expBtn) expBtn.addEventListener('click', () => this._promptLibraryExport());
+                if (delAllBtn) delAllBtn.addEventListener('click', () => { if (confirm('Delete ALL prompts?')) { this._saveShortcuts([]); this._renderPromptLibrary(); this.showStatus('All prompts deleted', 'info'); } });
+                if (searchInput) searchInput.addEventListener('input', (e) => this._renderPromptLibrary(e.target.value));
+                if (formSaveBtn) formSaveBtn.addEventListener('click', () => this._savePromptForm());
+                if (formCancelBtn) formCancelBtn.addEventListener('click', () => this._hidePromptForm());
+                if (importFile) importFile.addEventListener('change', (e) => { if (e.target.files[0]) this._promptLibraryImport(e.target.files[0]); importFile.value = ''; });
                 this.messageInput.addEventListener('input', () => {
                     // Check for slash commands as user types
                     this._checkSlashCommand();
@@ -4853,6 +4917,7 @@
                 if (!this.sessions[id]) return;
                 this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
                 this.renderTabs(); this.renderMessages(); this.updateHeaderStatus(); this.updateLockButton();
+                this.toggleImageModeUI();
                 this.persistSessionState();
             }
 
@@ -4992,6 +5057,9 @@
                                                     });
                                                 }
 
+                        const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📤'; exportBtn.title = 'Export Message';
+                        exportBtn.onclick = () => this.exportMessageToWindow(message.content);
+                        messageEl.appendChild(exportBtn);
                         const forkBtn = document.createElement('button'); forkBtn.className = 'message-fork-btn'; forkBtn.innerHTML = '🌿'; forkBtn.title = 'Fork Conversation';
                         forkBtn.onclick = () => this.forkConversation(index);
                         messageEl.appendChild(forkBtn);
@@ -5221,7 +5289,7 @@
                     if (val === '/check') {
                         this.messageInput.value = '';
                         this.autoResizeTextarea();
-                        this.showShortcutMenu();
+                        this.showPromptLibrary();
                         return;
                     }
                     if (val.startsWith('/save ')) {
@@ -5265,7 +5333,7 @@
                             this.messageInput.value = '';
                             this.autoResizeTextarea();
                             tip.remove();
-                            this.showShortcutMenu();
+                            this.showPromptLibrary();
                         });
                         this.messageInput.parentElement.style.position = 'relative';
                         this.messageInput.parentElement.appendChild(tip);
@@ -5281,84 +5349,218 @@
             }
 
             // Shortcut prompt management
-            showShortcutMenu() {
+            showShortcutMenu() { this.showPromptLibrary(); }
+            showPromptLibrary() {
+                this.togglePopup('promptLibrary');
+                // Wait for popup to be visible, then render
+                requestAnimationFrame(() => {
+                    this._renderPromptLibrary();
+                });
+            }
+            _getShortcuts() {
                 let shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
-                // Migrate old string format to {name, prompt} format
-                shortcuts = shortcuts.map((s, i) => typeof s === 'string' ? { name: 'sc' + i, prompt: s } : s);
+                return shortcuts.map((s, i) => typeof s === 'string' ? { name: 'sc' + i, prompt: s } : s);
+            }
+            _saveShortcuts(shortcuts) {
                 localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
-
+            }
+            _renderPromptLibrary(filter = '') {
+                const container = document.getElementById('promptLibraryList');
+                if (!container) return;
+                let shortcuts = this._getShortcuts();
+                if (filter) {
+                    const q = filter.toLowerCase();
+                    shortcuts = shortcuts.filter(s =>
+                        (s.name || '').toLowerCase().includes(q) ||
+                        (s.prompt || '').toLowerCase().includes(q)
+                    );
+                }
                 if (shortcuts.length === 0) {
-                    this.showStatus('No saved shortcuts. Use: /save <prompt> /<alias> + Ctrl+Enter', 'info');
+                    container.innerHTML = filter
+                        ? '<p style="font-size:12px; color:var(--color-text-secondary); padding:20px; text-align:center;">No results for "' + filter + '"</p>'
+                        : '<p style="font-size:12px; color:var(--color-text-secondary); padding:20px; text-align:center;">No prompts saved. Use <kbd>/save &lt;prompt&gt; /&lt;alias&gt;</kbd> + <kbd>Ctrl+Enter</kbd></p>';
                     return;
                 }
-                const existing = document.getElementById('shortcutMenu');
-                if (existing) existing.remove();
-                const menu = document.createElement('div');
-                menu.id = 'shortcutMenu';
-                menu.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--color-bg-0); border:1px solid var(--color-border); border-radius:8px; padding:10px; z-index:10000; max-width:550px; width:90%; max-height:350px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-                let html = '<div style="font-weight:600; margin-bottom:8px; font-size:13px; color:var(--color-text-secondary);">📋 Saved Prompt Shortcuts <span style="float:right; cursor:pointer; font-size:16px;" id="closeShortcutMenu">×</span></div>';
+                let html = '';
                 shortcuts.forEach((s, idx) => {
-                    const preview = s.prompt.length > 60 ? s.prompt.substring(0, 60) + '...' : s.prompt;
-                    html += '<div style="display:flex; align-items:center; gap:6px; padding:6px 4px; font-size:12px; border-bottom:1px solid var(--color-border);" data-idx="' + idx + '">';
-                    html += '<input class="shortcut-alias" data-idx="' + idx + '" value="' + (s.name || '').replace(/"/g, '&quot;') + '" style="width:60px; padding:2px 4px; border:1px solid var(--color-border); border-radius:3px; font-size:11px; font-family:monospace; background:var(--color-bg-1); color:var(--color-text-primary);" title="Alias - type /' + s.name + ' + Ctrl+Enter to use">';
-                    html += '<span style="flex:1; color:var(--color-text-secondary);" title="' + s.prompt.replace(/"/g, '&quot;') + '">' + preview + '</span>';
-                    html += '<button class="shortcut-use" data-idx="' + idx + '" style="font-size:10px; padding:2px 8px; background:var(--color-primary); color:#fff; border:none; border-radius:3px; cursor:pointer;">Use</button>';
-                    html += '<button class="shortcut-del" data-idx="' + idx + '" style="font-size:10px; padding:2px 6px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">×</button>';
+                    const preview = s.prompt.length > 80 ? s.prompt.substring(0, 80) + '...' : s.prompt;
+                    const escapedPrompt = s.prompt.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    html += '<div class="prompt-library-item" data-idx="' + idx + '" style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--color-border); font-size:13px; cursor:pointer;">';
+                    html += '<kbd style="min-width:80px; background:var(--color-bg-1); padding:2px 8px; border-radius:3px; font-size:11px; text-align:center;">/' + (s.name || 'sc' + idx) + '</kbd>';
+                    html += '<span style="flex:1; color:var(--color-text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + escapedPrompt + '">' + preview + '</span>';
+                    html += '<button class="btn btn--sm btn--secondary prompt-lib-use" data-idx="' + idx + '" style="padding:2px 10px; font-size:11px;">Use</button>';
+                    html += '<button class="btn btn--sm btn--secondary prompt-lib-edit" data-idx="' + idx + '" style="padding:2px 8px; font-size:11px;">✏️</button>';
+                    html += '<button class="btn btn--sm btn--danger prompt-lib-del" data-idx="' + idx + '" style="padding:2px 8px; font-size:11px;">×</button>';
                     html += '</div>';
                 });
-                menu.innerHTML = html;
-                document.body.appendChild(menu);
-                document.getElementById('closeShortcutMenu').onclick = () => menu.remove();
-                // Rename alias on blur
-                menu.querySelectorAll('.shortcut-alias').forEach(input => {
-                    input.onchange = () => {
-                        const idx = parseInt(input.dataset.idx);
-                        const newName = input.value.trim().replace(/[^a-zA-Z0-9_]/g, '');
-                        if (newName) {
-                            shortcuts[idx].name = newName;
-                            localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
-                            this.showStatus('Alias updated to /' + newName, 'success');
-                        }
-                    };
-                });
-                menu.querySelectorAll('.shortcut-use').forEach(btn => {
-                    btn.onclick = (e) => {
+                container.innerHTML = html;
+                this._bindPromptLibraryEvents(shortcuts);
+            }
+            _bindPromptLibraryEvents(shortcuts) {
+                const container = document.getElementById('promptLibraryList');
+                if (!container) return;
+                // Use
+                container.querySelectorAll('.prompt-lib-use').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const idx = parseInt(btn.dataset.idx);
                         this.messageInput.value = shortcuts[idx].prompt;
                         this.autoResizeTextarea();
                         this.updateTokenEstimate();
-                        menu.remove();
-                    };
+                        this.togglePopup('promptLibrary');
+                        this.messageInput.focus();
+                    });
                 });
-                menu.querySelectorAll('.shortcut-del').forEach(btn => {
-                    btn.onclick = (e) => {
+                // Edit
+                container.querySelectorAll('.prompt-lib-edit').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const idx = parseInt(btn.dataset.idx);
-                        shortcuts.splice(idx, 1);
-                        localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
-                        menu.remove();
-                        if (shortcuts.length > 0) this.showShortcutMenu(); // Re-open with updated list
-                        this.showStatus('Shortcut deleted', 'info');
-                    };
-                });
-                // Add help tip and Delete All button at bottom
-                const footer = document.createElement('div');
-                footer.style.cssText = 'margin-top:8px; padding-top:6px; border-top:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;';
-                footer.innerHTML = '<span style="font-size:10px; color:var(--color-text-secondary);">💡 /save &lt;prompt&gt; + Ctrl+Enter to save</span>' +
-                    '<button id="deleteAllShortcuts" style="font-size:10px; padding:2px 8px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">🗑 Delete All</button>';
-                menu.appendChild(footer);
-                document.getElementById('deleteAllShortcuts').onclick = () => {
-                    localStorage.setItem('saved_shortcuts', '[]');
-                    menu.remove();
-                    this.showStatus('All shortcuts deleted', 'info');
-                };
-                // Close on outside click
-                setTimeout(() => {
-                    document.addEventListener('click', function handler(e) {
-                        if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); }
+                        this._showPromptForm('edit', idx, shortcuts[idx]);
                     });
-                }, 100);
+                });
+                // Delete
+                container.querySelectorAll('.prompt-lib-del').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.idx);
+                        const name = shortcuts[idx].name || 'sc' + idx;
+                        if (confirm('Delete /' + name + '?')) {
+                            shortcuts.splice(idx, 1);
+                            this._saveShortcuts(shortcuts);
+                            this._renderPromptLibrary();
+                            this.showStatus('Shortcut /' + name + ' deleted', 'info');
+                        }
+                    });
+                });
+                // Click row to use
+                container.querySelectorAll('.prompt-library-item').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'BUTTON') return;
+                        const idx = parseInt(row.dataset.idx);
+                        this.messageInput.value = shortcuts[idx].prompt;
+                        this.autoResizeTextarea();
+                        this.updateTokenEstimate();
+                        this.togglePopup('promptLibrary');
+                        this.messageInput.focus();
+                    });
+                });
+            }
+            _showPromptForm(mode, idx, existing) {
+                const form = document.getElementById('promptLibraryForm');
+                const title = document.getElementById('promptLibraryFormTitle');
+                const aliasInput = document.getElementById('promptLibraryFormAlias');
+                const contentInput = document.getElementById('promptLibraryFormContent');
+                form.style.display = 'block';
+                if (mode === 'edit') {
+                    title.textContent = 'Edit Prompt';
+                    aliasInput.value = existing.name || '';
+                    contentInput.value = existing.prompt;
+                    form.dataset.editIdx = idx;
+                } else {
+                    title.textContent = 'Add Prompt';
+                    aliasInput.value = '';
+                    contentInput.value = '';
+                    delete form.dataset.editIdx;
+                }
+                aliasInput.focus();
+            }
+            _hidePromptForm() {
+                document.getElementById('promptLibraryForm').style.display = 'none';
+            }
+            _savePromptForm() {
+                const aliasInput = document.getElementById('promptLibraryFormAlias');
+                const contentInput = document.getElementById('promptLibraryFormContent');
+                const form = document.getElementById('promptLibraryForm');
+                let alias = aliasInput.value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+                if (!alias) alias = 'sc' + Date.now().toString(36);
+                const prompt = contentInput.value.trim();
+                if (!prompt) { this.showStatus('Prompt content required', 'error'); return; }
+                let shortcuts = this._getShortcuts();
+                const editIdx = form.dataset.editIdx !== undefined ? parseInt(form.dataset.editIdx) : -1;
+                // Check for duplicate alias (excluding current edit)
+                const dupIdx = shortcuts.findIndex((s, i) => s.name === alias && i !== editIdx);
+                if (dupIdx >= 0 && editIdx < 0) {
+                    if (!confirm('Alias /' + alias + ' already exists. Overwrite?')) return;
+                    shortcuts[dupIdx] = { name: alias, prompt: prompt };
+                } else if (editIdx >= 0) {
+                    shortcuts[editIdx] = { name: alias, prompt: prompt };
+                } else {
+                    shortcuts.push({ name: alias, prompt: prompt });
+                }
+                this._saveShortcuts(shortcuts);
+                this._hidePromptForm();
+                this._renderPromptLibrary();
+                this.showStatus('Prompt /' + alias + ' saved!', 'success');
+            }
+            _promptLibraryExport() {
+                const shortcuts = this._getShortcuts();
+                if (shortcuts.length === 0) {
+                    this.showStatus('No prompts to export', 'info');
+                    return;
+                }
+                let md = '# Prompt Library Export\n\n';
+                shortcuts.forEach(s => {
+                    md += '---\n## /' + (s.name || 'untitled') + '\n' + s.prompt + '\n\n';
+                });
+                const blob = new Blob([md], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'prompt-library-' + new Date().toISOString().slice(0, 10) + '.md';
+                a.click();
+                URL.revokeObjectURL(url);
+                this.showStatus('Exported ' + shortcuts.length + ' prompts to .md', 'success');
+            }
+            _promptLibraryImport(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    let shortcuts = this._getShortcuts();
+                    let imported = [];
+                    // Try JSON first
+                    try {
+                        const json = JSON.parse(text);
+                        if (Array.isArray(json)) {
+                            imported = json.map(s => typeof s === 'string' ? { name: '', prompt: s } : s);
+                        }
+                    } catch {
+                        // Parse markdown: ## /alias\ncontent\n---\n...
+                        const blocks = text.split(/^---/m);
+                        blocks.forEach(block => {
+                            const match = block.match(/^##\s*\/?(\S+)\s*\n([\s\S]*)/m);
+                            if (match) {
+                                imported.push({ name: match[1].trim(), prompt: match[2].trim() });
+                            } else {
+                                const trimmed = block.trim();
+                                if (trimmed && !trimmed.startsWith('# ') && trimmed.length > 5) {
+                                    imported.push({ name: '', prompt: trimmed });
+                                }
+                            }
+                        });
+                    }
+                    if (imported.length === 0) {
+                        this.showStatus('No prompts found in file', 'error');
+                        return;
+                    }
+                    let added = 0, updated = 0;
+                    imported.forEach(s => {
+                        s.name = (s.name || '').replace(/[^a-zA-Z0-9_]/g, '');
+                        if (!s.name) s.name = 'sc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+                        const existing = shortcuts.findIndex(x => x.name === s.name);
+                        if (existing >= 0) {
+                            shortcuts[existing].prompt = s.prompt;
+                            updated++;
+                        } else {
+                            shortcuts.push({ name: s.name, prompt: s.prompt });
+                            added++;
+                        }
+                    });
+                    this._saveShortcuts(shortcuts);
+                    this._renderPromptLibrary();
+                    this.showStatus('Imported: ' + added + ' new, ' + updated + ' updated', 'success');
+                };
+                reader.readAsText(file);
             }
             saveShortcutPrompt(text) {
                 // Parse: /save <prompt> /<alias>
@@ -5455,7 +5657,7 @@
                 this.updateLockButton();
             }
             togglePopup(type) { /* ... same ... */
-                const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
+                const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme', 'promptLibrary'];
                 popups.forEach(p => { if (p !== type) document.getElementById(`${p}Popup`).classList.add('hidden'); });
                 const popup = document.getElementById(`${type}Popup`);
                 if (popup) {
