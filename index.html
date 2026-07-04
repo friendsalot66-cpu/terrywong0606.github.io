@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v4.0.1)</title>
+    <title>Multi-API Chat Interface (v4.0.2)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"
@@ -1874,7 +1874,7 @@
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v4.0.1</small></h1>
+                        <h1>Multi-API Chat Interface<small>v4.0.2</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -2331,7 +2331,7 @@
                     </div>
                 </div>
                 <div class="readme-footer">
-                    <p style="margin:0;">Multi-API Chat Interface v4.0.1</p>
+                    <p style="margin:0;">Multi-API Chat Interface v4.0.2</p>
                 </div>
             </div>
             <div id="readmeDetailView" class="feature-detail-view">
@@ -6220,8 +6220,10 @@
                     if (e.name === 'AbortError') {
                         // Stopped by user, do nothing special
                     } else {
-                        this.showStatus('Error: ' + e.message, 'error');
-                        _sessionMessages.push({ role: 'assistant', content: 'Error: ' + e.message });
+                        console.error('[API Error]', effModel, effAPI, e.message);
+                        const errText = e.message || 'Unknown error';
+                        this.showStatus('Error: ' + errText.split('\n')[0], 'error');
+                        _sessionMessages.push({ role: 'assistant', content: `${errText}`, timestamp: new Date(), modelUsed: effModel });
                         this.renderMessages();
                     }
                 } finally {
@@ -6568,7 +6570,31 @@
                 const d = await res.json();
 
                 // Protocol-aware response parsing
-                return this._parseApiResponse(d, _protocol);
+                const parsed = this._parseApiResponse(d, _protocol);
+
+                // Detect silent empty response — model returned 200 with no content
+                if (!parsed.content || parsed.content.trim() === '') {
+                    const finishReason = d.choices?.[0]?.finish_reason || 'unknown';
+                    const hasChoices = !!d.choices;
+                    const errorHint = d.error ? JSON.stringify(d.error) : '';
+                    const diagInfo = [
+                        `⚠️ Model returned empty response (HTTP 200 OK)`,
+                        ``,
+                        `Provider: ${effModel} (${effAPI})`,
+                        `Endpoint: ${apiUrl}`,
+                        `Finish reason: "${finishReason}"`,
+                        `Has choices: ${hasChoices}`,
+                        errorHint ? `Error field: ${errorHint}` : '',
+                        ``,
+                        `👉 This is usually a model-side issue. Try:`,
+                        `• Switch to a different model`,
+                        `• Simplify your prompt`,
+                        `• Check provider status`
+                    ].filter(Boolean).join('\n');
+                    throw new Error(diagInfo);
+                }
+
+                return parsed;
             }
 
             buildMessagesForAPI(pre) {
@@ -6916,6 +6942,24 @@
                     }
 
                     assistantMessage.isStreaming = false;
+
+                    // Detect silent empty stream — stream completed but no tokens received
+                    const _rawContent = assistantMessage.content.replace(/^[^\n]*\n?(?:Error: |)/, '').trim();
+                    if (!_rawContent && !assistantMessage.images?.length) {
+                        const diagInfo = [
+                            `⚠️ Stream completed with no content (HTTP 200 OK)`,
+                            ``,
+                            `Provider: ${effModel} (${effAPI})`,
+                            `Endpoint: ${apiUrl}`,
+                            ``,
+                            `👉 This is usually a model-side issue. The server accepted the request but produced zero tokens.`,
+                            `• Try switching to a different model`,
+                            `• Simplify your prompt`,
+                            `• Check provider status`
+                        ].join('\n');
+                        assistantMessage.content = pre ? pre + '\n' + diagInfo : diagInfo;
+                        console.error('[Empty Stream]', diagInfo.replace(/\n/g, ' | '));
+                    }
 
                     // AUTO-COLLAPSE TOOL BLOCKS
                     let finalContent = assistantMessage.content;
