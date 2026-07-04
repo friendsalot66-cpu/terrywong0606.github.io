@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v4.0.2)</title>
+    <title>Multi-API Chat Interface (v4.0.3)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"
@@ -1874,7 +1874,7 @@
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small>v4.0.2</small></h1>
+                        <h1>Multi-API Chat Interface<small>v4.0.3</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: Sonar</span>
                             <span>|</span>
@@ -2331,7 +2331,7 @@
                     </div>
                 </div>
                 <div class="readme-footer">
-                    <p style="margin:0;">Multi-API Chat Interface v4.0.2</p>
+                    <p style="margin:0;">Multi-API Chat Interface v4.0.3</p>
                 </div>
             </div>
             <div id="readmeDetailView" class="feature-detail-view">
@@ -4296,6 +4296,10 @@
                                 const choice = data.choices?.[0];
                                 const message = choice?.message || {};
                                 let content = message.content || '';
+                                // Fallback: FreeTheAI et al. use reasoning_content when content is empty (non-streaming)
+                                if (!content && message.reasoning_content) {
+                                    content = message.reasoning_content;
+                                }
                                 let images = [];
                                 // Handle array content with image_url blocks (e.g. gpt-image-2, gpt-4o image gen)
                                 if (Array.isArray(message.content)) {
