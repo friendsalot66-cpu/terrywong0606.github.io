@@ -1086,6 +1086,21 @@
             /* Smaller X */
         }
 
+        .fab-nav-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+            opacity: 0;
+            margin-bottom: 6px;
+        }
+        .fab-area:hover .fab-nav-btn { opacity: 0.5; }
+        .fab-nav-btn:hover {
+            opacity: 1 !important;
+            background: var(--color-primary) !important;
+            color: white !important;
+            border-color: var(--color-primary) !important;
+        }
+
         @keyframes pulse {
             0% {
                 transform: scale(1);
@@ -1121,6 +1136,28 @@
             border-color: var(--color-success);
             color: var(--color-success);
             background: var(--color-bg-3);
+        }
+
+        .code-block-truncated pre { max-height: 18em; overflow: hidden; position: relative; }
+        .code-block-truncated pre::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 3em;
+            background: linear-gradient(transparent, var(--color-surface));
+            pointer-events: none;
+        }
+        .code-show-more-btn {
+            display: block; width: 100%;
+            padding: 8px; margin-top: 0;
+            background: var(--color-secondary);
+            border: none; border-radius: 0 0 6px 6px;
+            color: var(--color-text-secondary);
+            font-size: 12px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .code-show-more-btn:hover {
+            background: var(--color-primary);
+            color: white;
         }
 
         /* Heartbeat Dot */
@@ -1907,6 +1944,8 @@
 
                 <!-- FAB: Clear Chat (Lower corner) -->
                 <div class="fab-area">
+                    <button class="fab-btn fab-nav-btn" id="navUpBtn" title="Previous User Prompt">⬆</button>
+                    <button class="fab-btn fab-nav-btn" id="navDownBtn" title="Next User Prompt">⬇</button>
                     <button class="fab-btn" id="clearChatBtn" title="Clear Current Chat">🗑️</button>
                 </div>
             </div>
@@ -3678,6 +3717,8 @@
                 this.pplxEndDate = document.getElementById('pplxEndDate');
 
                 this.clearChatBtn = document.getElementById('clearChatBtn');
+                this.navUpBtn = document.getElementById('navUpBtn');
+                this.navDownBtn = document.getElementById('navDownBtn');
                 this.runStorageDoctorBtn = document.getElementById('runStorageDoctorBtn');
 
                 // New Iframe Buttons
@@ -4502,6 +4543,8 @@
                 }
 
                 this.clearChatBtn.addEventListener('click', () => this.handleFabClick());
+                this.navUpBtn.addEventListener('click', () => this.scrollToAdjacentUserPrompt('up'));
+                this.navDownBtn.addEventListener('click', () => this.scrollToAdjacentUserPrompt('down'));
                 this._tokenDebounce = null;
 
                 // Prompt Library UI bindings
@@ -4900,7 +4943,7 @@
             }
             createNewSession() {
                 const id = Date.now().toString();
-                this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {}, isLocked: false, lockedModel: null, lockedAPI: null };
+                this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {}, isLocked: false, lockedModel: null, lockedAPI: null, lockedPersona: null };
                 this.switchSession(id);
                 // Save immediately to ensure tab persists on reload even if empty
                 this.autoSaveChat();
@@ -4942,6 +4985,25 @@
                 this.clearChatBtn.textContent = '🗑️';
                 this.clearChatBtn.classList.remove('confirm-state');
                 this.clearConfirmTimer = null;
+            }
+
+            scrollToAdjacentUserPrompt(direction) {
+                const userMsgs = this.messagesContainer.querySelectorAll('.message.user');
+                if (!userMsgs.length) return;
+                const scrollContainer = this.messagesContainer.closest('.chat-container') || this.messagesContainer;
+                const containerRect = scrollContainer.getBoundingClientRect();
+                const elems = Array.from(userMsgs);
+                if (direction === 'up') {
+                    // Find the last user message whose top is above the viewport (not visible)
+                    const above = elems.filter(el => el.getBoundingClientRect().top < containerRect.top - 5).reverse();
+                    if (above.length) { above[0].scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+                    if (elems.length) elems[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    // Find the first user message whose top is below the viewport
+                    const below = elems.filter(el => el.getBoundingClientRect().top > containerRect.bottom + 5);
+                    if (below.length) { below[0].scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+                    if (elems.length) elems[elems.length-1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
 
             performClear() {
@@ -5029,7 +5091,7 @@
                     editBtn.onclick = () => this.enableMessageEditing(index); actionsEl.appendChild(editBtn);
                 }
                 const copyBtn = document.createElement('button'); copyBtn.className = 'msg-btn'; copyBtn.innerHTML = '📋'; copyBtn.title = 'Copy';
-                copyBtn.onclick = () => this.copyMessage(message.content); actionsEl.appendChild(copyBtn);
+                copyBtn.onclick = () => this.copyMessage(this._filterVisibleContent(message.content)); actionsEl.appendChild(copyBtn);
                 headerEl.appendChild(actionsEl);
 
                 const contentEl = document.createElement('div');
@@ -5062,7 +5124,7 @@
                                                 }
 
                         const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📤'; exportBtn.title = 'Export Message';
-                        exportBtn.onclick = () => this.exportMessageToWindow(message.content);
+                        exportBtn.onclick = () => this.exportMessageToWindow(this._filterVisibleContent(message.content));
                         messageEl.appendChild(exportBtn);
                         const forkBtn = document.createElement('button'); forkBtn.className = 'message-fork-btn'; forkBtn.innerHTML = '🌿'; forkBtn.title = 'Fork Conversation';
                         forkBtn.onclick = () => this.forkConversation(index);
@@ -5099,7 +5161,7 @@
                 const currentRefs = { ...this.references };
                 const id = Date.now().toString();
                 const newName = `Fork of ${this.sessions[this.activeSessionId].name}`;
-                this.sessions[id] = { id: id, name: newName, messages: JSON.parse(JSON.stringify(currentMsgs)), references: currentRefs, isLocked: false, lockedModel: null, lockedAPI: null };
+                this.sessions[id] = { id: id, name: newName, messages: JSON.parse(JSON.stringify(currentMsgs)), references: currentRefs, isLocked: false, lockedModel: null, lockedAPI: null, lockedPersona: null };
                 this.switchSession(id);
                 this.showStatus('Conversation Forked', 'success');
             }
@@ -5111,6 +5173,9 @@
                 const win = window.open('', '_blank');
                 if (!win) return;
                 win.document.title = "Conversation Export";
+
+                // Escape raw markdown for safe embedding in JS string
+                const escapedMD = processedContent.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 
                 const fullHTML = `
                     <html>
@@ -5126,6 +5191,7 @@
                             .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px; }
                             .btn-secondary { background: #6c757d; }
                             .btn-success { background: #28a745; }
+                            .btn-md { background: #6f42c1; }
                             @media print { .btn, #controls { display: none; } }
                         </style>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
@@ -5138,9 +5204,11 @@
                             <button class="btn btn-success" onclick="downloadPDF()">📄 Download PDF</button>
                             <button class="btn" onclick="window.print()">Print / Save as PDF</button>
                             <button class="btn btn-secondary" onclick="downloadAsWord()">Download as Word</button>
+                            <button class="btn btn-md" onclick="downloadMD()">📝 Download as Markdown (.md)</button>
                         </div>
                         <div id="content">${htmlContent}</div>
                         <script>
+                            const RAW_MARKDOWN = \`${escapedMD}\`;
                             function downloadPDF() {
                                 if (typeof html2pdf === 'undefined') { alert('PDF library loading, try again in a moment.'); return; }
                                 const el = document.getElementById('content');
@@ -5163,6 +5231,18 @@
                                 fileDownload.download = 'conversation.doc';
                                 fileDownload.click();
                                 document.body.removeChild(fileDownload);
+                            }
+                            function downloadMD() {
+                                var mdContent = '# Conversation Export\\n\\n' + RAW_MARKDOWN;
+                                var blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+                                var url = URL.createObjectURL(blob);
+                                var a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'conversation_export.md';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
                             }
                         <\/script>
                     </body>
@@ -5245,12 +5325,20 @@
                     if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
                     const language = langClass ? langClass.replace('language-', '') : 'text';
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
-                    return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
+                    const lines = code.split('\n');
+                    const isTruncated = lines.length > 10;
+                    const truncatedClass = isTruncated ? ' code-block-truncated' : '';
+                    const showMoreBtn = isTruncated ? `<button class="code-show-more-btn" onclick="toggleCodeBlock(this,'${codeId}')">Show more (${lines.length - 10} more lines) ▾</button>` : '';
+                    return `<div class="code-block${truncatedClass}"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre>${showMoreBtn}</div>`;
                 });
                 // Also catch plain <pre><code> blocks without a class attribute
                 html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
                     const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
-                    return `<div class="code-block"><div class="code-header"><span class="code-language">text</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}">${code}</code></pre></div>`;
+                    const lines = code.split('\n');
+                    const isTruncated = lines.length > 10;
+                    const truncatedClass = isTruncated ? ' code-block-truncated' : '';
+                    const showMoreBtn = isTruncated ? `<button class="code-show-more-btn" onclick="toggleCodeBlock(this,'${codeId}')">Show more (${lines.length - 10} more lines) ▾</button>` : '';
+                    return `<div class="code-block${truncatedClass}"><div class="code-header"><span class="code-language">text</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}">${code}</code></pre>${showMoreBtn}</div>`;
                 });
                 if (this.showReferences) html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
                 else html = html.replace(/\[\d+\]/g, '');
@@ -5606,6 +5694,26 @@
             }
 
             /**
+             * Get the effective persona ID for the current (active) session.
+             * If the session is locked and has a lockedPersona, returns that; otherwise currentPersona.
+             */
+            get effectivePersona() {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedPersona) {
+                    return session.lockedPersona;
+                }
+                return this.currentPersona;
+            }
+
+            /**
+             * Get the effective persona system prompt for the current (active) session.
+             */
+            get effectivePersonaPrompt() {
+                const personaId = this.effectivePersona;
+                return this.personas[personaId]?.prompt || this.savedPersonas[personaId]?.prompt || '';
+            }
+
+            /**
              * Get the effective API for the current (active) session.
              * If the session is locked, returns lockedAPI; otherwise returns global currentAPI.
              */
@@ -5620,7 +5728,7 @@
             updateHeaderStatus() {
                 let modelName = this.effectiveModel;
                 this.modelStatus.textContent = `Model: ${modelName}`;
-                this.personaStatus.textContent = `Persona: ${this.personas[this.currentPersona]?.name || 'Unknown'}`;
+                this.personaStatus.textContent = `Persona: ${this.personas[this.effectivePersona]?.name || 'Unknown'}`;
             }
             updateTokenConfigUI() {
                 this.maxTokensSlider.value = this.maxTokens;
@@ -5636,11 +5744,11 @@
                 const session = this.sessions[this.activeSessionId];
                 if (session && session.isLocked) {
                     this.lockToggle.textContent = '🔒';
-                    this.lockToggle.title = 'Unlock Model for This Tab';
+                    this.lockToggle.title = 'Unlock Model & Persona for This Tab';
                     this.lockToggle.classList.add('locked');
                 } else {
                     this.lockToggle.textContent = '🔓';
-                    this.lockToggle.title = 'Lock Model for This Tab';
+                    this.lockToggle.title = 'Lock Model & Persona for This Tab';
                     this.lockToggle.classList.remove('locked');
                 }
             }
@@ -5651,14 +5759,19 @@
                 if (session.isLocked) {
                     session.lockedModel = this.currentModel;
                     session.lockedAPI = this.currentAPI;
-                    this.showStatus('Model locked for this tab', 'info');
+                    session.lockedPersona = this.currentPersona;
+                    this.showStatus('Model & persona locked for this tab', 'info');
                 } else {
                     session.lockedModel = null;
                     session.lockedAPI = null;
-                    this.showStatus('Model unlocked', 'info');
+                    session.lockedPersona = null;
+                    this.showStatus('Model & persona unlocked', 'info');
                 }
                 this.autoSaveChat();
                 this.updateLockButton();
+                this.updateHeaderStatus();
+                // Re-render persona options with effectivePersona
+                this.updatePersonaOptions();
             }
             togglePopup(type) { /* ... same ... */
                 const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme', 'promptLibrary'];
@@ -5892,13 +6005,20 @@
                 this.toggleImageModeUI();
             }
             setPersona(p) {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedPersona) {
+                    this.showStatus('Persona is locked for this tab — unlock first', 'warning');
+                    // Update UI to reflect locked persona, not the new selection
+                    this.updatePersonaOptions();
+                    return;
+                }
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
                 const isStd = ['allrounder', 'excel', 'grammar', 'auditor'].includes(p);
                 const cs = document.getElementById('customPromptSection');
                 if (!isStd) { cs.classList.remove('hidden'); const d = this.personas[p]; if (d) { document.getElementById('customPersonaName').value = d.name; document.getElementById('customPrompt').value = d.prompt; } }
                 else cs.classList.add('hidden');
             }
-            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.effectivePersona)); }
             stopGeneration() {
                 const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
                 if (ac) {
@@ -6107,13 +6227,20 @@
                 this.toggleImageModeUI();
             }
             setPersona(p) {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedPersona) {
+                    this.showStatus('Persona is locked for this tab — unlock first', 'warning');
+                    // Update UI to reflect locked persona, not the new selection
+                    this.updatePersonaOptions();
+                    return;
+                }
                 this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
                 const isStd = ['allrounder', 'excel', 'grammar', 'auditor'].includes(p);
                 const cs = document.getElementById('customPromptSection');
                 if (!isStd) { cs.classList.remove('hidden'); const d = this.personas[p]; if (d) { document.getElementById('customPersonaName').value = d.name; document.getElementById('customPrompt').value = d.prompt; } }
                 else cs.classList.add('hidden');
             }
-            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.effectivePersona)); }
             stopGeneration() {
                 const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
                 if (ac) {
@@ -6602,7 +6729,7 @@
             }
 
             buildMessagesForAPI(pre) {
-                let sys = this.personas[this.currentPersona]?.prompt || '';
+                let sys = this.effectivePersonaPrompt;
                 const effAPI = this.effectiveAPI;
 
                 // Inject No-Search Instruction if disabled
@@ -7183,7 +7310,7 @@
             async loadChat(id) {
                 const fullChat = await this.storageManager.getChat(id);
                 if (fullChat) {
-                    this.sessions[id] = { id, name: fullChat.name, messages: fullChat.messages, references: fullChat.references, isLocked: fullChat.isLocked || false, lockedModel: fullChat.lockedModel || null, lockedAPI: fullChat.lockedAPI || null };
+                    this.sessions[id] = { id, name: fullChat.name, messages: fullChat.messages, references: fullChat.references, isLocked: fullChat.isLocked || false, lockedModel: fullChat.lockedModel || null, lockedAPI: fullChat.lockedAPI || null, lockedPersona: fullChat.lockedPersona || null };
                     this.switchSession(id);
                 } else {
                     this.showStatus('Error loading chat', 'error');
@@ -7481,7 +7608,8 @@
                     timestamp: Date.now(),
                     isLocked: session.isLocked || false,
                     lockedModel: session.lockedModel || null,
-                    lockedAPI: session.lockedAPI || null
+                    lockedAPI: session.lockedAPI || null,
+                    lockedPersona: session.lockedPersona || null
                 };
                 try {
                     await this.storageManager.saveChat(chatObj);
@@ -7513,8 +7641,13 @@
                 this.showStatus('Chat Saved', 'success');
             }
 
+            // Strip <think> blocks and tool-call text from content for copy/export
+            _filterVisibleContent(text) {
+                return String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            }
+
             copyMessage(text) {
-                let contentToCopy = text;
+                let contentToCopy = this._filterVisibleContent(text);
                 if (!this.showReferences) {
                     contentToCopy = contentToCopy.replace(/\[\d+\]/g, '');
                 }
@@ -7631,6 +7764,21 @@
                     btn.classList.remove('success');
                 }, 2000);
             });
+        };
+
+        window.toggleCodeBlock = function (btn, codeId) {
+            const block = btn.parentElement;
+            const isExpanded = block.classList.contains('code-block-expanded');
+            if (isExpanded) {
+                block.classList.remove('code-block-expanded');
+                block.classList.add('code-block-truncated');
+                const lines = document.getElementById(codeId).textContent.split('\n').length;
+                btn.textContent = `Show more (${lines - 10} more lines) ▾`;
+            } else {
+                block.classList.remove('code-block-truncated');
+                block.classList.add('code-block-expanded');
+                btn.textContent = 'Show less ▴';
+            }
         };
 
         document.addEventListener('DOMContentLoaded', () => {
