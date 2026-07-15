@@ -1086,19 +1086,39 @@
             /* Smaller X */
         }
 
-        .fab-nav-btn {
-            width: 28px;
-            height: 28px;
-            font-size: 12px;
-            opacity: 0;
-            margin-bottom: 6px;
+        /* Chat navigation — center-bottom, parallel to delete */
+        .chat-nav-area {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            pointer-events: none;
+            z-index: 20;
         }
-        .fab-area:hover .fab-nav-btn { opacity: 0.5; }
-        .fab-nav-btn:hover {
-            opacity: 1 !important;
-            background: var(--color-primary) !important;
-            color: white !important;
-            border-color: var(--color-primary) !important;
+        .chat-nav-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-sm);
+            font-size: 14px;
+            cursor: pointer;
+            pointer-events: auto;
+            opacity: 0.5;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-nav-btn:hover {
+            opacity: 1;
+            background: var(--color-secondary);
+            color: white;
+            border-color: var(--color-primary);
         }
 
         @keyframes pulse {
@@ -1943,11 +1963,15 @@
                 </div>
 
                 <!-- FAB: Clear Chat (Lower corner) -->
-                <div class="fab-area">
-                    <button class="fab-btn fab-nav-btn" id="navUpBtn" title="Previous User Prompt">⬆</button>
-                    <button class="fab-btn fab-nav-btn" id="navDownBtn" title="Next User Prompt">⬇</button>
-                    <button class="fab-btn" id="clearChatBtn" title="Clear Current Chat">🗑️</button>
-                </div>
+                    <div class="fab-area">
+                        <button class="fab-btn" id="clearChatBtn" title="Clear Current Chat">🗑️</button>
+                    </div>
+
+                    <!-- Chat Navigation (Center bottom) -->
+                    <div class="chat-nav-area">
+                        <button class="chat-nav-btn" id="navUpBtn" title="Previous User Prompt">⬆</button>
+                        <button class="chat-nav-btn" id="navDownBtn" title="Next User Prompt">⬇</button>
+                    </div>
             </div>
 
             <!-- Input Area -->
