@@ -1,0 +1,2598 @@
+tNamedChats());
+
+                // Persona Export/Import Listeners
+                this.exportPersonasBtn.addEventListener('click', () => this.exportPersonas());
+                this.importPersonasBtn.addEventListener('click', () => this.importPersonasInput.click());
+                this.importPersonasInput.addEventListener('change', (e) => this.importPersonas(e));
+
+                this.addToolBtn.addEventListener('click', () => this.addTool());
+                this.addLinkBtn.addEventListener('click', () => this.addLink());
+
+                this.maxTokensSlider.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
+                this.maxTokensInput.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
+                this.runStorageDoctorBtn.addEventListener('click', () => this.runStorageDoctor());
+                this.reqStorageAccessBtn.addEventListener('click', async () => {
+                    const granted = await this.storageManager.ensureStorageAccess();
+                    if (granted) {
+                        this.showStatus('Storage Access Granted!', 'success');
+                        this.initData(); // Reload
+                    } else {
+                        alert('Storage access denied by browser policy. Please open in a new tab.');
+                    }
+                });
+
+                document.getElementById('closeReferencePopup').addEventListener('click', () => this.referencePopup.classList.add('hidden'));
+                document.getElementById('openReference').addEventListener('click', () => this.openReference());
+                document.getElementById('copyReference').addEventListener('click', () => this.copyReference());
+
+                document.addEventListener('mouseup', (e) => this.handleTextSelection(e));
+                this.selectionTooltip.addEventListener('click', () => this.openRevisionPopup());
+                this.cancelRevisionBtn.addEventListener('click', () => this.closeRevisionPopup());
+                this.saveRevisionBtn.addEventListener('click', () => this.saveRevision());
+                document.addEventListener('click', (e) => this.handleOutsideClick(e));
+                document.querySelectorAll('.popup-content').forEach(c => c.addEventListener('click', e => e.stopPropagation()));
+
+                document.querySelectorAll('.feature-card').forEach(card => {
+                    card.addEventListener('click', () => this.showReadmeDetail(card.dataset.feature));
+                });
+                this.readmeBackBtn.addEventListener('click', () => this.showReadmeMain());
+
+                // --- Recency Info Icon Click ---
+                document.getElementById('recencyInfoIcon').addEventListener('click', () => {
+                    alert("Month, Week, and Day filters use the native Perplexity API parameter.\n\nYear and Custom Range filters are implemented by injecting specific instructions into the System Prompt to guide the model's search and generation, as the API does not natively support them.");
+                });
+
+                this.folderInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const name = this.storageManager.handleLegacySelection(e.target.files);
+                        document.getElementById('workspaceStatus').textContent = "Workspace: " + name + " (Legacy Mode)";
+                        this.showStatus('Workspace Set (Legacy)', 'success');
+                    }
+                });
+
+                // ===== NEW PROVIDER EVENT LISTENERS =====
+
+                // Custom Provider Add Button
+                const addProviderBtn = document.getElementById('addCustomProviderBtn');
+                if (addProviderBtn) {
+                    addProviderBtn.addEventListener('click', () => this.openAddProviderModal());
+                }
+
+                // CORS Proxy Save Button
+                const corsProxySaveBtn = document.getElementById('saveCorsProxyBtn');
+                if (corsProxySaveBtn) {
+                    corsProxySaveBtn.addEventListener('click', () => {
+                        const url = document.getElementById('corsProxyUrl').value.trim();
+                        this.corsProxyUrl = url;
+                        localStorage.setItem('cors_proxy_url', url);
+                        this.showStatus(url ? 'Proxy URL saved' : 'Proxy disabled', 'success');
+                    });
+                }
+
+                // NVIDIA NIM Fetch Models Button
+                const fetchNimModelsBtn = document.getElementById('fetchNimModelsBtn');
+                if (fetchNimModelsBtn) {
+                    fetchNimModelsBtn.addEventListener('click', async () => {
+                        const apiKey = this.apiKeys.nvidia || '';
+                        if (!apiKey) { this.showStatus('Enter NVIDIA API key first', 'error'); return; }
+                        if (!this.corsProxyUrl) { this.showStatus('CORS Proxy URL required for NVIDIA', 'error'); return; }
+                        fetchNimModelsBtn.textContent = '⏳ Loading...';
+                        fetchNimModelsBtn.disabled = true;
+                        try {
+                            const models = await this.fetchModelsForProvider('nvidia');
+                            if (models && models.length > 0) {
+                                this.renderFetchedModelList('nimModelList', 'nimModelCount', 'nimModelSearch', models, 'nvidia');
+                                document.getElementById('nimFetchedModelsContainer').classList.remove('hidden');
+                            }
+                        } catch (e) {
+                            this.showStatus('Failed: ' + e.message, 'error');
+                        } finally {
+                            fetchNimModelsBtn.textContent = '🔄 Fetch Models';
+                            fetchNimModelsBtn.disabled = false;
+                        }
+                    });
+                }
+
+                // NVIDIA NIM Model Search
+                const nimModelSearch = document.getElementById('nimModelSearch');
+                if (nimModelSearch) {
+                    nimModelSearch.addEventListener('input', () => {
+                        this.filterModelList(nimModelSearch, document.getElementById('nimModelList'), document.getElementById('nimModelCount'));
+                    });
+                }
+
+                // OpenRouter Fetch Models Button
+                const fetchOpenrouterModelsBtn = document.getElementById('fetchOpenrouterModelsBtn');
+                if (fetchOpenrouterModelsBtn) {
+                    fetchOpenrouterModelsBtn.addEventListener('click', async () => {
+                        let apiKey = this.apiKeys.openrouter || '';
+                        const orKeyInput = document.getElementById('openrouterApiKey');
+                        if (orKeyInput && orKeyInput.value.trim()) apiKey = orKeyInput.value.trim();
+                        fetchOpenrouterModelsBtn.textContent = '⏳ Loading...';
+                        fetchOpenrouterModelsBtn.disabled = true;
+                        try {
+                            const provider = this.providerRegistry.openrouter;
+                            const models = await provider.fetchModels(apiKey);
+                            if (models && models.length > 0) {
+                                // OpenRouter returns objects with {id, name, context_length}
+                                this.renderFetchedModelList('openrouterModelList', 'openrouterModelCount', 'openrouterModelSearch', models, 'openrouter', true);
+                                document.getElementById('openrouterFetchedModelsContainer').classList.remove('hidden');
+                                this.showStatus(`Loaded ${models.length} OpenRouter models`, 'success');
+                            } else {
+                                this.showStatus('No models returned', 'error');
+                            }
+                        } catch (e) {
+                            this.showStatus('Failed: ' + e.message, 'error');
+                        } finally {
+                            fetchOpenrouterModelsBtn.textContent = '🔄 Fetch Models';
+                            fetchOpenrouterModelsBtn.disabled = false;
+                        }
+                    });
+                }
+
+                // OpenRouter Model Search
+                const openrouterModelSearch = document.getElementById('openrouterModelSearch');
+                if (openrouterModelSearch) {
+                    openrouterModelSearch.addEventListener('input', () => {
+                        this.filterModelList(openrouterModelSearch, document.getElementById('openrouterModelList'), document.getElementById('openrouterModelCount'));
+                    });
+                }
+
+                // NVIDIA Reasoning Toggle
+                const nimReasoningToggle = document.getElementById('nimReasoningToggle');
+                if (nimReasoningToggle) {
+                    nimReasoningToggle.addEventListener('change', (e) => {
+                        this.nimSettings.reasoning = e.target.checked;
+                        this.saveNimSettings();
+                    });
+                }
+            }
+
+            async runStorageDoctor() {
+                const resEl = document.getElementById('storageDoctorResult');
+                resEl.style.display = 'block';
+                resEl.innerHTML = 'Scanning Database...';
+
+                try {
+                    const allData = await this.storageManager.dumpAllChats();
+                    const count = allData.length;
+                    let html = `<strong>Diagnosis Result:</strong><br>Found <b>${count}</b> saved chats in the hidden database.<br>`;
+
+                    if (count === 0) {
+                        html += `<span style="color:var(--color-error)">Database is empty. External cleanup likely occurred.</span>`;
+                    } else {
+                        html += `<span style="color:var(--color-success)">Data exists!</span><br><br>`;
+                        html += `<button class="btn btn--primary btn--sm" id="forceRestoreBtn">Force Restore All to Sidebar</button>`;
+                    }
+                    resEl.innerHTML = html;
+
+                    const btn = document.getElementById('forceRestoreBtn');
+                    if (btn) {
+                        btn.onclick = async () => {
+                            // Re-populate metadata cache
+                            this.savedChats = {};
+                            allData.forEach(c => this.savedChats[c.id] = c);
+                            // Render history
+                            this.renderChatHistory();
+                            // Load the most recent one to the active view
+                            if (allData.length > 0) {
+                                allData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                                this.loadChat(allData[0].id);
+                            }
+                            this.showStatus('Restored ' + count + ' chats', 'success');
+                            this.togglePopup('settings'); // Close settings
+                        };
+                    }
+                } catch (e) {
+                    resEl.innerHTML = `<span style="color:var(--color-error)">Error accessing DB: ${e.message}</span><br>If in iframe, try 'Connect Database' above.`;
+                }
+            }
+
+            updateRecencyUI() {
+                if (this.pplxRecency === 'custom') {
+                    this.pplxCustomDateContainer.classList.remove('hidden');
+                } else {
+                    this.pplxCustomDateContainer.classList.add('hidden');
+                }
+            }
+
+            handleWorkspaceClick() {
+                if (this.storageManager.useLegacyMode || typeof window.showDirectoryPicker !== 'function') {
+                    document.getElementById('folderInput').click();
+                } else {
+                    this.handleModernWorkspaceSelection();
+                }
+            }
+
+            forceLegacyWorkspace() {
+                this.storageManager.useLegacyMode = true;
+                document.getElementById('folderInput').click();
+            }
+
+            async handleModernWorkspaceSelection() {
+                const result = await this.storageManager.selectRootDirectory();
+                if (result === 'FALLBACK') {
+                    this.storageManager.useLegacyMode = true;
+                    alert("Standard picker unavailable. Please click the 'Use Legacy Picker' link below.");
+                } else if (result !== 'ABORT' && result) {
+                    document.getElementById('workspaceStatus').textContent = "Workspace: " + result;
+                    this.showStatus('Workspace Set', 'success');
+                }
+            }
+
+            showReadmeDetail(featureKey) { /* ... same ... */
+                const data = this.featureDetails[featureKey];
+                if (!data) return;
+                this.detailTitle.textContent = data.title;
+                this.detailContent.innerHTML = data.content;
+                this.readmeMainView.style.display = 'none';
+                this.readmeDetailView.classList.add('active');
+            }
+
+            showReadmeMain() {
+                this.readmeDetailView.classList.remove('active');
+                this.readmeMainView.style.display = 'block';
+            }
+
+            renderSavedPersonas() { /* ... same ... */
+                this.savedPersonasContainer.innerHTML = '';
+                const ids = Object.keys(this.savedPersonas);
+                if (ids.length === 0) {
+                    this.savedPersonasContainer.innerHTML = '<div style="font-size:11px; color:var(--color-text-secondary); padding:4px;">No saved personas yet.</div>';
+                    return;
+                }
+                ids.forEach(id => {
+                    const p = this.savedPersonas[id];
+                    const btn = document.createElement('button');
+                    btn.className = 'persona-option';
+                    if (this.currentPersona === id) btn.classList.add('active');
+                    btn.innerHTML = `<span>👤</span> ${p.name}`;
+
+                    const delBtn = document.createElement('span');
+                    delBtn.innerHTML = '×';
+                    delBtn.style.marginLeft = 'auto'; delBtn.style.padding = '2px 6px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'var(--color-text-secondary)';
+                    delBtn.onclick = (e) => { e.stopPropagation(); if (confirm('Delete persona?')) this.deleteSavedPersona(id); };
+                    btn.appendChild(delBtn);
+                    btn.onclick = (e) => { if (e.target === delBtn) return; this.setPersona(id); }
+                    this.savedPersonasContainer.appendChild(btn);
+                });
+            }
+
+            /* ... existing methods ... */
+            saveAsNewPersona() {
+                const name = document.getElementById('customPersonaName').value.trim();
+                const prompt = document.getElementById('customPrompt').value;
+                if (!name) return this.showStatus('Name required', 'warning');
+                const id = 'custom_' + Date.now();
+                const newPersona = { name, prompt };
+                this.savedPersonas[id] = newPersona; this.personas[id] = newPersona;
+                localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                this.renderSavedPersonas(); this.setPersona(id); this.showStatus('Persona Saved', 'success');
+            }
+            deleteSavedPersona(id) {
+                delete this.savedPersonas[id]; delete this.personas[id];
+                localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                if (this.currentPersona === id) this.setPersona('allrounder');
+                else this.renderSavedPersonas();
+            }
+            createNewSession() {
+                const id = Date.now().toString();
+                this.sessions[id] = { id: id, name: `Topic ${this.sessionCounter++}`, messages: [], references: {}, isLocked: false, lockedModel: null, lockedAPI: null };
+                this.switchSession(id);
+                // Save immediately to ensure tab persists on reload even if empty
+                this.autoSaveChat();
+                this.persistSessionState();
+            }
+            switchSession(id) {
+                // Refresh loading UI for the tab we're switching to
+                setTimeout(() => {
+                    const isThisTabLoading = this._sessionLoading && this._sessionLoading[id];
+                    if (isThisTabLoading) {
+                        this.sendMessage.textContent = '■';
+                        this.sendMessage.classList.add('stop');
+                    } else {
+                        this.sendMessage.textContent = '→';
+                        this.sendMessage.classList.remove('stop');
+                    }
+                }, 50);
+                if (!this.sessions[id]) return;
+                this.activeSessionId = id; this.messages = this.sessions[id].messages; this.references = this.sessions[id].references; this.currentChatId = id;
+                this.renderTabs(); this.renderMessages(); this.updateLockButton();
+                this.persistSessionState();
+            }
+
+            handleFabClick() {
+                if (this.clearConfirmTimer) {
+                    clearTimeout(this.clearConfirmTimer);
+                    this.clearConfirmTimer = null;
+                    this.resetFab();
+                    this.performClear();
+                } else {
+                    this.clearChatBtn.textContent = 'x';
+                    this.clearChatBtn.classList.add('confirm-state');
+                    this.clearConfirmTimer = setTimeout(() => this.resetFab(), 3000);
+                }
+            }
+
+            resetFab() {
+                this.clearChatBtn.textContent = '🗑️';
+                this.clearChatBtn.classList.remove('confirm-state');
+                this.clearConfirmTimer = null;
+            }
+
+            performClear() {
+                if (!this.activeSessionId || !this.sessions[this.activeSessionId]) return;
+                this.sessions[this.activeSessionId].messages = [];
+                this.sessions[this.activeSessionId].references = {};
+                this.messages = [];
+                this.references = {};
+                this.renderMessages();
+                this.autoSaveChat();
+                this.showStatus('Chat Cleared', 'info');
+            }
+
+            closeSession(id, e) {
+                if (e) e.stopPropagation();
+                if (Object.keys(this.sessions).length <= 1) {
+                    this.sessions[id].messages = []; this.sessions[id].references = {}; this.sessions[id].name = `Topic ${this.sessionCounter++}`;
+                    this.switchSession(id); return;
+                }
+                delete this.sessions[id];
+                if (this.activeSessionId === id) { const remainingIds = Object.keys(this.sessions); this.switchSession(remainingIds[remainingIds.length - 1]); }
+                else { this.renderTabs(); this.persistSessionState(); }
+            }
+            renderTabs() {
+                this.tabsBar.innerHTML = '';
+                Object.values(this.sessions).forEach(session => {
+                    const tab = document.createElement('div');
+                    tab.className = `tab ${session.id === this.activeSessionId ? 'active' : ''}`;
+                    tab.onclick = (e) => {
+                        if (e.target.classList.contains('tab-close') || e.target.classList.contains('tab-edit') || e.target.tagName === 'INPUT') return;
+                        this.switchSession(session.id);
+                    };
+                    const nameSpan = document.createElement('span'); nameSpan.className = 'tab-name'; nameSpan.textContent = session.name;
+                    const editBtn = document.createElement('span'); editBtn.className = 'tab-edit'; editBtn.innerHTML = '✎';
+                    editBtn.onclick = (e) => { e.stopPropagation(); this.startTabRenaming(session.id, nameSpan); };
+                    const closeBtn = document.createElement('span'); closeBtn.className = 'tab-close'; closeBtn.innerHTML = '×';
+                    closeBtn.onclick = (e) => this.closeSession(session.id, e);
+                    tab.append(nameSpan, editBtn, closeBtn);
+                    this.tabsBar.appendChild(tab);
+                });
+                const addBtn = document.createElement('div');
+                addBtn.className = 'tab tab-add-btn';
+                addBtn.innerHTML = '+';
+                addBtn.onclick = () => this.createNewSession();
+                this.tabsBar.appendChild(addBtn);
+            }
+            startTabRenaming(id, el) {
+                const input = document.createElement('input'); input.className = 'tab-name-input'; input.value = this.sessions[id].name;
+                input.onblur = () => this.saveTabName(id, input.value);
+                input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); };
+                el.innerHTML = ''; el.appendChild(input); input.focus();
+            }
+            saveTabName(id, newName) {
+                const name = newName.trim();
+                if (name) {
+                    this.sessions[id].name = name;
+                    this.autoSaveChat(); // Update DB
+                }
+                this.renderTabs(); this.renderChatHistory();
+            }
+
+            renderMessages() {
+                this.messagesContainer.innerHTML = '';
+                this.messages.forEach((msg, idx) => {
+                    this.messagesContainer.appendChild(this.createMessageElement(msg, idx));
+                });
+                this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+            }
+
+            createMessageElement(message, index) { /* ... same ... */
+                const messageEl = document.createElement('div');
+                messageEl.className = `message ${message.role}`;
+
+                const headerEl = document.createElement('div');
+                headerEl.className = 'message-header';
+                const roleEl = document.createElement('span');
+                roleEl.className = 'message-role';
+                roleEl.textContent = message.role === 'user' ? 'You' : 'Assistant';
+                headerEl.appendChild(roleEl);
+
+                const actionsEl = document.createElement('div');
+                actionsEl.className = 'msg-actions';
+                if (message.role === 'user') {
+                    const editBtn = document.createElement('button'); editBtn.className = 'msg-btn'; editBtn.innerHTML = '✎'; editBtn.title = 'Edit Prompt';
+                    editBtn.onclick = () => this.enableMessageEditing(index); actionsEl.appendChild(editBtn);
+                }
+                const copyBtn = document.createElement('button'); copyBtn.className = 'msg-btn'; copyBtn.innerHTML = '📋'; copyBtn.title = 'Copy';
+                copyBtn.onclick = () => this.copyMessage(message.content); actionsEl.appendChild(copyBtn);
+                headerEl.appendChild(actionsEl);
+
+                const contentEl = document.createElement('div');
+                contentEl.className = 'message-content';
+                if (message.image && message.role === 'user') {
+                    contentEl.innerHTML += `<img src="${message.image}" class="message-image" alt="User Image">`;
+                }
+                if (message.content) {
+                    if (message.role === 'assistant') {
+                        Object.assign(this.references, this.extractReferencesFromResponse(message));
+                    }
+                    contentEl.innerHTML += this.renderEnhancedMarkdown(message.content);
+                    if (message.isStreaming) contentEl.classList.add('streaming-cursor');
+
+                    if (message.role === 'assistant') {
+                        this.attachReferenceHandlers(contentEl);
+                        this.processHighcharts(contentEl);
+                        this.processTables(contentEl);
+                        if (window.mermaid) { try { mermaid.init(undefined, contentEl.querySelectorAll('.mermaid')); } catch (e) { } }
+                        if (window.renderMathInElement) { try { renderMathInElement(contentEl, { delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }, { left: '\\(', right: '\\)', display: false }, { left: '\\[', right: '\\]', display: true }], throwOnError: false }); } catch (e) { } }
+
+                        const exportBtn = document.createElement('button'); exportBtn.className = 'message-export-btn'; exportBtn.innerHTML = '📄'; exportBtn.title = 'Open in New Window';
+                        exportBtn.onclick = () => this.exportMessageToWindow(message.content);
+                        messageEl.appendChild(exportBtn);
+
+                        const forkBtn = document.createElement('button'); forkBtn.className = 'message-fork-btn'; forkBtn.innerHTML = '🌿'; forkBtn.title = 'Fork Conversation';
+                        forkBtn.onclick = () => this.forkConversation(index);
+                        messageEl.appendChild(forkBtn);
+                    }
+                    if (window.hljs) contentEl.querySelectorAll('pre code').forEach(b => hljs.highlightBlock(b));
+                }
+
+                messageEl.append(headerEl, contentEl);
+
+                // Show token usage if available
+                // Display citations/web search results
+                if (message.role === 'assistant' && (message.citations?.length || message.searchResults?.length)) {
+                    const citDiv = document.createElement('div');
+                    citDiv.style.cssText = 'margin-top:8px; padding:8px 12px; background:var(--color-bg-1); border-radius:6px; font-size:12px; border:1px solid var(--color-border);';
+                    let citHtml = '<div style="font-weight:600; margin-bottom:4px; color:var(--color-text-secondary); font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">📎 Sources</div>';
+                    const sources = message.citations || [];
+                    const searchRes = message.searchResults || [];
+                    sources.forEach((url, idx) => {
+                        const sr = searchRes.find(r => r.url === url);
+                        const title = sr?.name || sr?.title || (() => { try { return new URL(url).hostname; } catch (e) { return url; } })();
+                        citHtml += '<div style="margin-bottom:3px;"><a href="' + url + '" target="_blank" rel="noopener" style="color:var(--color-primary); text-decoration:none;">[' + (idx + 1) + '] ' + title + '</a></div>';
+                    });
+                    citDiv.innerHTML = citHtml;
+                    messageEl.appendChild(citDiv);
+                }
+
+                if (message.role === 'assistant' && message.tokenUsage) {
+                    messageEl.appendChild(this.createTokenInfoElement(message.tokenUsage, message.modelUsed));
+                }
+                return messageEl;
+            }
+
+            forkConversation(index) {
+                const currentMsgs = this.messages.slice(0, index + 1);
+                const currentRefs = { ...this.references };
+                const id = Date.now().toString();
+                const newName = `Fork of ${this.sessions[this.activeSessionId].name}`;
+                this.sessions[id] = { id: id, name: newName, messages: JSON.parse(JSON.stringify(currentMsgs)), references: currentRefs, isLocked: false, lockedModel: null, lockedAPI: null };
+                this.switchSession(id);
+                this.showStatus('Conversation Forked', 'success');
+            }
+
+            exportMessageToWindow(content) {
+                let processedContent = content;
+                if (!this.showReferences) processedContent = processedContent.replace(/\[\d+\]/g, '');
+                const htmlContent = this.converter.makeHtml(processedContent);
+                const win = window.open('', '_blank');
+                if (!win) return;
+                win.document.title = "Conversation Export";
+
+                const fullHTML = `
+                    <html>
+                    <head>
+                        <title>Conversation Export</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
+                            table { border-collapse: collapse; width: 100%; margin: 20px 0; border: 1px solid #ddd; }
+                            th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+                            th { background-color: #f8f9fa; }
+                            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+                            blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; margin: 0; }
+                            .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px; }
+                            .btn-secondary { background: #6c757d; }
+                            .btn-success { background: #28a745; }
+                            @media print { .btn, #controls { display: none; } }
+                        </style>
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>
+                        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"><\/script>
+                    </head>
+                    <body>
+                        <div id="controls">
+                            <button class="btn btn-success" onclick="downloadPDF()">📄 Download PDF</button>
+                            <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+                            <button class="btn btn-secondary" onclick="downloadAsWord()">Download as Word</button>
+                        </div>
+                        <div id="content">${htmlContent}</div>
+                        <script>
+                            function downloadPDF() {
+                                if (typeof html2pdf === 'undefined') { alert('PDF library loading, try again in a moment.'); return; }
+                                const el = document.getElementById('content');
+                                html2pdf().set({
+                                    margin: [10, 10, 10, 10],
+                                    filename: 'conversation_export.pdf',
+                                    image: { type: 'jpeg', quality: 0.98 },
+                                    html2canvas: { scale: 2, useCORS: true },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                }).from(el).save();
+                            }
+                            function downloadAsWord() {
+                                var header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export Document</title></head><body>";
+                                var footer = "</body></html>";
+                                var sourceHTML = header + document.getElementById('content').innerHTML + footer;
+                                var source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+                                var fileDownload = document.createElement("a");
+                                document.body.appendChild(fileDownload);
+                                fileDownload.href = source;
+                                fileDownload.download = 'conversation.doc';
+                                fileDownload.click();
+                                document.body.removeChild(fileDownload);
+                            }
+                        <\/script>
+                    </body>
+                    </html>
+                `;
+                win.document.write(fullHTML);
+                win.document.close();
+            }
+
+            loadTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme) { this.setTheme(savedTheme); }
+                else {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    this.setTheme(prefersDark ? 'dark' : 'light');
+                }
+            }
+
+            setTheme(theme) {
+                document.documentElement.setAttribute('data-color-scheme', theme);
+                localStorage.setItem('theme', theme);
+                if (this.themeToggle) this.themeToggle.checked = (theme === 'dark');
+            }
+
+            updateUI() {
+                if (this.themeToggle) this.themeToggle.checked = (localStorage.getItem('theme') === 'dark');
+                if (this.streamToggle) this.streamToggle.checked = this.streamMode;
+                if (this.pplxSearchToggle) this.pplxSearchToggle.checked = this.pplxSearchEnabled;
+                if (this.pplxRecencySelect) this.pplxRecencySelect.value = this.pplxRecency;
+                if (this.pplxStartDate) this.pplxStartDate.value = localStorage.getItem('pplxStartDate') || '';
+                if (this.pplxEndDate) this.pplxEndDate.value = localStorage.getItem('pplxEndDate') || '';
+                this.updateRecencyUI();
+                this.updatePersonaOptions(); this.updateModelOptions();
+                if (this.oneShotToggle) this.oneShotToggle.classList.toggle('active', this.oneShotMode);
+                if (this.refToggle) this.refToggle.classList.toggle('active', this.showReferences);
+                if (this.feedbackToggle) this.feedbackToggle.classList.toggle('active', this.feedbackMode);
+            }
+
+            renderEnhancedMarkdown(text) { /* ... same ... */
+                if (!text) return '';
+                let processedText = String(text);
+                processedText = processedText.replace(/<pre><code class="mermaid">([\s\S]*?)<\/code><\/pre>/g, '<div class="mermaid">$1</div>');
+                processedText = processedText.replace(/```mermaid([\s\S]*?)```/g, '<div class="mermaid">$1</div>');
+                const thinkBlocks = new Map();
+                processedText = processedText.replace(/<think>([\s\S]*?)<\/think>/gi, (match, content) => {
+                    const id = `THINKBLOCKTOKEN${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
+                    thinkBlocks.set(id, content.trim());
+                    return id;
+                });
+                // Fix 10: Protect math blocks from Showdown markdown escaping
+                const mathBlocks = new Map();
+                processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, inner) => {
+                    const id = 'MATHD' + Date.now() + Math.random().toString(36).substr(2, 9);
+                    mathBlocks.set(id, { display: true, content: inner });
+                    return id;
+                });
+                processedText = processedText.replace(/\$([^\$\n]+?)\$/g, (match, inner) => {
+                    const id = 'MATHI' + Date.now() + Math.random().toString(36).substr(2, 9);
+                    mathBlocks.set(id, { display: false, content: inner });
+                    return id;
+                });
+                processedText = processedText.replace(/(^|\n)(\d+)\.\s/gm, '$1$2. ');
+                let html;
+                try { html = this.converter.makeHtml(processedText); } catch (e) { html = processedText.replace(/\n/g, '<br>'); }
+                thinkBlocks.forEach((content, id) => {
+                    let innerHtml;
+                    try { innerHtml = this.converter.makeHtml(content); } catch (e) { innerHtml = content.replace(/\n/g, '<br>'); }
+                    const detailsHtml = `<details class="thinking-details"><summary>Thinking Process</summary><div class="thinking-content">${innerHtml}</div></details>`;
+                    html = html.replace(new RegExp(id, 'g'), () => detailsHtml);
+                });
+                // Restore protected math blocks
+                mathBlocks.forEach((block, id) => {
+                    if (block.display) {
+                        html = html.replace(new RegExp(id, 'g'), () => '$$' + block.content + '$$');
+                    } else {
+                        html = html.replace(new RegExp(id, 'g'), () => '$' + block.content + '$');
+                    }
+                });
+                html = html.replace(/<pre><code class="([^"]*)"([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (match, langClass, attrs, code) => {
+                    if (langClass.includes('mermaid')) return `<div class="mermaid">${code}</div>`;
+                    const language = langClass ? langClass.replace('language-', '') : 'text';
+                    const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+                    return `<div class="code-block"><div class="code-header"><span class="code-language">${language}</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}" class="${langClass}"${attrs}>${code}</code></pre></div>`;
+                });
+                // Also catch plain <pre><code> blocks without a class attribute
+                html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (match, code) => {
+                    const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+                    return `<div class="code-block"><div class="code-header"><span class="code-language">text</span><button class="code-copy-btn" onclick="copyCodeBlock('${codeId}', this)">Copy</button></div><pre><code id="${codeId}">${code}</code></pre></div>`;
+                });
+                if (this.showReferences) html = html.replace(/\[(\d+)\]/g, '<span class="reference-link" data-ref="$1">[$1]</span>');
+                else html = html.replace(/\[\d+\]/g, '');
+                return html;
+            }
+
+            autoResizeTextarea() {
+                this.messageInput.style.height = 'auto';
+                const newHeight = Math.min(this.messageInput.scrollHeight, 150);
+                this.messageInput.style.height = (newHeight + 2) + 'px';
+                if (this.messageInput.value.length > 0) { this.messageInput.scrollTop = this.messageInput.scrollHeight; }
+            }
+            handleKeyDown(e) {
+                // If just Enter (without modifier)
+                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    const val = this.messageInput.value.trim();
+                    if (val.startsWith('/') && val.length > 1 && !val.includes(' ')) {
+                        const alias = val.substring(1);
+                        const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                        const match = shortcuts.find(s => s.name === alias);
+                        if (match) {
+                            e.preventDefault();
+                            this.messageInput.value = match.prompt;
+                            this.autoResizeTextarea();
+                            this.updateTokenEstimate();
+                            this.showStatus('Loaded /' + alias, 'info');
+                            if (document.getElementById('slashCmdTip')) {
+                                document.getElementById('slashCmdTip').remove();
+                            }
+                            return; // Stop here, prompt is replaced, wait for user to send it or edit it
+                        }
+                    }
+                }
+
+                // Ctrl+Enter or Cmd+Enter sends the message
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    // Check for slash commands before sending
+                    const val = this.messageInput.value.trim();
+                    if (val === '/check') {
+                        this.messageInput.value = '';
+                        this.autoResizeTextarea();
+                        this.showShortcutMenu();
+                        return;
+                    }
+                    if (val.startsWith('/save ')) {
+                        const promptText = val.substring(6).trim();
+                        if (promptText) this.saveShortcutPrompt(promptText);
+                        this.messageInput.value = '';
+                        this.autoResizeTextarea();
+                        return;
+                    }
+                    this.sendUserMessage();
+                }
+            }
+
+            // Slash command detection and autocomplete
+            _checkSlashCommand() {
+                const val = this.messageInput.value;
+                const existingTip = document.getElementById('slashCmdTip');
+
+                // Show tip when user types "/" at the start
+                if (val.startsWith('/') && !val.includes(' ') && val.length <= 20) {
+                    if (!existingTip) {
+                        const tip = document.createElement('div');
+                        tip.id = 'slashCmdTip';
+                        tip.style.cssText = 'position:absolute; bottom:100%; left:8px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:6px; padding:6px 10px; font-size:11px; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.8); pointer-events:auto; cursor:pointer; max-width:400px;';
+                        let tipHtml = '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/check</kbd> — View saved prompts</div>' +
+                            '<div style="margin-bottom:4px;"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px; font-size:10px;">/save &lt;prompt&gt; /&lt;alias&gt;</kbd> — Save with name</div>';
+                        // Show existing aliases
+                        const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                        const typed = val.substring(1).toLowerCase();
+                        const matches = shortcuts.filter(s => s.name && s.name.toLowerCase().startsWith(typed));
+                        if (matches.length > 0) {
+                            tipHtml += '<div style="border-top:1px solid var(--color-border); margin-top:4px; padding-top:4px; font-size:10px; color:var(--color-text-secondary);">Saved:</div>';
+                            matches.slice(0, 5).forEach(s => {
+                                const preview = s.prompt.length > 40 ? s.prompt.substring(0, 40) + '...' : s.prompt;
+                                tipHtml += '<div style="cursor:pointer; padding:2px 0;" class="slash-match" data-name="' + s.name + '"><kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px;">/' + s.name + '</kbd> <span style="color:var(--color-text-secondary);">' + preview + '</span></div>';
+                            });
+                        }
+                        tip.innerHTML = tipHtml;
+                        // Click on /check suggestion to run it
+                        tip.addEventListener('click', () => {
+                            this.messageInput.value = '';
+                            this.autoResizeTextarea();
+                            tip.remove();
+                            this.showShortcutMenu();
+                        });
+                        this.messageInput.parentElement.style.position = 'relative';
+                        this.messageInput.parentElement.appendChild(tip);
+                    }
+                } else if (val.startsWith('/save ') && val.length > 6) {
+                    // Show "press Ctrl+Enter to save" tip
+                    if (existingTip) {
+                        existingTip.innerHTML = '<div>💾 Press <kbd style="background:var(--color-bg-1); padding:1px 5px; border-radius:3px;">Ctrl+Enter</kbd> to save this prompt</div>';
+                    }
+                } else {
+                    if (existingTip) existingTip.remove();
+                }
+            }
+
+            // Shortcut prompt management
+            showShortcutMenu() {
+                let shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                // Migrate old string format to {name, prompt} format
+                shortcuts = shortcuts.map((s, i) => typeof s === 'string' ? { name: 'sc' + i, prompt: s } : s);
+                localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+
+                if (shortcuts.length === 0) {
+                    this.showStatus('No saved shortcuts. Use: /save <prompt> /<alias> + Ctrl+Enter', 'info');
+                    return;
+                }
+                const existing = document.getElementById('shortcutMenu');
+                if (existing) existing.remove();
+                const menu = document.createElement('div');
+                menu.id = 'shortcutMenu';
+                menu.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--color-bg-0); border:1px solid var(--color-border); border-radius:8px; padding:10px; z-index:10000; max-width:550px; width:90%; max-height:350px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+                let html = '<div style="font-weight:600; margin-bottom:8px; font-size:13px; color:var(--color-text-secondary);">📋 Saved Prompt Shortcuts <span style="float:right; cursor:pointer; font-size:16px;" id="closeShortcutMenu">×</span></div>';
+                shortcuts.forEach((s, idx) => {
+                    const preview = s.prompt.length > 60 ? s.prompt.substring(0, 60) + '...' : s.prompt;
+                    html += '<div style="display:flex; align-items:center; gap:6px; padding:6px 4px; font-size:12px; border-bottom:1px solid var(--color-border);" data-idx="' + idx + '">';
+                    html += '<input class="shortcut-alias" data-idx="' + idx + '" value="' + (s.name || '').replace(/"/g, '&quot;') + '" style="width:60px; padding:2px 4px; border:1px solid var(--color-border); border-radius:3px; font-size:11px; font-family:monospace; background:var(--color-bg-1); color:var(--color-text-primary);" title="Alias - type /' + s.name + ' + Ctrl+Enter to use">';
+                    html += '<span style="flex:1; color:var(--color-text-secondary);" title="' + s.prompt.replace(/"/g, '&quot;') + '">' + preview + '</span>';
+                    html += '<button class="shortcut-use" data-idx="' + idx + '" style="font-size:10px; padding:2px 8px; background:var(--color-primary); color:#fff; border:none; border-radius:3px; cursor:pointer;">Use</button>';
+                    html += '<button class="shortcut-del" data-idx="' + idx + '" style="font-size:10px; padding:2px 6px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">×</button>';
+                    html += '</div>';
+                });
+                menu.innerHTML = html;
+                document.body.appendChild(menu);
+                document.getElementById('closeShortcutMenu').onclick = () => menu.remove();
+                // Rename alias on blur
+                menu.querySelectorAll('.shortcut-alias').forEach(input => {
+                    input.onchange = () => {
+                        const idx = parseInt(input.dataset.idx);
+                        const newName = input.value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+                        if (newName) {
+                            shortcuts[idx].name = newName;
+                            localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+                            this.showStatus('Alias updated to /' + newName, 'success');
+                        }
+                    };
+                });
+                menu.querySelectorAll('.shortcut-use').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.idx);
+                        this.messageInput.value = shortcuts[idx].prompt;
+                        this.autoResizeTextarea();
+                        this.updateTokenEstimate();
+                        menu.remove();
+                    };
+                });
+                menu.querySelectorAll('.shortcut-del').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.idx);
+                        shortcuts.splice(idx, 1);
+                        localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+                        menu.remove();
+                        if (shortcuts.length > 0) this.showShortcutMenu(); // Re-open with updated list
+                        this.showStatus('Shortcut deleted', 'info');
+                    };
+                });
+                // Add help tip and Delete All button at bottom
+                const footer = document.createElement('div');
+                footer.style.cssText = 'margin-top:8px; padding-top:6px; border-top:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center;';
+                footer.innerHTML = '<span style="font-size:10px; color:var(--color-text-secondary);">💡 /save &lt;prompt&gt; + Ctrl+Enter to save</span>' +
+                    '<button id="deleteAllShortcuts" style="font-size:10px; padding:2px 8px; background:#dc3545; color:#fff; border:none; border-radius:3px; cursor:pointer;">🗑 Delete All</button>';
+                menu.appendChild(footer);
+                document.getElementById('deleteAllShortcuts').onclick = () => {
+                    localStorage.setItem('saved_shortcuts', '[]');
+                    menu.remove();
+                    this.showStatus('All shortcuts deleted', 'info');
+                };
+                // Close on outside click
+                setTimeout(() => {
+                    document.addEventListener('click', function handler(e) {
+                        if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); }
+                    });
+                }, 100);
+            }
+            saveShortcutPrompt(text) {
+                // Parse: /save <prompt> /<alias>
+                // Find the last occurrence of / followed by a word (the alias)
+                const aliasMatch = text.match(/\s+\/([a-zA-Z0-9_]+)\s*$/);
+                let alias = '';
+                let promptText = text;
+                if (aliasMatch) {
+                    alias = aliasMatch[1];
+                    promptText = text.substring(0, aliasMatch.index).trim();
+                } else {
+                    // Auto-generate alias from first 2 words
+                    alias = promptText.split(/\s+/).slice(0, 2).join('_').toLowerCase().replace(/[^a-z0-9_]/g, '').substring(0, 15);
+                }
+                if (!promptText) { this.showStatus('Empty prompt', 'error'); return; }
+                const shortcuts = JSON.parse(localStorage.getItem('saved_shortcuts') || '[]');
+                // Check for duplicate alias
+                const existing = shortcuts.findIndex(s => s.name === alias);
+                if (existing >= 0) {
+                    shortcuts[existing].prompt = promptText;
+                    this.showStatus(`Shortcut /${alias} updated!`, 'success');
+                } else {
+                    shortcuts.push({ name: alias, prompt: promptText });
+                    this.showStatus(`Saved as /${alias}. Use /${alias} + Ctrl+Enter to insert.`, 'success');
+                }
+                localStorage.setItem('saved_shortcuts', JSON.stringify(shortcuts));
+            }
+
+            /**
+             * Get the effective model for the current (active) session.
+             * If the session is locked, returns lockedModel; otherwise returns global currentModel.
+             */
+            get effectiveModel() {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedModel) {
+                    return session.lockedModel;
+                }
+                return this.currentModel;
+            }
+
+            /**
+             * Get the effective API for the current (active) session.
+             * If the session is locked, returns lockedAPI; otherwise returns global currentAPI.
+             */
+            get effectiveAPI() {
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked && session.lockedAPI) {
+                    return session.lockedAPI;
+                }
+                return this.currentAPI;
+            }
+
+            updateHeaderStatus() {
+                let modelName = this.effectiveModel;
+                this.modelStatus.textContent = `Model: ${modelName}`;
+                this.personaStatus.textContent = `Persona: ${this.personas[this.currentPersona]?.name || 'Unknown'}`;
+            }
+            updateTokenConfigUI() {
+                this.maxTokensSlider.value = this.maxTokens;
+                this.maxTokensInput.value = this.maxTokens;
+                this.maxTokensValue.textContent = this.maxTokens;
+            }
+            updatePartialModeButton() {
+                if (this.effectiveAPI === 'moonshot') this.togglePartialModeBtn.classList.remove('hidden');
+                else { this.togglePartialModeBtn.classList.add('hidden'); this.partialModeContainer.classList.add('hidden'); }
+            }
+            updateLockButton() {
+                if (!this.lockToggle) return;
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    this.lockToggle.textContent = '🔒';
+                    this.lockToggle.title = 'Unlock Model for This Tab';
+                    this.lockToggle.classList.add('locked');
+                } else {
+                    this.lockToggle.textContent = '🔓';
+                    this.lockToggle.title = 'Lock Model for This Tab';
+                    this.lockToggle.classList.remove('locked');
+                }
+            }
+            toggleLock() {
+                const session = this.sessions[this.activeSessionId];
+                if (!session) return;
+                session.isLocked = !session.isLocked;
+                if (session.isLocked) {
+                    session.lockedModel = this.currentModel;
+                    session.lockedAPI = this.currentAPI;
+                    this.showStatus('Model locked for this tab', 'info');
+                } else {
+                    session.lockedModel = null;
+                    session.lockedAPI = null;
+                    this.showStatus('Model unlocked', 'info');
+                }
+                this.autoSaveChat();
+                this.updateLockButton();
+            }
+            togglePopup(type) { /* ... same ... */
+                const popups = ['settings', 'persona', 'model', 'apiKey', 'imageInput', 'history', 'revision', 'tools', 'readme'];
+                popups.forEach(p => { if (p !== type) document.getElementById(`${p}Popup`).classList.add('hidden'); });
+                const popup = document.getElementById(`${type}Popup`);
+                if (popup) {
+                    popup.classList.toggle('hidden');
+                    if (type === 'persona') this.setPersona(this.currentPersona);
+                    if (type === 'apiKey') {
+                        document.getElementById('perplexityApiKey').value = this.apiKeys.perplexity;
+                        document.getElementById('moonshotApiKey').value = this.apiKeys.moonshot;
+                        const nvK = document.getElementById('nvidiaApiKey'); if (nvK) nvK.value = this.apiKeys.nvidia;
+                        const orK = document.getElementById('openrouterApiKey'); if (orK) orK.value = this.apiKeys.openrouter || '';
+                    }
+                }
+            }
+            toggleOneShotMode() {
+                this.oneShotMode = !this.oneShotMode;
+                localStorage.setItem('oneShotMode', this.oneShotMode.toString());
+                if (this.oneShotToggle) this.oneShotToggle.classList.toggle('active', this.oneShotMode);
+                this.showStatus(this.oneShotMode ? 'One-shot mode enabled' : 'Disabled', 'info');
+            }
+            toggleFeedbackMode() {
+                this.feedbackMode = !this.feedbackMode;
+                localStorage.setItem('feedbackMode', this.feedbackMode);
+                if (this.feedbackToggle) this.feedbackToggle.classList.toggle('active', this.feedbackMode);
+                this.showStatus(this.feedbackMode ? 'Feedback Loop Enabled' : 'Disabled', 'info');
+            }
+            toggleReferenceMode() {
+                this.showReferences = !this.showReferences;
+                localStorage.setItem('showReferences', this.showReferences);
+                if (this.refToggle) this.refToggle.classList.toggle('active', this.showReferences);
+                this.renderMessages();
+            }
+
+            handleBeforeUnload(e) {
+                if (!this.warnOnExit) return;
+
+                // Check if any active OR saved chat is "Named" (not starting with "Topic")
+                // We check metadata from savedChats + active sessions
+                const hasNamedSaved = Object.values(this.savedChats).some(c => c.name && !c.name.startsWith('Topic'));
+                const hasNamedActive = Object.values(this.sessions).some(s => s.name && !s.name.startsWith('Topic'));
+
+                if (hasNamedSaved || hasNamedActive) {
+                    e.preventDefault();
+                    e.returnValue = ''; // Standard browser trigger
+                    return '';
+                }
+            }
+
+            async exportNamedChats() {
+                try {
+                    this.showStatus('Preparing export...', 'info');
+                    // Get all IDs from saved chats
+                    const allIds = Object.keys(this.savedChats);
+                    const namedIds = allIds.filter(id => {
+                        const name = this.savedChats[id].name;
+                        return name && !name.startsWith('Topic');
+                    });
+
+                    if (namedIds.length === 0) {
+                        this.showStatus('No named chats found to export.', 'warning');
+                        return;
+                    }
+
+                    const exportData = { savedChats: {} };
+                    let count = 0;
+
+                    for (const id of namedIds) {
+                        // Try loading from DB
+                        let chat = await this.storageManager.getChat(id);
+                        // Fallback to active session memory if DB fails (e.g., iframe storage block)
+                        if (!chat && this.sessions[id]) {
+                            chat = { ...this.sessions[id], timestamp: Date.now() };
+                        }
+
+                        if (chat) {
+                            exportData.savedChats[id] = chat;
+                            count++;
+                        }
+                    }
+
+                    if (count === 0) {
+                        this.showStatus('Failed to load chat data.', 'error');
+                        return;
+                    }
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `named_chats_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    this.showStatus(`Exported ${count} chats`, 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    this.showStatus('Export failed: ' + e.message, 'error');
+                }
+            }
+
+            renderToolsList() { /* ... same ... */
+                this.renderGenericList(this.localTools, 'toolsList', (item) => {
+                    return `<div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px;"><div style="flex:1;"><b>${item.name}</b><br><small style="color:var(--color-text-secondary);">${item.path}</small></div><div class="history-actions" style="display:flex; gap:4px;"><button class="btn btn--primary btn--sm" onclick="window.chatApp.openTool('${item.path}')">Open</button><button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteTool(${item.id})">🗑️</button></div></div>`;
+                });
+            }
+            renderChatHistory() {
+                const query = this.historySearch.value.toLowerCase();
+                const ids = Object.keys(this.savedChats).filter(id => {
+                    const chat = this.savedChats[id];
+                    return !query || chat.name.toLowerCase().includes(query);
+                }).sort((a, b) => {
+                    const ca = this.savedChats[a];
+                    const cb = this.savedChats[b];
+                    // Sort by pinned (true first), then by timestamp (newest first)
+                    if (!!ca.isPinned !== !!cb.isPinned) return cb.isPinned ? 1 : -1;
+                    return (cb.timestamp || 0) - (ca.timestamp || 0);
+                });
+
+                const container = document.getElementById('historyList');
+                container.innerHTML = ids.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);font-size:13px;margin-top:20px;">No saved chats found.</p>';
+
+                ids.forEach(id => {
+                    const chat = this.savedChats[id];
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    if (chat.isPinned) div.style.backgroundColor = 'var(--color-bg-1)'; // Highlight pinned
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'history-name';
+                    // Visual pin indicator in title
+                    nameSpan.innerHTML = (chat.isPinned ? '<span style="opacity:0.8; margin-right:4px;">📌</span>' : '') + (chat.name || 'Untitled Chat');
+                    nameSpan.onclick = () => { this.loadChat(id); };
+
+                    // Inline Actions
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'history-actions';
+
+                    // Pin Button
+                    const pinBtn = document.createElement('button');
+                    pinBtn.className = `history-action-btn ${chat.isPinned ? 'active' : ''}`;
+                    pinBtn.innerHTML = '📌';
+                    pinBtn.title = chat.isPinned ? 'Unpin' : 'Pin';
+                    if (chat.isPinned) pinBtn.style.color = 'var(--color-primary)';
+                    pinBtn.onclick = (e) => { e.stopPropagation(); this.togglePin(id); };
+
+                    // Export Button (Fixed Icon)
+                    const exportBtn = document.createElement('button');
+                    exportBtn.className = 'history-action-btn';
+                    exportBtn.innerHTML = '💾';
+                    exportBtn.title = 'Export JSON';
+                    exportBtn.onclick = (e) => { e.stopPropagation(); this.exportSingleChat(id); };
+
+                    // Delete Button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'history-action-btn delete';
+                    deleteBtn.innerHTML = '🗑️';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.onclick = (e) => { e.stopPropagation(); if (confirm('Delete this chat?')) this.deleteChat(id); };
+
+                    actionsDiv.append(pinBtn, exportBtn, deleteBtn);
+                    div.append(nameSpan, actionsDiv);
+                    container.appendChild(div);
+                });
+            }
+
+            async togglePin(id) {
+                const chat = await this.storageManager.getChat(id);
+                if (chat) {
+                    chat.isPinned = !chat.isPinned;
+                    await this.storageManager.saveChat(chat);
+                    // Update local metadata cache
+                    if (this.savedChats[id]) {
+                        this.savedChats[id].isPinned = chat.isPinned;
+                    }
+                    this.renderChatHistory();
+                }
+            }
+
+            renderGenericList(items, containerId, mapFn) {
+                const container = document.getElementById(containerId);
+                container.innerHTML = items.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);">Empty</p>';
+                items.forEach(item => {
+                    const el = document.createElement('div'); el.innerHTML = mapFn(item); container.appendChild(el.firstChild);
+                });
+            }
+            showStatus(msg, type = 'info') {
+                this.statusIndicator.textContent = msg; this.statusIndicator.className = `status status--${type} show`;
+                setTimeout(() => { this.statusIndicator.classList.remove('show'); this.statusIndicator.classList.add('hidden'); }, 3000);
+            }
+            setModel(m, a, openPopup = true) {
+                if (!m || !a) return;
+                // If the current tab is locked, update the locked model to the new one
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    session.lockedModel = m;
+                    session.lockedAPI = a;
+                    this.autoSaveChat();
+                }
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton(); this.updateLockButton();
+                if (openPopup) this.togglePopup('model');
+                this.updateModelOptions();
+            }
+            updateModelOptions() {
+                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.effectiveModel));
+
+                // Moonshot Reasoning Visibility Logic
+                const moonshotRow = document.getElementById('moonshotReasoningRow');
+                if (moonshotRow) {
+                    // Only show for Kimi K2.5 (K2 Thinking has it forced, others don't support)
+                    if (this.effectiveAPI === 'moonshot' && this.effectiveModel === 'kimi-k2.5') {
+                        moonshotRow.style.display = 'flex';
+                    } else {
+                        moonshotRow.style.display = 'none';
+                    }
+                }
+
+                // Show/hide tool toggle for custom providers only
+                if (this.useToolsToggle) {
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.effectiveAPI);
+                    if (isCustom) {
+                        this.useToolsToggle.classList.remove('hidden');
+                    } else {
+                        this.useToolsToggle.classList.add('hidden');
+                    }
+                }
+            }
+            setPersona(p) {
+                this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
+                const isStd = ['allrounder', 'excel', 'grammar', 'auditor'].includes(p);
+                const cs = document.getElementById('customPromptSection');
+                if (!isStd) { cs.classList.remove('hidden'); const d = this.personas[p]; if (d) { document.getElementById('customPersonaName').value = d.name; document.getElementById('customPrompt').value = d.prompt; } }
+                else cs.classList.add('hidden');
+            }
+            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            stopGeneration() {
+                const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
+                if (ac) {
+                    ac.abort();
+                    delete this._sessionAbort[this.activeSessionId];
+                }
+                if (this._sessionLoading) delete this._sessionLoading[this.activeSessionId];
+                this.setLoading(false, this.activeSessionId);
+            }
+
+            handleBeforeUnload(e) {
+                if (!this.warnOnExit) return;
+
+                // Check if any active OR saved chat is "Named" (not starting with "Topic")
+                // We check metadata from savedChats + active sessions
+                const hasNamedSaved = Object.values(this.savedChats).some(c => c.name && !c.name.startsWith('Topic'));
+                const hasNamedActive = Object.values(this.sessions).some(s => s.name && !s.name.startsWith('Topic'));
+
+                if (hasNamedSaved || hasNamedActive) {
+                    e.preventDefault();
+                    e.returnValue = ''; // Standard browser trigger
+                    return '';
+                }
+            }
+
+            async exportNamedChats() {
+                try {
+                    this.showStatus('Preparing export...', 'info');
+                    // Get all IDs from saved chats
+                    const allIds = Object.keys(this.savedChats);
+                    const namedIds = allIds.filter(id => {
+                        const name = this.savedChats[id].name;
+                        return name && !name.name.startsWith('Topic');
+                    });
+
+                    if (namedIds.length === 0) {
+                        this.showStatus('No named chats found to export.', 'warning');
+                        return;
+                    }
+
+                    const exportData = { savedChats: {} };
+                    let count = 0;
+
+                    for (const id of namedIds) {
+                        // Try loading from DB
+                        let chat = await this.storageManager.getChat(id);
+                        // Fallback to active session memory if DB fails (e.g., iframe storage block)
+                        if (!chat && this.sessions[id]) {
+                            chat = { ...this.sessions[id], timestamp: Date.now() };
+                        }
+
+                        if (chat) {
+                            exportData.savedChats[id] = chat;
+                            count++;
+                        }
+                    }
+
+                    if (count === 0) {
+                        this.showStatus('Failed to load chat data.', 'error');
+                        return;
+                    }
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `named_chats_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    this.showStatus(`Exported ${count} chats`, 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    this.showStatus('Export failed: ' + e.message, 'error');
+                }
+            }
+
+            renderToolsList() { /* ... same ... */
+                this.renderGenericList(this.localTools, 'toolsList', (item) => {
+                    return `<div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px;"><div style="flex:1;"><b>${item.name}</b><br><small style="color:var(--color-text-secondary);">${item.path}</small></div><div class="history-actions" style="display:flex; gap:4px;"><button class="btn btn--primary btn--sm" onclick="window.chatApp.openTool('${item.path}')">Open</button><button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteTool(${item.id})">🗑️</button></div></div>`;
+                });
+            }
+            renderChatHistory() {
+                const query = this.historySearch.value.toLowerCase();
+                const ids = Object.keys(this.savedChats).filter(id => {
+                    const chat = this.savedChats[id];
+                    return !query || chat.name.toLowerCase().includes(query);
+                }).sort((a, b) => {
+                    const ca = this.savedChats[a];
+                    const cb = this.savedChats[b];
+                    // Sort by pinned (true first), then by timestamp (newest first)
+                    if (!!ca.isPinned !== !!cb.isPinned) return cb.isPinned ? 1 : -1;
+                    return (cb.timestamp || 0) - (ca.timestamp || 0);
+                });
+
+                const container = document.getElementById('historyList');
+                container.innerHTML = ids.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);font-size:13px;margin-top:20px;">No saved chats found.</p>';
+
+                ids.forEach(id => {
+                    const chat = this.savedChats[id];
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    if (chat.isPinned) div.style.backgroundColor = 'var(--color-bg-1)'; // Highlight pinned
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'history-name';
+                    // Visual pin indicator in title
+                    nameSpan.innerHTML = (chat.isPinned ? '<span style="opacity:0.8; margin-right:4px;">📌</span>' : '') + (chat.name || 'Untitled Chat');
+                    nameSpan.onclick = () => { this.loadChat(id); };
+
+                    // Inline Actions
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'history-actions';
+
+                    // Pin Button
+                    const pinBtn = document.createElement('button');
+                    pinBtn.className = `history-action-btn ${chat.isPinned ? 'active' : ''}`;
+                    pinBtn.innerHTML = '📌';
+                    pinBtn.title = chat.isPinned ? 'Unpin' : 'Pin';
+                    if (chat.isPinned) pinBtn.style.color = 'var(--color-primary)';
+                    pinBtn.onclick = (e) => { e.stopPropagation(); this.togglePin(id); };
+
+                    // Export Button (Fixed Icon)
+                    const exportBtn = document.createElement('button');
+                    exportBtn.className = 'history-action-btn';
+                    exportBtn.innerHTML = '💾';
+                    exportBtn.title = 'Export JSON';
+                    exportBtn.onclick = (e) => { e.stopPropagation(); this.exportSingleChat(id); };
+
+                    // Delete Button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'history-action-btn delete';
+                    deleteBtn.innerHTML = '🗑️';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.onclick = (e) => { e.stopPropagation(); if (confirm('Delete this chat?')) this.deleteChat(id); };
+
+                    actionsDiv.append(pinBtn, exportBtn, deleteBtn);
+                    div.append(nameSpan, actionsDiv);
+                    container.appendChild(div);
+                });
+            }
+
+            async togglePin(id) {
+                const chat = await this.storageManager.getChat(id);
+                if (chat) {
+                    chat.isPinned = !chat.isPinned;
+                    await this.storageManager.saveChat(chat);
+                    // Update local metadata cache
+                    if (this.savedChats[id]) {
+                        this.savedChats[id].isPinned = chat.isPinned;
+                    }
+                    this.renderChatHistory();
+                }
+            }
+
+            renderGenericList(items, containerId, mapFn) {
+                const container = document.getElementById(containerId);
+                container.innerHTML = items.length ? '' : '<p style="text-align:center;color:var(--color-text-secondary);">Empty</p>';
+                items.forEach(item => {
+                    const el = document.createElement('div'); el.innerHTML = mapFn(item); container.appendChild(el.firstChild);
+                });
+            }
+            showStatus(msg, type = 'info') {
+                this.statusIndicator.textContent = msg; this.statusIndicator.className = `status status--${type} show`;
+                setTimeout(() => { this.statusIndicator.classList.remove('show'); this.statusIndicator.classList.add('hidden'); }, 3000);
+            }
+            setModel(m, a, openPopup = true) {
+                if (!m || !a) return;
+                // If the current tab is locked, update the locked model to the new one
+                const session = this.sessions[this.activeSessionId];
+                if (session && session.isLocked) {
+                    session.lockedModel = m;
+                    session.lockedAPI = a;
+                    this.autoSaveChat();
+                }
+                this.currentModel = m; this.currentAPI = a; localStorage.setItem('currentModel', m); localStorage.setItem('currentAPI', a); this.updateHeaderStatus(); this.updatePartialModeButton(); this.updateLockButton();
+                if (openPopup) this.togglePopup('model');
+                this.updateModelOptions();
+            }
+            updateModelOptions() {
+                document.querySelectorAll('.model-option').forEach(b => b.classList.toggle('active', b.dataset.model === this.effectiveModel));
+
+                // Moonshot Reasoning Visibility Logic
+                const moonshotRow = document.getElementById('moonshotReasoningRow');
+                if (moonshotRow) {
+                    // Only show for Kimi K2.5 (K2 Thinking has it forced, others don't support)
+                    if (this.effectiveAPI === 'moonshot' && this.effectiveModel === 'kimi-k2.5') {
+                        moonshotRow.style.display = 'flex';
+                    } else {
+                        moonshotRow.style.display = 'none';
+                    }
+                }
+
+                // Show/hide tool toggle for custom providers only
+                if (this.useToolsToggle) {
+                    const isCustom = this.customProviders && this.customProviders.some(p => p.id === this.effectiveAPI);
+                    if (isCustom) {
+                        this.useToolsToggle.classList.remove('hidden');
+                    } else {
+                        this.useToolsToggle.classList.add('hidden');
+                    }
+                }
+            }
+            setPersona(p) {
+                this.currentPersona = p; localStorage.setItem('currentPersona', p); this.updateHeaderStatus(); this.updatePersonaOptions();
+                const isStd = ['allrounder', 'excel', 'grammar', 'auditor'].includes(p);
+                const cs = document.getElementById('customPromptSection');
+                if (!isStd) { cs.classList.remove('hidden'); const d = this.personas[p]; if (d) { document.getElementById('customPersonaName').value = d.name; document.getElementById('customPrompt').value = d.prompt; } }
+                else cs.classList.add('hidden');
+            }
+            updatePersonaOptions() { document.querySelectorAll('.persona-option').forEach(b => b.classList.toggle('active', b.dataset.persona === this.currentPersona)); }
+            stopGeneration() {
+                const ac = this._sessionAbort && this._sessionAbort[this.activeSessionId];
+                if (ac) {
+                    ac.abort();
+                    delete this._sessionAbort[this.activeSessionId];
+                }
+                if (this._sessionLoading) delete this._sessionLoading[this.activeSessionId];
+                this.setLoading(false, this.activeSessionId);
+            }
+            async sendUserMessage() {
+                const sessionId = this.activeSessionId;
+                // If this session is loading, clicking acts as STOP
+                if (this._sessionLoading && this._sessionLoading[sessionId]) {
+                    const ctrl = this._sessionAbort && this._sessionAbort[sessionId];
+                    if (ctrl) {
+                        ctrl.abort();
+                        delete this._sessionAbort[sessionId];
+                        this.showStatus('Generation Stopped', 'info');
+                    }
+                    delete this._sessionLoading[sessionId];
+                    this.setLoading(false);
+                    return;
+                }
+
+                const msg = this.messageInput.value.trim();
+                const pre = this.prefillInput.value.trim();
+                if (!msg && !this.uploadedImage && !this.uploadedTextContext) return;
+                if (this.oneShotMode && this.messages.length > 0) { this.messages = []; this.references = {}; }
+
+                let fullContent = msg;
+                if (this.uploadedTextContext) {
+                    fullContent = `[Attached File: ${this.uploadedFileName}]\n\n${this.uploadedTextContext}\n\n[End of File]\n\n${msg}`;
+                }
+
+                const newUserMsg = { role: 'user', content: fullContent, image: this.uploadedImage, timestamp: new Date() };
+                this.messages.push(newUserMsg);
+
+                // IMMEDIATE UI UPDATE: Clear inputs to prevent perceived lag
+                this.messageInput.value = '';
+                this.prefillInput.value = '';
+                this.partialModeContainer.classList.add('hidden');
+                this.resetTextareaSize();
+                this.removeImagePreview();
+
+                // Cache these before clearing for API call logic if needed
+                const currentImage = this.uploadedImage;
+
+                this.uploadedImage = null;
+                this.uploadedTextContext = null;
+                this.uploadedFileName = null;
+                this.updateTokenEstimate();
+
+                // Set per-session abort controller early
+                if (!this._sessionAbort) this._sessionAbort = {};
+                this._sessionAbort[sessionId] = new AbortController();
+
+                // Defer heavy rendering and saving to next tick to free up UI thread
+                requestAnimationFrame(() => {
+                    this.renderMessages();
+                    // Defer saving even more to prevent blocking
+                    setTimeout(() => this.autoSaveChat(), 50);
+                });
+
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const isCustomProvider = effAPI.startsWith('custom_');
+                if (!this.apiKeys[effAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); return; }
+                this.setLoading(true, sessionId);
+                if (!this._sessionLoading) this._sessionLoading = {};
+                this._sessionLoading[sessionId] = true;
+
+                // Capture refs for current session so tab switching doesn't affect them
+                const _sessionMessages = this.sessions[sessionId].messages;
+                const _sessionRefs = this.sessions[sessionId].references;
+
+                try {
+                    // Use dedicated handler for Moonshot web search (requires multi-turn tool calls)
+                    if (effAPI === 'moonshot' && this.moonshotSearchEnabled) {
+                        const msgs = this.buildMessagesForAPI(pre);
+                        const content = await this.moonshotWebSearchCall(msgs, sessionId);
+                        _sessionMessages.push({ role: 'assistant', content: pre ? pre + content : content, timestamp: new Date() });
+                        this.renderMessages(); this.autoSaveChat();
+                    } else if (this.streamMode) await this.streamResponse(fullContent, pre, sessionId);
+                    else {
+                        const res = await this.callAPI(fullContent, pre, sessionId);
+                        const content = pre ? pre + res.content : res.content;
+                        _sessionMessages.push({ role: 'assistant', content, timestamp: new Date(), tokenUsage: res.tokenUsage, searchResults: res.searchResults, citations: res.citations, modelUsed: effModel });
+                        this.renderMessages(); this.autoSaveChat();
+                    }
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        // Stopped by user, do nothing special
+                    } else {
+                        this.showStatus('Error: ' + e.message, 'error');
+                        _sessionMessages.push({ role: 'assistant', content: 'Error: ' + e.message });
+                        this.renderMessages();
+                    }
+                } finally {
+                    if (this._sessionLoading) delete this._sessionLoading[sessionId];
+                    if (this._sessionAbort) delete this._sessionAbort[sessionId];
+                    this.setLoading(false, sessionId);
+                }
+            }
+
+            startNewTopic() { this.createNewSession(); this.showStatus('New Topic Started', 'success'); }
+            resetTextareaSize() { this.messageInput.style.height = 'auto'; this.messageInput.rows = 1; }
+            removeImagePreview() { if (this.imagePreview) { this.imagePreview.classList.add('hidden'); this.imagePreview.innerHTML = ''; } this.uploadedImage = null; this.uploadedTextContext = null; this.fileInput.value = ''; this.updateTokenEstimate(); }
+
+            setLoading(l, sessionId = this.activeSessionId) {
+                // Determine if the *active* session should show loading state
+                const currentSessionLoading = this._sessionLoading && this._sessionLoading[this.activeSessionId];
+                // Check if we are toggling the active session, or just checking generic state
+                const showStop = (sessionId === this.activeSessionId && l) || currentSessionLoading;
+                if (showStop) {
+                    this.sendMessage.textContent = '■'; // Stop icon
+                    this.sendMessage.classList.add('stop');
+                    if (!this.streamMode && l) {
+                        const div = document.createElement('div'); div.className = 'message assistant loading'; div.textContent = 'Loading...'; this.messagesContainer.appendChild(div);
+                    }
+                } else {
+                    this.sendMessage.textContent = '→';
+                    this.sendMessage.classList.remove('stop');
+                    const loader = this.messagesContainer.querySelector('.loading'); if (loader) loader.remove();
+                }
+            }
+
+            async callAPI(msg, pre, sessionId = this.activeSessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const msgs = this.buildMessagesForAPI(pre);
+                const body = {
+                    model: effModel, messages: msgs, max_tokens: this.maxTokens,
+                    use_tools: this.useToolsEnabled, temperature: 0.2, stream: false
+                };
+
+                // NVIDIA: inject enable_thinking based on reasoning checkbox
+                if (effAPI === 'nvidia') {
+                    const nimSettings = this.nimSettings || {};
+                    body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
+                }
+
+                // Handle Moonshot Parameters
+                if (effAPI === 'moonshot') {
+                    if (effModel === 'kimi-k2.5') {
+                        delete body.temperature;
+                    }
+                    else if (effModel.includes('thinking')) {
+                        body.temperature = 1.0;
+                    }
+                    else {
+                        body.temperature = 0.6;
+                    }
+
+                    if (effModel === 'kimi-k2.5') {
+                        if (this.moonshotSearchEnabled || !this.moonshotReasoningEnabled) {
+                            body.thinking = { type: 'disabled' };
+                        } else {
+                            body.thinking = { type: 'enabled' };
+                        }
+                    }
+                    else if (this.moonshotReasoningEnabled) {
+                        body.thinking = { type: 'enabled' };
+                    }
+                }
+
+                // Perplexity Search Logic
+                if (effAPI === 'perplexity') {
+                    if (!this.pplxSearchEnabled) {
+                        body.return_citations = false; // Disable citations if search implies off
+                    } else if (this.pplxRecency && ['month', 'week', 'day'].includes(this.pplxRecency)) {
+                        body.search_recency_filter = this.pplxRecency;
+                    }
+                }
+
+                // Determine API URL (use CORS proxy if configured and needed)
+                const _protocol = this._getProviderProtocol();
+                let apiUrl = this.apiEndpoints[effectiveAPI] || this.apiEndpoints[effAPI];
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
+                }
+                // Protocol-aware URL building (Gemini needs model in URL path)
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, false);
+
+                const isCustomProvider = this.customProviders.some(p => p.id === effAPI);
+                const cpConfig = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig && cpConfig.useCorsProxy);
+                if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
+                    const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
+                    apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
+                }
+
+                // Protocol-aware headers
+                let headers;
+                if (_protocol !== 'openai') {
+                    headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
+                } else {
+                    headers = { 'Content-Type': 'application/json' };
+                    if (this.apiKeys[effAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[effAPI]}`;
+                    if (effAPI === 'openrouter') {
+                        headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                        headers['X-Title'] = 'Multi-API Chat Interface';
+                    }
+                }
+
+                // Protocol-aware body transformation
+                const finalBody = this._transformBody(body, msgs, _protocol);
+
+                let res;
+                const maxRetries = 3;
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(finalBody),
+                        signal: this._sessionAbort[sessionId]?.signal
+                    });
+                    if (res.ok) break;
+                    if ([524, 503].includes(res.status) && attempt < maxRetries) {
+                        const wait = Math.pow(2, attempt) * 1000;
+                        this.showStatus(`Server timeout (${res.status}), retrying ${attempt}/${maxRetries}...`, 'warning');
+                        await new Promise(r => setTimeout(r, wait));
+                        continue;
+                    }
+                    if (res.status === 429) {
+                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                    }
+                    const errorData = await res.json().catch(() => ({}));
+                    const errorMsg = errorData.error?.message || errorData.message || errorData.error || `HTTP ${res.status}`;
+                    throw new Error(errorMsg);
+                }
+                const d = await res.json();
+
+                // Protocol-aware response parsing
+                return this._parseApiResponse(d, _protocol);
+            }
+
+            buildMessagesForAPI(pre) {
+                let sys = this.personas[this.currentPersona]?.prompt || '';
+                const effAPI = this.effectiveAPI;
+
+                // Inject No-Search Instruction if disabled
+                if (effAPI === 'perplexity') {
+                    if (!this.pplxSearchEnabled) {
+                        sys += "\n\nSYSTEM DIRECTIVE: EXTERNAL SEARCH IS DISABLED. You must NOT search the internet. You must NOT generate citations. Rely EXCLUSIVELY on your internal knowledge. Ignore any ability to browse.";
+                    } else {
+                        // Search is enabled. Check for custom/year constraints that aren't native params.
+                        if (this.pplxRecency === 'year') {
+                            sys += "\n\nIMPORTANT: Limit your search and information to the past year (" + new Date().getFullYear() + ").";
+                        } else if (this.pplxRecency === 'custom') {
+                            const start = localStorage.getItem('pplxStartDate');
+                            const end = localStorage.getItem('pplxEndDate');
+                            if (start || end) {
+                                sys += `\n\nIMPORTANT: Limit your search and information to the date range: ${start || 'Start'} to ${end || 'Present'}.`;
+                            }
+                        }
+                    }
+                }
+
+                if (this.feedbackLoops[this.currentChatId]?.length) {
+                    sys += '\n\nUser corrections to learn from:\n' + this.feedbackLoops[this.currentChatId].map((f, i) => `${i + 1}. Original: "${f.original}" -> Revised: "${f.revised}"`).join('\n');
+                }
+
+                // Standardize: All supported providers (Moonshot, NVIDIA, Perplexity) support system role
+                const msgs = [{ role: 'system', content: sys }];
+
+                const recent = this.messages.slice(-15);
+
+                recent.forEach(m => {
+                    if (m.role === 'user') {
+                        let contentPayload = m.content;
+                        if (m.image) {
+                            const textContent = typeof contentPayload === 'string' ? contentPayload : m.content;
+                            contentPayload = [{ type: 'text', text: textContent || " " }, { type: 'image_url', image_url: { url: m.image } }];
+                        }
+                        msgs.push({ role: 'user', content: contentPayload });
+                    }
+                    else if (m.role === 'assistant' && m.content) msgs.push({ role: 'assistant', content: m.content });
+                });
+
+                if (pre && effAPI === 'moonshot') msgs.push({ role: 'assistant', content: pre });
+                return msgs;
+            }
+
+            // Moonshot web search with multi-turn tool call handling
+            async moonshotWebSearchCall(msgs, sessionId = this.activeSessionId) {
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+                const apiUrl = this.apiEndpoints['moonshot'];
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKeys[effAPI]}` };
+
+                let conversationMsgs = [...msgs];
+                let finalContent = '';
+                let maxIterations = 5; // Prevent infinite loops
+
+                while (maxIterations > 0) {
+                    maxIterations--;
+
+                    // Build request body - K2.5 cannot modify temperature, top_p, n, presence_penalty, frequency_penalty
+                    const body = {
+                        model: effModel,
+                        messages: conversationMsgs,
+                        max_tokens: this.maxTokens,
+                        use_tools: this.useToolsEnabled,
+                        tools: [{ type: 'builtin_function', function: { name: '$web_search' } }]
+                    };
+
+                    // Set temperature based on model (K2.5 uses API default, don't send it)
+                    if (effModel !== 'kimi-k2.5') {
+                        if (effModel.includes('thinking')) {
+                            body.temperature = 1.0; // kimi-k2-thinking models default to 1.0
+                        } else {
+                            body.temperature = 0.6; // kimi-k2 models default to 0.6
+                        }
+                    }
+
+                    // K2.5 supports thinking parameter - disable for web search
+                    if (effModel === 'kimi-k2.5') {
+                        body.thinking = { type: 'disabled' };
+                    }
+
+                    console.log('Moonshot Web Search Request:', body);
+
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(body),
+                        signal: this._sessionAbort[sessionId]?.signal
+                    });
+
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error('Moonshot API Error:', errorText);
+                        throw new Error(JSON.parse(errorText).error?.message || errorText);
+                    }
+
+                    const data = await res.json();
+                    console.log('Moonshot Response:', data);
+
+                    const choice = data.choices[0];
+                    const finishReason = choice.finish_reason;
+
+                    if (finishReason === 'tool_calls') {
+                        // Add assistant message with tool_calls to conversation
+                        conversationMsgs.push(choice.message);
+
+                        // Process each tool call
+                        for (const toolCall of choice.message.tool_calls) {
+                            const toolName = toolCall.function.name;
+                            const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+
+                            console.log('Tool Call:', toolName, toolArgs);
+
+                            // For $web_search, just return the arguments back (as per Moonshot docs)
+                            const toolResult = toolArgs;
+
+                            // Add tool result to conversation
+                            conversationMsgs.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                name: toolName,
+                                content: JSON.stringify(toolResult)
+                            });
+                        }
+                    } else {
+                        // We got the final response
+                        finalContent = choice.message.content || '';
+                        break;
+                    }
+                }
+
+                return finalContent;
+            }
+
+            async streamResponse(msg, pre, sessionId = this.activeSessionId) {
+                // Capture session state at start - tab switching won't affect these refs
+                const _streamSessionId = this.activeSessionId;
+                const _streamMessages = this.messages;
+                const _streamRefs = this.references;
+                const effAPI = this.effectiveAPI;
+                const effModel = this.effectiveModel;
+
+                const msgs = this.buildMessagesForAPI(pre);
+                const body = {
+                    model: effModel, messages: msgs, max_tokens: this.maxTokens,
+                    use_tools: this.useToolsEnabled, temperature: 0.2, stream: true
+                };
+
+                // NVIDIA: inject enable_thinking based on reasoning checkbox
+                if (effAPI === 'nvidia') {
+                    const nimSettings = this.nimSettings || {};
+                    body.chat_template_kwargs = { enable_thinking: !!nimSettings.reasoning };
+                }
+
+                if (effAPI === 'perplexity') {
+                    if (!this.pplxSearchEnabled) {
+                        body.return_citations = false;
+                    } else if (this.pplxRecency && ['month', 'week', 'day'].includes(this.pplxRecency)) {
+                        body.search_recency_filter = this.pplxRecency;
+                    }
+                }
+
+                // Moonshot web search - using builtin_function with $web_search
+                if (effAPI === 'moonshot' && this.moonshotSearchEnabled) {
+                    body.tools = [{ type: 'builtin_function', function: { name: '$web_search' } }];
+                }
+
+                // Handle Moonshot Parameters
+                if (effAPI === 'moonshot') {
+                    if (effModel === 'kimi-k2.5') {
+                        delete body.temperature;
+                    }
+                    else if (effModel.includes('thinking')) {
+                        body.temperature = 1.0;
+                    }
+                    else {
+                        body.temperature = 0.6;
+                    }
+
+                    if (effModel === 'kimi-k2.5') {
+                        if (this.moonshotSearchEnabled || !this.moonshotReasoningEnabled) {
+                            body.thinking = { type: 'disabled' };
+                        } else {
+                            body.thinking = { type: 'enabled' };
+                        }
+                    }
+                    else if (this.moonshotReasoningEnabled) {
+                        body.thinking = { type: 'enabled' };
+                    }
+                }
+
+                // Determine API URL (use CORS proxy if configured and needed)
+                const _protocol = this._getProviderProtocol();
+                let apiUrl = this.apiEndpoints[effectiveAPI] || this.apiEndpoints[effAPI];
+                if (!apiUrl && this.providerRegistry[effAPI]) {
+                    apiUrl = this.providerRegistry[effAPI].baseUrl;
+                }
+                apiUrl = this._buildApiUrl(apiUrl, effModel, _protocol, true);
+
+                const isCustomProvider = this.customProviders.some(p => p.id === effAPI);
+                const cpConfig2 = isCustomProvider ? this.customProviders.find(p => p.id === effAPI) : null;
+                const needsProxy = ['nvidia'].includes(effAPI) || (cpConfig2 && cpConfig2.useCorsProxy);
+                if (needsProxy && this.corsProxyUrl && this.corsProxyUrl.trim()) {
+                    const sep = this.corsProxyUrl.includes('?') ? '&' : '?';
+                    apiUrl = `${this.corsProxyUrl.trim()}${sep}url=${encodeURIComponent(apiUrl)}`;
+                }
+
+                // Protocol-aware headers
+                let headers;
+                if (_protocol !== 'openai') {
+                    headers = this._buildHeaders(_protocol, this.apiKeys[effAPI]);
+                } else {
+                    headers = { 'Content-Type': 'application/json' };
+                    if (this.apiKeys[effAPI]) headers['Authorization'] = `Bearer ${this.apiKeys[effAPI]}`;
+                    if (effAPI === 'openrouter') {
+                        headers['HTTP-Referer'] = 'https://terrywong0606.github.io';
+                        headers['X-Title'] = 'Multi-API Chat Interface';
+                    }
+                }
+
+                // Protocol-aware body transformation
+                const finalBody = this._transformBody(body, msgs, _protocol);
+
+                let res;
+                const _maxRetries = 3;
+                for (let _attempt = 1; _attempt <= _maxRetries; _attempt++) {
+                    res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(finalBody),
+                        signal: this._sessionAbort[sessionId]?.signal
+                    });
+                    if (res.ok) break;
+                    if ([524, 503].includes(res.status) && _attempt < _maxRetries) {
+                        const _wait = Math.pow(2, _attempt) * 1000;
+                        this.showStatus(`Server timeout (${res.status}), retrying ${_attempt}/${_maxRetries}...`, 'warning');
+                        await new Promise(r => setTimeout(r, _wait));
+                        continue;
+                    }
+                    if (res.status === 429) {
+                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                    }
+                    const errorText = await res.text();
+                    console.error('API Error Response:', errorText);
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        const errorMsg = errorData.error?.message || errorData.message || errorData.error || `HTTP ${res.status}`;
+                        throw new Error(errorMsg);
+                    } catch (e) {
+                        throw new Error(errorText || `HTTP ${res.status}`);
+                    }
+                }
+
+                const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [], modelUsed: effModel };
+                _streamMessages.push(assistantMessage);
+                if (this.activeSessionId === _streamSessionId) this.renderMessages();
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+                let buffer = '';
+
+                let msgElement = this.messagesContainer.lastElementChild;
+                let contentDiv = msgElement ? msgElement.querySelector('.message-content') : null;
+
+                const _isK25WebSearch = effAPI === 'moonshot' && effModel === 'kimi-k2.5' && this.moonshotSearchEnabled;
+
+                // Mutable state for Anthropic event tracking
+                const _streamState = {};
+
+                try {
+                    while (!done) {
+                        const { value, done: d } = await reader.read();
+                        done = d;
+                        buffer += decoder.decode(value, { stream: true });
+
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        lines.forEach(line => {
+                            // Use protocol-aware stream line parser
+                            const parsed = this._parseStreamLine(line, _protocol, _streamState);
+
+                            if (parsed.done) return;
+                            if (parsed.citations) assistantMessage.citations = parsed.citations;
+                            if (parsed.searchResults) assistantMessage.searchResults = parsed.searchResults;
+                            if (parsed.usage) assistantMessage.tokenUsage = parsed.usage;
+
+                            const delta = parsed.content;
+                            const reasoningContent = parsed.reasoningContent;
+
+                            // Handle Reasoning Content (Thinking Process)
+                            // Skip reasoning_content for K2.5 + web search to avoid duplicated thinking blocks
+                            if (reasoningContent && !_isK25WebSearch) {
+                                if (!assistantMessage.isThinking) {
+                                    assistantMessage.content += "<think>";
+                                    assistantMessage.isThinking = true;
+                                }
+                                assistantMessage.content += reasoningContent;
+                                if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                    if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                        try { contentDiv.parentElement.scrollIntoView(false); } catch (e) { }
+                                        this._lastStreamRender = Date.now();
+                                    }
+                                }
+                            }
+
+                            // Handle Standard Content
+                            if (delta) {
+                                if (assistantMessage.isThinking) {
+                                    assistantMessage.content += "</think>";
+                                    assistantMessage.isThinking = false;
+                                }
+                                assistantMessage.content += delta;
+                                // Throttle DOM updates — only write to DOM if still on same tab
+                                if (contentDiv && this.activeSessionId === _streamSessionId) {
+                                    if (!this._lastStreamRender || Date.now() - this._lastStreamRender > 80) {
+                                        contentDiv.innerHTML = this.renderEnhancedMarkdown(assistantMessage.content) + '<span class="streaming-cursor">▋</span>';
+                                        try { contentDiv.parentElement.scrollIntoView(false); } catch (e) { }
+                                        this._lastStreamRender = Date.now();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        console.error('Stream processing error:', e);
+                        assistantMessage.content += `\n\n[Error: ${e.message || 'Connection interrupted'}]`;
+                    }
+                } finally {
+                    // Close thinking tag if stream ended while thinking
+                    if (assistantMessage.isThinking) {
+                        assistantMessage.content += "</think>";
+                        assistantMessage.isThinking = false;
+                    }
+
+                    assistantMessage.isStreaming = false;
+
+                    // AUTO-COLLAPSE TOOL BLOCKS
+                    let finalContent = assistantMessage.content;
+                    if (finalContent && finalContent.includes('**Executing Tool:**')) {
+                        const firstIndex = finalContent.indexOf('> ');
+                        const toolStart = finalContent.indexOf('**Executing Tool:**');
+                        // Find the actual line start before '**Executing Tool:**'
+                        const lineStart = finalContent.lastIndexOf('\n', toolStart);
+                        const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
+
+                        let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
+                        const w1 = finalContent.lastIndexOf('**10 consecutive');
+                        const w2 = finalContent.lastIndexOf('**Max tool');
+                        lastIndex = Math.max(lastIndex, w1, w2);
+
+                        if (blockStart >= 0 && lastIndex !== -1) {
+                            const endOfLine = finalContent.indexOf('\n\n', lastIndex);
+                            const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
+
+                            const before = finalContent.substring(0, blockStart);
+                            const toolsStr = finalContent.substring(blockStart, actualEnd);
+                            const after = finalContent.substring(actualEnd);
+
+                            assistantMessage.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">\ud83d\udee0\ufe0f View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
+                        }
+                    }
+                    if (assistantMessage.citations) Object.assign(_streamRefs, this.extractReferencesFromResponse(assistantMessage));
+
+                    // Save to the correct session regardless of which tab is active
+                    if (this.sessions[_streamSessionId]) {
+                        this.sessions[_streamSessionId].messages = _streamMessages;
+                        this.sessions[_streamSessionId].references = _streamRefs;
+                    }
+
+                    // Only re-render if we're still on the original tab
+                    if (this.activeSessionId === _streamSessionId) {
+                        this.renderMessages();
+                        this.autoSaveChat();
+                    } else {
+                        // Save the other session's data without re-rendering
+                        this.persistSessionState();
+                    }
+                }
+            }
+
+            saveImageInput() { /* ... same ... */
+                const val = document.getElementById('imageInputString').value;
+                if (val) {
+                    this.uploadedImage = val;
+                    this.showStatus('Image Set', 'success');
+                    this.togglePopup('imageInput');
+                    const preview = document.getElementById('imagePreview');
+                    preview.classList.remove('hidden');
+                    preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                    this.updateTokenEstimate();
+                    if (this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
+                        this.setModel('sonar-pro', 'perplexity', false);
+                        this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
+                    }
+                }
+            }
+
+            async handleFileUpload(e) { /* ... same ... */
+                const f = e.target.files[0];
+                if (!f) return;
+
+                this.uploadedFileName = f.name;
+                const preview = document.getElementById('imagePreview');
+                preview.classList.remove('hidden');
+
+                if (f.type.startsWith('image/')) {
+                    const r = new FileReader();
+                    r.onload = (ev) => {
+                        this.uploadedImage = ev.target.result;
+                        preview.innerHTML = `<img src="${this.uploadedImage}" class="preview-image"><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('Image Ready', 'success');
+                        this.updateTokenEstimate();
+                        if (this.currentAPI === 'perplexity' && this.currentModel !== 'sonar-pro') {
+                            this.setModel('sonar-pro', 'perplexity', false);
+                            this.showStatus('Switched to Sonar Pro (Image Support)', 'info');
+                        }
+                    };
+                    r.readAsDataURL(f);
+                } else if (f.type === 'application/pdf') {
+                    try {
+                        const arrayBuffer = await f.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                        let fullText = "";
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+                        }
+                        this.uploadedTextContext = fullText.trim();
+                        preview.innerHTML = `<span class="file-preview-icon">📄</span> <span>${f.name} (PDF, ${pdf.numPages} pg)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('PDF Parsed', 'success');
+                        this.updateTokenEstimate();
+                    } catch (err) {
+                        this.showStatus('PDF Error: ' + err.message, 'error');
+                        console.error(err);
+                    }
+                } else {
+                    const r = new FileReader();
+                    r.onload = (ev) => {
+                        this.uploadedTextContext = ev.target.result;
+                        let icon = '📄';
+                        if (f.name.endsWith('.csv')) icon = '📊';
+                        if (f.name.endsWith('.json')) icon = '{ }';
+                        if (f.name.endsWith('.js') || f.name.endsWith('.py')) icon = '💻';
+                        preview.innerHTML = `<span class="file-preview-icon">${icon}</span> <span>${f.name} (${Math.round(f.size / 1024)}KB)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.showStatus('File Read', 'success');
+                        this.updateTokenEstimate();
+                    };
+                    r.readAsText(f);
+                }
+            }
+
+            updateTokenEstimate() { /* ... same ... */
+                let text = this.messageInput.value || "";
+                if (this.uploadedTextContext) text += this.uploadedTextContext;
+                const len = text.length;
+                const estTokens = Math.ceil(len / 3.5);
+                this.tokenEst.textContent = `~${estTokens} toks`;
+                this.tokenEst.classList.remove('hidden');
+                if (estTokens > 100000) this.tokenEst.style.color = 'var(--color-error)';
+                else this.tokenEst.style.color = 'var(--color-text-secondary)';
+            }
+
+            extractReferencesFromResponse(msg) { /* ... same ... */
+                if (!msg.citations || !Array.isArray(msg.citations)) return {};
+                const refs = {};
+                const normalize = (u) => u ? u.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase() : '';
+                msg.citations.forEach((url, idx) => {
+                    let searchResult = null;
+                    if (msg.searchResults && Array.isArray(msg.searchResults)) {
+                        searchResult = msg.searchResults.find(res => res.url === url);
+                        if (!searchResult) {
+                            searchResult = msg.searchResults.find(res => normalize(res.url) === normalize(url));
+                        }
+                    }
+                    refs[idx + 1] = {
+                        url: url,
+                        title: searchResult?.name || searchResult?.title || url,
+                        snippet: searchResult?.snippet || 'No snippet available.'
+                    };
+                });
+                return refs;
+            }
+            createTokenInfoElement(u, modelUsed) { /* ... same ... */
+                const container = document.createElement('div');
+                container.className = 'token-info-icon';
+                container.textContent = '?';
+                const tooltip = document.createElement('div');
+                tooltip.className = 'token-tooltip';
+                let html = `<strong>Token Usage</strong><br>Input: ${u.prompt_tokens || 0}<br>Output: ${u.completion_tokens || 0}<br>Total: ${u.total_tokens || 0}`;
+                if (modelUsed) html += `<br>Model: ${modelUsed}`;
+                tooltip.innerHTML = html;
+                container.appendChild(tooltip);
+                return container;
+            }
+            attachReferenceHandlers(el) { /* ... same ... */
+                el.querySelectorAll('.reference-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        const refNum = e.target.dataset.ref;
+                        const data = this.references[refNum];
+                        if (data && data.url) {
+                            this.currentReference = data;
+                            document.getElementById('referenceTitle').textContent = data.title.length > 50 ? 'Source [' + refNum + ']' : data.title;
+                            document.getElementById('referenceUrl').textContent = data.url;
+                            const snippetEl = document.getElementById('referenceSnippet');
+                            if (data.snippet) { snippetEl.textContent = data.snippet; snippetEl.classList.remove('hidden'); } else { snippetEl.classList.add('hidden'); }
+                            this.referencePopup.classList.remove('hidden');
+                        } else { this.showStatus('Reference data not found', 'warning'); }
+                    });
+                });
+            }
+            processHighcharts(el) { /* ... */ }
+            processTables(container) { /* ... same ... */
+                container.querySelectorAll('table').forEach((table, idx) => {
+                    if (table.parentNode.classList.contains('table-responsive')) return;
+                    const wrap = document.createElement('div'); wrap.className = 'table-responsive';
+                    const actions = document.createElement('div'); actions.className = 'table-actions';
+                    actions.innerHTML = `<button class="btn btn--secondary btn--sm" onclick="window.chatApp.copyTable(this)">📋 Copy</button><button class="btn btn--secondary btn--sm" onclick="window.exportTable(this)">↗ Export</button>`;
+                    table.parentNode.insertBefore(wrap, table);
+                    wrap.append(actions, table);
+                });
+            }
+            copyTable(btn) { /* ... same ... */
+                const range = document.createRange(); range.selectNode(btn.closest('.table-responsive').querySelector('table'));
+                window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+                document.execCommand('copy'); window.getSelection().removeAllRanges();
+                this.showStatus('Table copied', 'success');
+            }
+            openTool(path) { /* ... same ... */
+                if (path.startsWith('http')) { window.open(path, '_blank'); } else {
+                    this.storageManager.readFile(path).then(content => {
+                        this.uploadedTextContext = content;
+                        this.uploadedFileName = path.split('/').pop();
+                        const preview = document.getElementById('imagePreview');
+                        preview.classList.remove('hidden');
+                        preview.innerHTML = `<span class="file-preview-icon">🛠️</span> <span>${this.uploadedFileName} (Local Tool)</span><span class="remove-image-btn" onclick="window.chatApp.removeImagePreview()">×</span>`;
+                        this.updateTokenEstimate();
+                        this.togglePopup('tools');
+                        this.showStatus('File Loaded from Workspace', 'success');
+                    }).catch(err => { console.error(err); this.showStatus('Failed to read file: ' + err.message, 'error'); });
+                }
+            }
+
+            async deleteChat(id) {
+                await this.storageManager.deleteChat(id);
+                delete this.savedChats[id];
+                this.renderChatHistory();
+                this.showStatus('Chat Deleted', 'info');
+            }
+
+            async loadChat(id) {
+                const fullChat = await this.storageManager.getChat(id);
+                if (fullChat) {
+                    this.sessions[id] = { id, name: fullChat.name, messages: fullChat.messages, references: fullChat.references, isLocked: fullChat.isLocked || false, lockedModel: fullChat.lockedModel || null, lockedAPI: fullChat.lockedAPI || null };
+                    this.switchSession(id);
+                } else {
+                    this.showStatus('Error loading chat', 'error');
+                }
+                this.togglePopup('history');
+            }
+
+            deleteTool(id) { this.localTools = this.localTools.filter(t => t.id !== id); localStorage.setItem('localTools', JSON.stringify(this.localTools)); this.renderToolsList(); }
+            addTool() { /* ... same ... */
+                const name = document.getElementById('toolNameInput').value; const path = document.getElementById('toolPathInput').value;
+                if (name && path) { this.localTools.push({ id: Date.now(), name, path }); localStorage.setItem('localTools', JSON.stringify(this.localTools)); this.renderToolsList(); }
+            }
+
+            renderLinksList() {
+                this.renderGenericList(this.localLinks, 'linksList', (item) => {
+                    return `<div class="history-item" style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--color-border); border-radius:4px;"><div style="flex:1;"><b>${item.name}</b><br><small style="color:var(--color-text-secondary); word-break:break-all;">${item.url}</small></div><div class="history-actions" style="display:flex; gap:4px;"><button class="btn btn--primary btn--sm" onclick="window.chatApp.openLink('${item.url.replace(/'/g, "\\'")}')">↗</button><button class="btn btn--secondary btn--sm" onclick="window.chatApp.deleteLink(${item.id})">🗑️</button></div></div>`;
+                });
+            }
+            addLink() {
+                const name = document.getElementById('linkNameInput').value.trim();
+                let url = document.getElementById('linkUrlInput').value.trim();
+                // Basic cleanup for file paths if user forgot 'file:///'
+                if (url.match(/^[a-zA-Z]:\\/) || url.startsWith('/')) {
+                    // Very naive attempt to help, but file paths are tricky across OS. 
+                    // Users should ideally paste full file:/// URI.
+                    if (!url.startsWith('file:///')) url = 'file:///' + url.replace(/\\/g, '/');
+                }
+
+                if (name && url) {
+                    this.localLinks.push({ id: Date.now(), name, url });
+                    localStorage.setItem('localLinks', JSON.stringify(this.localLinks));
+                    this.renderLinksList();
+                    // Clear inputs
+                    document.getElementById('linkNameInput').value = '';
+                    document.getElementById('linkUrlInput').value = '';
+                }
+            }
+            deleteLink(id) {
+                this.localLinks = this.localLinks.filter(t => t.id !== id);
+                localStorage.setItem('localLinks', JSON.stringify(this.localLinks));
+                this.renderLinksList();
+            }
+            openLink(url) {
+                try {
+                    const win = window.open(url, '_blank');
+                    if (!win || win.closed || typeof win.closed == 'undefined') {
+                        // Popup blocked or file protocol restriction
+                        throw new Error("Blocked");
+                    }
+                } catch (e) {
+                    // Fallback for file:// or blocked popups
+                    const safeUrl = url;
+                    const promptMsg = "Browser security blocked opening this local file automatically.\n\nPlease copy the link below and paste it into a new tab:";
+                    prompt(promptMsg, safeUrl);
+                }
+            }
+
+            exportData() { /* Removed Bulk Export */ }
+
+            async exportSingleChat(id) {
+                const chat = await this.storageManager.getChat(id);
+                if (!chat) { this.showStatus('Chat not found', 'error'); return; }
+                const data = { savedChats: { [id]: chat } };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${chat.name.replace(/[^a-z0-9]/gi, '_')}.json`; a.click();
+            }
+
+            importSingleChat(e) {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+
+                let processedCount = 0;
+                const total = files.length;
+
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if (data.savedChats) {
+                                for (const k in data.savedChats) {
+                                    await this.storageManager.saveChat(data.savedChats[k]);
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Import error for file " + file.name, err);
+                        } finally {
+                            processedCount++;
+                            if (processedCount === total) {
+                                await this.initData(); // Reload metadata
+                                this.renderChatHistory();
+                                this.showStatus(`Imported ${total} file(s)`, 'success');
+                                e.target.value = ''; // Reset input
+                            }
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            saveApiKeys() {
+                this.apiKeys.perplexity = document.getElementById('perplexityApiKey').value;
+                this.apiKeys.moonshot = document.getElementById('moonshotApiKey').value;
+                this.apiKeys.nvidia = document.getElementById('nvidiaApiKey').value;
+                const orKeyEl2 = document.getElementById('openrouterApiKey');
+                if (orKeyEl2) this.apiKeys.openrouter = orKeyEl2.value;
+                localStorage.setItem('perplexity_api_key', this.apiKeys.perplexity);
+                localStorage.setItem('moonshot_api_key', this.apiKeys.moonshot);
+                localStorage.setItem('nvidia_api_key', this.apiKeys.nvidia);
+                localStorage.setItem('openrouter_api_key', this.apiKeys.openrouter || '');
+
+                // Save custom provider keys
+                this.customProviders.forEach(p => {
+                    const keyInput = document.getElementById(p.id + 'ApiKey');
+                    if (keyInput) {
+                        this.apiKeys[p.id] = keyInput.value;
+                        localStorage.setItem(p.id + '_api_key', keyInput.value);
+                    }
+                });
+
+                this.togglePopup('apiKey');
+                this.showStatus('Keys saved', 'success');
+            }
+            toggleApiKeysVisibility() {
+                const p = document.getElementById('perplexityApiKey');
+                const newType = p.type === 'password' ? 'text' : 'password';
+                p.type = newType;
+                document.getElementById('moonshotApiKey').type = newType;
+                document.getElementById('nvidiaApiKey').type = newType;
+                const orKeyEl = document.getElementById('openrouterApiKey');
+                if (orKeyEl) orKeyEl.type = newType;
+
+                // Toggle custom provider keys
+                this.customProviders.forEach(cp => {
+                    const keyInput = document.getElementById(cp.id + 'ApiKey');
+                    if (keyInput) keyInput.type = newType;
+                });
+            }
+            processHighcharts(el) { /* ... */ }
+            handleTextSelection(e) { /* ... same ... */
+                const sel = window.getSelection();
+                if (sel.toString().trim() && this.feedbackMode) {
+                    const r = sel.getRangeAt(0).getBoundingClientRect();
+                    this.selectionTooltip.style.top = (window.scrollY + r.top - 40) + 'px';
+                    this.selectionTooltip.style.left = (window.scrollX + r.left) + 'px';
+                    this.selectionTooltip.classList.remove('hidden');
+                    this.currentSelectionText = sel.toString();
+                } else {
+                    this.selectionTooltip.classList.add('hidden');
+                }
+            }
+            openRevisionPopup() { this.revisionOriginal.textContent = this.currentSelectionText; this.togglePopup('revision'); this.selectionTooltip.classList.add('hidden'); }
+            closeRevisionPopup() { this.revisionPopup.classList.add('hidden'); }
+            saveRevision() {
+                const rev = document.getElementById('revisionInput').value;
+                if (rev) {
+                    if (!this.feedbackLoops[this.currentChatId]) this.feedbackLoops[this.currentChatId] = [];
+                    this.feedbackLoops[this.currentChatId].push({ original: this.currentSelectionText, revised: rev });
+                    localStorage.setItem('feedback_loops', JSON.stringify(this.feedbackLoops));
+                    this.closeRevisionPopup();
+                    this.showStatus('Feedback Saved', 'success');
+                }
+            }
+            saveCustomPrompt() {
+                const n = document.getElementById('customPersonaName').value.trim();
+                const p = document.getElementById('customPrompt').value;
+
+                if (this.currentPersona === 'customized') {
+                    // Update scratchpad
+                    this.customPersonaName = n;
+                    this.customPrompt = p;
+                    localStorage.setItem('customPersonaName', n);
+                    localStorage.setItem('customPrompt', p);
+                    this.personas.customized.name = n;
+                    this.personas.customized.prompt = p;
+                    this.updateHeaderStatus();
+                    this.showStatus('Scratchpad Updated', 'success');
+                } else if (this.savedPersonas[this.currentPersona]) {
+                    // Update saved persona
+                    this.savedPersonas[this.currentPersona].name = n;
+                    this.savedPersonas[this.currentPersona].prompt = p;
+                    this.personas[this.currentPersona].name = n;
+                    this.personas[this.currentPersona].prompt = p;
+                    localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                    this.renderSavedPersonas();
+                    this.updateHeaderStatus(); // Update header in case name changed
+                    this.showStatus('Persona Updated', 'success');
+                } else {
+                    this.showStatus('Cannot edit standard persona. Save as New.', 'warning');
+                }
+            }
+            updateMaxTokens(v) { this.maxTokens = parseInt(v); this.maxTokensValue.textContent = v; localStorage.setItem('maxTokens', v); }
+            enableMessageEditing(index) {
+                const msg = this.messages[index];
+                const msgEl = this.messagesContainer.children[index];
+                if (!msgEl) return;
+                const contentEl = msgEl.querySelector('.message-content');
+                if (contentEl.querySelector('.msg-edit-textarea')) return;
+                const currentText = msg.content;
+                const originalHTML = contentEl.innerHTML;
+                contentEl.innerHTML = '';
+                const editArea = document.createElement('div'); editArea.className = 'msg-edit-area';
+                const textarea = document.createElement('textarea'); textarea.className = 'msg-edit-textarea'; textarea.value = currentText;
+                const controls = document.createElement('div'); controls.className = 'msg-edit-controls';
+                const saveBtn = document.createElement('button'); saveBtn.className = 'btn btn--primary btn--sm'; saveBtn.textContent = 'Save & Regenerate';
+
+                saveBtn.onclick = async () => {
+                    const newText = textarea.value.trim();
+                    if (newText) {
+                        // FIX: Ensure API Key is present before regenerating
+                        const effAPI = this.effectiveAPI;
+                        const isCustomProvider = effAPI.startsWith('custom_');
+                        if (!this.apiKeys[effAPI] && !isCustomProvider) { this.showStatus('No API Key', 'error'); this.setLoading(false, this.activeSessionId); return; }
+
+                        this.messages[index].content = newText;
+                        this.messages = this.messages.slice(0, index + 1);
+                        this.renderMessages();
+
+                        const sessionId = this.activeSessionId;
+                        this.setLoading(true, sessionId);
+                        if (!this._sessionLoading) this._sessionLoading = {};
+                        if (!this._sessionAbort) this._sessionAbort = {};
+                        this._sessionLoading[sessionId] = true;
+                        this._sessionAbort[sessionId] = new AbortController();
+
+                        try {
+                            if (this.streamMode) {
+                                await this.streamResponse(null, null, sessionId);
+                            } else {
+                                const res = await this.callAPI(null, null, sessionId);
+
+                                // AUTO-COLLAPSE TOOL BLOCKS
+                                let finalContent = res.content;
+                                if (finalContent && finalContent.includes('**Executing Tool:**')) {
+                                    const toolStart = finalContent.indexOf('**Executing Tool:**');
+                                    const lineStart = finalContent.lastIndexOf('\n', toolStart);
+                                    const blockStart = lineStart !== -1 ? lineStart + 1 : toolStart;
+
+                                    let lastIndex = finalContent.lastIndexOf('*Thinking about tool results...*');
+                                    const w1 = finalContent.lastIndexOf('**10 consecutive');
+                                    const w2 = finalContent.lastIndexOf('**Max tool');
+                                    lastIndex = Math.max(lastIndex, w1, w2);
+
+                                    if (blockStart >= 0 && lastIndex !== -1) {
+                                        const endOfLine = finalContent.indexOf('\n\n', lastIndex);
+                                        const actualEnd = endOfLine !== -1 ? endOfLine + 2 : finalContent.length;
+
+                                        const before = finalContent.substring(0, blockStart);
+                                        const toolsStr = finalContent.substring(blockStart, actualEnd);
+                                        const after = finalContent.substring(actualEnd);
+
+                                        res.content = before + '<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">🛠️ View Tool Execution Steps</summary>\n\n' + toolsStr + '</details>\n\n' + after;
+                                    }
+                                }
+                                this.messages.push({
+                                    role: 'assistant',
+                                    content: res.content,
+                                    timestamp: new Date(),
+                                    tokenUsage: res.tokenUsage,
+                                    searchResults: res.searchResults,
+                                    citations: res.citations,
+                                    modelUsed: this.effectiveModel
+                                });
+                                this.renderMessages();
+                                await this.autoSaveChat();
+                            }
+                        } catch (e) {
+                            this.showStatus('Error: ' + e.message, 'error');
+                        } finally {
+                            if (this._sessionLoading) delete this._sessionLoading[sessionId];
+                            if (this._sessionAbort) delete this._sessionAbort[sessionId];
+                            this.setLoading(false, sessionId);
+                        }
+                    }
+                };
+                const cancelBtn = document.createElement('button'); cancelBtn.className = 'btn btn--secondary btn--sm'; cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = () => { contentEl.innerHTML = originalHTML; };
+                controls.append(cancelBtn, saveBtn); editArea.append(textarea, controls); contentEl.appendChild(editArea);
+            }
+            handleOutsideClick(e) {
+                if (e.target.classList.contains('popup')) e.target.classList.add('hidden');
+            }
+            copyReference() { navigator.clipboard.writeText(document.getElementById('referenceUrl').textContent); }
+            openReference() { window.open(document.getElementById('referenceUrl').textContent, '_blank'); }
+
+            async autoSaveChat() {
+                const session = this.sessions[this.currentChatId];
+                const chatObj = { 
+                    id: this.currentChatId, 
+                    name: session.name, 
+                    messages: this.messages, 
+                    references: this.references, 
+                    timestamp: Date.now(),
+                    isLocked: session.isLocked || false,
+                    lockedModel: session.lockedModel || null,
+                    lockedAPI: session.lockedAPI || null
+                };
+                try {
+                    await this.storageManager.saveChat(chatObj);
+                    // Update local metadata cache
+                    this.savedChats[this.currentChatId] = { id: chatObj.id, name: chatObj.name, timestamp: chatObj.timestamp };
+
+                    // Visual confirmation (optional, subtle)
+                    const saveStatus = document.getElementById('saveStatus');
+                    if (saveStatus) {
+                        saveStatus.textContent = 'Saved';
+                        saveStatus.style.opacity = '1';
+                        setTimeout(() => saveStatus.style.opacity = '0', 2000);
+                    }
+                } catch (e) {
+                    console.error("AutoSave Failed:", e);
+                    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                        this.showStatus('Storage Full! Delete old chats.', 'error');
+                    } else {
+                        this.showStatus('Save Failed (Check Console)', 'error');
+                    }
+                }
+            }
+
+            async saveCurrentChat() {
+                const name = document.getElementById('chatNameInput').value || this.sessions[this.currentChatId].name;
+                this.sessions[this.currentChatId].name = name;
+                await this.autoSaveChat();
+                this.renderChatHistory();
+                this.showStatus('Chat Saved', 'success');
+            }
+
+            copyMessage(text) {
+                let contentToCopy = text;
+                if (!this.showReferences) {
+                    contentToCopy = contentToCopy.replace(/\[\d+\]/g, '');
+                }
+                navigator.clipboard.writeText(contentToCopy).then(() => this.showStatus('Copied', 'success'));
+            }
+
+            exportPersonas() {
+                const data = this.savedPersonas;
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'personas_backup.json'; a.click();
+            }
+
+            importPersonas(e) {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        Object.assign(this.savedPersonas, data);
+                        Object.assign(this.personas, data); // update active memory
+                        localStorage.setItem('saved_personas', JSON.stringify(this.savedPersonas));
+                        this.renderSavedPersonas();
+                        this.showStatus('Personas Imported', 'success');
+                    } catch (err) { this.showStatus('Invalid File', 'error'); }
+                };
+                reader.readAsText(file);
+            }
+
+            handleBeforeUnload(e) {
+                if (!this.warnOnExit) return;
+
+                const hasNamedSaved = Object.values(this.savedChats).some(c => c.name && !c.name.startsWith('Topic'));
+                const hasNamedActive = Object.values(this.sessions).some(s => s.name && !s.name.startsWith('Topic'));
+
+                if (hasNamedSaved || hasNamedActive) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                    return '';
+                }
+            }
+
+            async exportNamedChats() {
+                try {
+                    this.showStatus('Preparing export...', 'info');
+                    const allIds = Object.keys(this.savedChats);
+                    const namedIds = allIds.filter(id => {
+                        const name = this.savedChats[id].name;
+                        return name && !name.startsWith('Topic');
+                    });
+
+                    if (namedIds.length === 0) {
+                        this.showStatus('No named chats found.', 'warning');
+                        return;
+                    }
+
+                    const exportData = { savedChats: {} };
+                    let count = 0;
+
+                    for (const id of namedIds) {
+                        let chat = await this.storageManager.getChat(id);
+                        if (!chat && this.sessions[id]) {
+                            chat = { ...this.sessions[id], timestamp: Date.now() };
+                        }
+
+                        if (chat) {
+                            exportData.savedChats[id] = chat;
+                            count++;
+                        }
+                    }
+
+                    if (count === 0) {
+                        this.showStatus('Failed to load chat data.', 'error');
+                        return;
+                    }
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `named_chats_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    this.showStatus(`Exported ${count} chats`, 'success');
+
+                } catch (e) {
+                    console.error(e);
+                    this.showStatus('Export failed: ' + e.message, 'error');
+                }
+            }
+        }
+
+        /* ... existing exports ... */
+        window.exportTable = function (btn) {
+            const table = btn.closest('.table-responsive').querySelector('table');
+            const win = window.open('', '_blank');
+            if (!win) return;
+            win.document.title = "Export Table";
+            const tableHtml = table.outerHTML;
+            const style = `body { font-family: sans-serif; padding: 20px; text-align: center; } table { border-collapse: collapse; width: 100%; margin: 20px 0; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background: #f2f2f2; } .btn-group { margin-bottom: 20px; } .btn { padding: 10px 20px; margin: 0 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 14px; } .btn:hover { background: #0056b3; }`;
+            win.document.write(`<html><head><style>${style}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script></head><body><div class="btn-group"><button class="btn" onclick="exportToCSV()">Download CSV</button><button class="btn" onclick="exportToExcel()">Download Excel</button><button class="btn" onclick="exportToJSON()">Download JSON</button></div><div id="tableContainer">${tableHtml}</div><script>function exportToCSV() { if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; } const table = document.querySelector("table"); const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"}); XLSX.writeFile(wb, "table_export.csv"); } function exportToExcel() { if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; } const table = document.querySelector("table"); const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"}); XLSX.writeFile(wb, "table_export.xlsx"); } function exportToJSON() { if(typeof XLSX === 'undefined') { alert('Library loading... try again in a second.'); return; } const table = document.querySelector("table"); const wb = XLSX.utils.table_to_book(table, {sheet: "Sheet1"}); const ws = wb.Sheets["Sheet1"]; const data = XLSX.utils.sheet_to_json(ws); const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "table_export.json"; a.click(); }<\/script></body></html>`);
+            win.document.close();
+        };
+
+        window.copyCodeBlock = function (id, btn) {
+            const txt = document.getElementById(id).textContent;
+            navigator.clipboard.writeText(txt).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✔ OK';
+                btn.classList.add('success');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('success');
+                }, 2000);
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.chatApp = new MultiAPIChat();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,10 @@
+{
+  "publishes": {
+    "tawny-ponder-px57": {
+      "siteUrl": "https://tawny-ponder-px57.here.now/",
+      "claimToken": "7b2785498efe9c0ad0421c5ac787050fc5f77a1c45a1cd18dffe5ce0ce167701",
+      "claimUrl": "https://here.now/claim?slug=tawny-ponder-px57&token=7b2785498efe9c0ad0421c5ac787050fc5f77a1c45a1cd18dffe5ce0ce167701",
+      "expiresAt": "2026-07-03T11:19:32.381Z"
+    }
+  }
+}

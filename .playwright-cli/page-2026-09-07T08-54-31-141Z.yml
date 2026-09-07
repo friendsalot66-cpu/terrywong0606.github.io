@@ -1,0 +1,54 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic "Settings" [ref=e4] [cursor=pointer]:
+        - generic [ref=e5]: ⚙️
+      - generic "Persona" [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 👤
+      - generic "One-shot Mode" [ref=e8] [cursor=pointer]:
+        - generic [ref=e9]: 🔥
+      - generic "Feedback Loop" [ref=e10] [cursor=pointer]:
+        - generic [ref=e11]: 🔁
+      - generic "Toggle References" [ref=e12] [cursor=pointer]:
+        - generic [ref=e13]: 🔗
+      - generic "Tools & Links" [ref=e14] [cursor=pointer]:
+        - generic [ref=e15]: 🛠️
+      - generic "History" [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: 📂
+      - generic "Prompt Library" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 📋
+      - generic "API Keys" [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]: 🔑
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e25]:
+          - heading "Multi-API Chat Interfacev4.0.3" [level=1] [ref=e26]
+          - generic [ref=e27]:
+            - generic [ref=e28]: "Model: sonar"
+            - generic [ref=e29]: "|"
+            - generic [ref=e30]: "Persona: All-rounder"
+            - generic [ref=e31]: Saved
+        - generic [ref=e32]:
+          - 'generic "Keep-alive: inactive" [ref=e33]'
+          - button "ℹ️" [ref=e34] [cursor=pointer]
+      - generic [ref=e35]:
+        - generic [ref=e36] [cursor=pointer]:
+          - generic [ref=e37]: Topic 1
+          - generic [ref=e38]: ✎
+          - generic [ref=e39]: ×
+        - generic [ref=e40] [cursor=pointer]: +
+      - generic [ref=e41]:
+        - button "🗑️" [ref=e45] [cursor=pointer]
+        - generic:
+          - button "⬆" [ref=e46] [cursor=pointer]
+          - button "⬇" [ref=e47] [cursor=pointer]
+      - generic [ref=e49]:
+        - textbox "Type your message..." [ref=e50]
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - button "📥" [ref=e53] [cursor=pointer]
+            - button "📎" [ref=e54] [cursor=pointer]
+            - button "🧠" [ref=e55] [cursor=pointer]
+            - button "🔓" [ref=e56] [cursor=pointer]
+          - button "→" [ref=e58] [cursor=pointer]
+  - text: ▶ ▶ 🔍 🔍
