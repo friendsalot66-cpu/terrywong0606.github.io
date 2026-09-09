@@ -269,6 +269,7 @@ Session gains `lockedPersona` field. New getters: `effectivePersona` (lockedPers
 
 ### Files Changed
 - `index.html` — +165 lines, ~5 patches
+- Fix thinking block ordering: moved think block extraction before HTML escaping (line 5329)
 
 ## Recent Changes (Per-Tab Model Lock)
 
