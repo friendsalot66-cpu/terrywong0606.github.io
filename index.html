@@ -4268,14 +4268,40 @@
                         }
                     });
 
+                    // --- Model-family aware generationConfig ---
+                    // Gemini 3.6+ official rules:
+                    //  * thinking_budget is replaced by thinking_level (low|medium|high).
+                    //  * temperature / top_p / top_k are DEPRECATED and ignored
+                    //    (future models return HTTP 400) -> must not be sent.
+                    //  * maxOutputTokens is a HARD cutoff that INCLUDES thought tokens,
+                    //    so too small a value silently truncates the visible answer.
+                    const _gName = String(body.model || '').toLowerCase();
+                    const _gMatch = _gName.match(/gemini[-_ ]?(\d+)(?:\.(\d+))?/);
+                    const _gMajor = _gMatch ? parseInt(_gMatch[1], 10) : 0;
+                    const _gMinor = (_gMatch && _gMatch[2]) ? parseInt(_gMatch[2], 10) : 0;
+                    const _isGemini3Plus = _gMajor >= 3;
+                    const _isGemini25 = (_gMajor === 2 && _gMinor === 5);
+
+                    const _genConfig = {
+                        maxOutputTokens: body.max_tokens || 8192,
+                        responseMimeType: "text/plain"
+                    };
+
+                    if (_isGemini3Plus) {
+                        // Keep the reasoning budget small so the ANSWER gets the tokens.
+                        _genConfig.thinkingConfig = { thinkingLevel: 'low' };
+                    } else {
+                        // Gemini 2.5 / unknown gemini-compatible aliases: sampling
+                        // parameters are still honoured here.
+                        _genConfig.temperature = body.temperature ?? 0.2;
+                        if (_isGemini25) {
+                            _genConfig.thinkingConfig = { thinkingBudget: 0 };
+                        }
+                    }
+
                     const geminiBody = {
                         contents: contents,
-                        generationConfig: {
-                            maxOutputTokens: body.max_tokens || 4096,
-                            temperature: body.temperature ?? 0.2,
-                            responseMimeType: "text/plain",
-                            thinkingConfig: { thinkingBudget: 0 }
-                        }
+                        generationConfig: _genConfig
                     };
                     if (systemText) {
                         geminiBody.system_instruction = { parts: [{ text: systemText }] };
@@ -4337,15 +4363,44 @@
                 return body;
             }
 
+            // Human-readable explanation for a non-normal finishReason.
+            // Gemini reports truncation/blocking as a normal HTTP 200 response, so this
+            // is the only way the user learns WHY the answer stopped early.
+            _finishReasonNotice(reason) {
+                const map = {
+                    MAX_TOKENS: '\u26a0\ufe0f Response cut off - the model hit the max output token limit (finishReason: MAX_TOKENS). Raise "Max Tokens" in Settings, or lower the thinking level.',
+                    SAFETY: '\u26a0\ufe0f Response stopped by safety filters (finishReason: SAFETY).',
+                    RECITATION: '\u26a0\ufe0f Response stopped by the recitation/copyright filter (finishReason: RECITATION).',
+                    PROHIBITED_CONTENT: '\u26a0\ufe0f Response blocked: prohibited content (finishReason: PROHIBITED_CONTENT).',
+                    BLOCKLIST: '\u26a0\ufe0f Response blocked: blocklist (finishReason: BLOCKLIST).',
+                    SPII: '\u26a0\ufe0f Response stopped: possible sensitive personal information (finishReason: SPII).',
+                    MALFORMED_FUNCTION_CALL: '\u26a0\ufe0f Response stopped: malformed function call (finishReason: MALFORMED_FUNCTION_CALL).',
+                    IMAGE_SAFETY: '\u26a0\ufe0f Image response stopped by safety filters (finishReason: IMAGE_SAFETY).',
+                    LANGUAGE: '\u26a0\ufe0f Response stopped: unsupported language (finishReason: LANGUAGE).',
+                    OTHER: '\u26a0\ufe0f Response finished early (finishReason: OTHER).'
+                };
+                return map[reason] || ('\u26a0\ufe0f Response finished early (finishReason: ' + reason + ').');
+            }
+
             _parseApiResponse(data, protocol) {
                 if (protocol === 'gemini') {
-                    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+                    const cand = data.candidates?.[0];
+                    const parts = (cand && cand.content && cand.content.parts) || [];
+                    const text = parts.map(p => (p && p.text) ? p.text : '').join('');
                     const usage = data.usageMetadata ? {
                         prompt_tokens: data.usageMetadata.promptTokenCount || 0,
                         completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
                         total_tokens: data.usageMetadata.totalTokenCount || 0
                     } : {};
-                    return { content: text, tokenUsage: usage, searchResults: [], citations: [] };
+                    return {
+                        content: text,
+                        tokenUsage: usage,
+                        searchResults: [],
+                        citations: [],
+                        finishReason: (cand && cand.finishReason) || '',
+                        blockReason: (data.promptFeedback && data.promptFeedback.blockReason) || '',
+                        error: data.error ? (data.error.message || JSON.stringify(data.error)) : ''
+                    };
                 }
 
                 if (protocol === 'anthropic') {
@@ -4403,12 +4458,35 @@
                             const result = { content: '', reasoningContent: '', done: false, usage: null, citations: null, searchResults: null, images: [] };
 
                             if (protocol === 'gemini') {
-                                if (!line.startsWith('data: ')) return result;
-                                const dataStr = line.slice(6).trim();
+                                // Accept both "data: {...}" and "data:{...}" - some
+                                // gemini-compatible relays omit the space after the colon.
+                                if (!line || !line.startsWith('data:')) return result;
+                                const dataStr = line.slice(5).trim();
+                                if (!dataStr) return result;
                                 if (dataStr === '[DONE]') { result.done = true; return result; }
                                 try {
                                     const data = JSON.parse(dataStr);
-                                    result.content = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+                                    // Mid-stream error frame: HTTP 200 + {"error": {...}}
+                                    if (data.error) {
+                                        result.error = data.error.message || JSON.stringify(data.error);
+                                        return result;
+                                    }
+                                    const cand = data.candidates?.[0];
+                                    const parts = (cand && cand.content && cand.content.parts) || [];
+                                    // Gemini 3 can emit thought parts; keep them out of the answer.
+                                    const _ans = [];
+                                    const _think = [];
+                                    parts.forEach(p => {
+                                        if (!p || !p.text) return;
+                                        if (p.thought) _think.push(p.text);
+                                        else _ans.push(p.text);
+                                    });
+                                    result.content = _ans.join('');
+                                    result.reasoningContent = _think.join('');
+                                    if (cand && cand.finishReason) result.finishReason = cand.finishReason;
+                                    if (data.promptFeedback && data.promptFeedback.blockReason) {
+                                        result.blockReason = data.promptFeedback.blockReason;
+                                    }
                                     if (data.usageMetadata) {
                                         result.usage = {
                                             prompt_tokens: data.usageMetadata.promptTokenCount || 0,
@@ -6777,6 +6855,14 @@
                     throw new Error(diagInfo);
                 }
 
+                // Surface silent truncation - Gemini returns HTTP 200 and simply stops.
+                if (parsed.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(parsed.finishReason)) {
+                    parsed.content = (parsed.content || '') + '\n\n---\n' + this._finishReasonNotice(parsed.finishReason);
+                }
+                if (parsed.blockReason) {
+                    parsed.content = (parsed.content || '') + '\n\n---\n\u26a0\ufe0f Prompt blocked by the model (blockReason: ' + parsed.blockReason + ').';
+                }
+
                 return parsed;
             }
 
@@ -7007,6 +7093,7 @@
                 const finalBody = this._transformBody(body, msgs, _protocol);
 
                 let res;
+                let _thinkingStripped = false;
                 const _maxRetries = 3;
                 for (let _attempt = 1; _attempt <= _maxRetries; _attempt++) {
                     res = await fetch(apiUrl, {
@@ -7027,13 +7114,25 @@
                     }
                     const errorText = await res.text();
                     console.error('API Error Response:', errorText);
-                    try {
-                        const errorData = JSON.parse(errorText);
-                        const errorMsg = errorData.error?.message || errorData.message || errorData.error || `HTTP ${res.status}`;
-                        throw new Error(errorMsg);
-                    } catch (e) {
-                        throw new Error(errorText || `HTTP ${res.status}`);
+                    // Gemini-compatible endpoints disagree on thinking parameters.
+                    // If the server rejects generationConfig.thinkingConfig, drop it once.
+                    if (res.status === 400 && !_thinkingStripped && _protocol === 'gemini'
+                        && /thinking/i.test(errorText)
+                        && finalBody && finalBody.generationConfig && finalBody.generationConfig.thinkingConfig) {
+                        _thinkingStripped = true;
+                        delete finalBody.generationConfig.thinkingConfig;
+                        this.showStatus('Endpoint rejected thinkingConfig - retrying without it...', 'info');
+                        continue;
                     }
+                    let _errMsg = `HTTP ${res.status}`;
+                    try {
+                        const parsedErr = JSON.parse(errorText);
+                        _errMsg = parsedErr.error?.message || parsedErr.message || parsedErr.error || _errMsg;
+                        if (typeof _errMsg !== 'string') _errMsg = JSON.stringify(_errMsg);
+                    } catch (e) {
+                        if (errorText) _errMsg = errorText;
+                    }
+                    throw new Error(_errMsg);
                 }
 
                 const assistantMessage = { role: 'assistant', content: pre || '', timestamp: new Date(), isStreaming: true, searchResults: [], modelUsed: effModel, images: [] };
@@ -7073,6 +7172,9 @@
                                                     if (parsed.images && parsed.images.length) {
                                                         assistantMessage.images = [...assistantMessage.images, ...parsed.images];
                                                     }
+                                                    if (parsed.finishReason) assistantMessage.finishReason = parsed.finishReason;
+                                                    if (parsed.blockReason) assistantMessage.blockReason = parsed.blockReason;
+                                                    if (parsed.error) assistantMessage.streamError = parsed.error;
 
                                                     const delta = parsed.content;
                                                     const reasoningContent = parsed.reasoningContent;
@@ -7142,6 +7244,17 @@
                         ].join('\n');
                         assistantMessage.content = pre ? pre + '\n' + diagInfo : diagInfo;
                         console.error('[Empty Stream]', diagInfo.replace(/\n/g, ' | '));
+                    }
+
+                    // Surface silent truncation - Gemini returns HTTP 200 and simply stops.
+                    if (assistantMessage.streamError) {
+                        assistantMessage.content += '\n\n---\n\u26a0\ufe0f Stream error: ' + assistantMessage.streamError;
+                    }
+                    if (assistantMessage.blockReason) {
+                        assistantMessage.content += '\n\n---\n\u26a0\ufe0f Prompt blocked by the model (blockReason: ' + assistantMessage.blockReason + ').';
+                    }
+                    if (assistantMessage.finishReason && !['STOP', 'FINISH_REASON_UNSPECIFIED'].includes(assistantMessage.finishReason)) {
+                        assistantMessage.content += '\n\n---\n' + this._finishReasonNotice(assistantMessage.finishReason);
                     }
 
                     // AUTO-COLLAPSE TOOL BLOCKS

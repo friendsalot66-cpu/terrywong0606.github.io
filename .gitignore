@@ -1,0 +1,4 @@
+# Patch / backup artifacts (see code/HANDBOOK.md)
+*.bak-*
+index.html.dsh-write-probe
+probe*.tmp

@@ -1,6 +1,6 @@
-# Multi-API Chat Interface v4.0.4 — Handbook for AI Models
+# Multi-API Chat Interface v4.0.5 — Handbook for AI Models
 
-> **Purpose:** This handbook summarizes the single-file SPA at `index.html` (~7,000 lines, 354 KB) so other AI models can make targeted edits without scanning the full file.
+> **Purpose:** This handbook summarizes the single-file SPA at `index.html` (~7,955 lines, 412 KB / 412,490 bytes) so other AI models can make targeted edits without scanning the full file.
 >
 > **File:** `/home/erry/.hermes/projects/terrywong0606/index.html`
 >
@@ -15,7 +15,7 @@ index.html
 ├── <head> — CSS vars, CDN scripts (showdown, highlight.js, KaTeX, Mermaid, PDF.js, Highcharts, SheetJS)
 ├── <style> — ~2,700 lines of CSS (theme tokens, layout, components)
 ├── <body> — HTML markup (header, sidebar, tabs, messages, popups, settings)
-└── <script> — ~3,900 lines of JS (classes + IIFE bootstrap)
+└── <script> — ~5,400 lines of JS starting at line 2554 (classes + IIFE bootstrap)
 ```
 
 ## Class Hierarchy
@@ -31,11 +31,29 @@ APIProvider (abstract)  — Base class: getHeaders, fetchModels, buildMessages, 
 ├── GenericAnthropicProvider
 └── OpenRouterProvider
 
-MultiAPIChat            — Main app class (~3,900 lines, lines 3104–7016)
-  └── (DUPLICATE CLASS at ~line 5500 — same methods, slightly different line numbers)
+MultiAPIChat            — Main app class (line 3273 → end of file, ~4,680 lines)
 ```
 
-> ⚠️ **Critical:** The `MultiAPIChat` class is **duplicated** in the file (lines ~3104–~5500 and ~5500–7016). Both copies are functionally identical. When patching methods that exist in both, use `replace_all=True` or patch each location separately.
+> ⚠️ **Critical — it is a duplicated METHOD BLOCK, not a duplicated class.**
+> There is exactly **one** `class MultiAPIChat` (line 3273). But ~11 of its methods are
+> **defined twice** inside that single class body. In a JS class body the **later
+> definition wins**, so copy 1 is dead code:
+>
+> | Method | Copy 1 (DEAD) | Copy 2 / last (LIVE) |
+> |---|---|---|
+> | `renderChatHistory()` | 6013 | 6235 |
+> | `togglePin()` | 6073 | 6295 |
+> | `renderGenericList()` | 6086 | 6308 |
+> | `showStatus()` | 6093 | 6315 |
+> | `setModel()` | 6097 | 6319 |
+> | `updateModelOptions()` | 6110 | 6332 |
+> | `setPersona()` | 6137 | 6359 |
+> | `stopGeneration()` | 6152 | 6374 |
+> | `handleBeforeUnload()` | 5940, 6162 | **7845** |
+> | `exportNamedChats()` | 5955, 6177 | **7858** |
+>
+> **Rule:** patch the LIVE copy (or both). `node --check` will NOT catch a fix that landed
+> only in a dead copy — the app simply behaves as if nothing changed.
 
 ## Key Data Structures
 
@@ -116,7 +134,7 @@ Built dynamically via `buildProviderRegistry()`. Maps provider ID → provider i
 - **Store name:** `savedChats`
 - **Key path:** `chat.id`
 - **Structure:** `{ id, name, messages, references, timestamp, isLocked, lockedModel, lockedAPI, lockedPersona }`
-- Managed by `StorageManager` class (lines ~2390–2641)
+- Managed by `StorageManager` class (lines 2559–2810)
 
 ## Provider Endpoints (apiEndpoints)
 
@@ -133,52 +151,54 @@ Built dynamically via `buildProviderRegistry()`. Maps provider ID → provider i
 ### Session Management
 | Method | Line | Purpose |
 |--------|------|---------|
-| `constructor()` | ~3105 | Init, load state, bind events |
-| `createNewSession()` | ~4696 | Create tab with empty messages |
-| `switchSession(id)` | ~4704 | Switch active tab |
-| `forkConversation()` | ~4884 | Duplicate session with all messages |
-| `closeSession(id)` | ~4752 | Delete session |
-| `renderTabs()` | ~4762 | Render tab bar |
+| `constructor()` | 3274 | Init, load state, bind events |
+| `createNewSession()` | 5048 | Create tab with empty messages |
+| `switchSession(id)` | 5056 | Switch active tab |
+| `forkConversation()` | 5263 | Duplicate session with all messages |
+| `closeSession(id)` | 5124 | Delete session |
+| `renderTabs()` | 5134 | Render tab bar |
 
 ### Messaging
 | Method | Line | Purpose |
 |--------|------|---------|
-| `sendUserMessage()` | ~5773 | Handle send: validate, render, call API |
-| `callAPI()` | ~5890 | Non-streaming API call with retries |
-| `streamResponse()` | ~6137 | SSE streaming response |
-| `buildMessagesForAPI()` | ~6000 | Build message array with persona, context |
-| `moonshotWebSearchCall()` | ~6032 | Multi-turn Moonshot web search (tool calls) |
-| `stopGeneration()` | ~5552 | Abort current request |
+| `sendUserMessage()` | 6383 | Handle send: validate, render, call API |
+| `callAPI()` | 6727 | Non-streaming API call with retries |
+| `streamResponse()` | 7006 | SSE streaming response |
+| `buildMessagesForAPI()` | 6869 | Build message array with persona, context |
+| `moonshotWebSearchCall()` | 6917 | Multi-turn Moonshot web search (tool calls) |
+| `callChatImageAPI()` | 6658 | Image generation (protocol-aware pipeline) |
+| `stopGeneration()` | 6374 (dead copy at 6152) | Abort current request |
 
 ### Model & Provider
 | Method | Line | Purpose |
 |--------|------|---------|
-| `setModel(m, a)` | ~5507 | Set model + provider (updates global + locked) |
-| `effectiveModel` (getter) | ~5252 | Returns lockedModel if locked, else currentModel |
-| `effectiveAPI` (getter) | ~5264 | Returns lockedAPI if locked, else currentAPI |
-| `updateModelOptions()` | ~5520 | Highlight active model in popup |
-| `setPersona(idx)` | ~5544 | Change system persona |
-| `getActiveProvider()` | ~3613 | Get provider instance for current API |
-| `buildProviderRegistry()` | ~3589 | Build provider map |
+| `setModel(m, a)` | 6319 (dead copy at 6097) | Set model + provider (updates global + locked) |
+| `effectiveModel` (getter) | 5818 | Returns lockedModel if locked, else currentModel |
+| `effectiveAPI` (getter) | 5850 | Returns lockedAPI if locked, else currentAPI |
+| `updateModelOptions()` | 6332 (dead copy at 6110) | Highlight active model in popup |
+| `setPersona(idx)` | 6359 (dead copy at 6137) | Change system persona |
+| `getActiveProvider()` | 3792 | Get provider instance for current API |
+| `buildProviderRegistry()` | 3768 | Build provider map |
 
 ### Lock Features (model + persona per tab)
 | Method | Line | Purpose |
 |--------|------|---------|
-| `toggleLock()` | ~5770 | Toggle lock on/off for current tab — locks model, API, AND persona |
-| `updateLockButton()` | ~5757 | Update 🔒/🔓 button state + tooltip |
-| `effectiveModel` (getter) | ~5703 | Returns lockedModel if locked, else currentModel |
-| `effectiveAPI` (getter) | ~5719 | Returns lockedAPI if locked, else currentAPI |
-| `effectivePersona` (getter) | ~5706 | Returns lockedPersona if locked, else currentPersona (NEW) |
-| `effectivePersonaPrompt` (getter) | ~5711 | Returns persona system prompt for effective persona (NEW) |
-| `setPersona(p)` | ~6019 | If locked: blocks change + shows warning; caller skipped (NEW) |
+| `toggleLock()` | 5885 | Toggle lock on/off for current tab — locks model, API, AND persona |
+| `updateLockButton()` | 5872 | Update 🔒/🔓 button state + tooltip |
+| `effectiveModel` (getter) | 5818 | Returns lockedModel if locked, else currentModel |
+| `effectiveAPI` (getter) | 5850 | Returns lockedAPI if locked, else currentAPI |
+| `effectivePersona` (getter) | 5830 | Returns lockedPersona if locked, else currentPersona |
+| `effectivePersonaPrompt` (getter) | 5841 | Returns persona system prompt for effective persona |
+| `setPersona(p)` | 6359 | If locked: blocks change + shows warning; caller skipped |
 
 ### Copy / Export / Navigation / Code Preview Features (NEW v4.0.3)
 | Method | Line | Purpose |
 |--------|------|---------|
-| `_filterVisibleContent(text)` | ~5303 | Strip `<think>...</think>` blocks for copy/export |
-| `downloadMD(text)` | ~(export popup) | Export message as `.md` file via Blob/URL |
-| `scrollToAdjacentUserPrompt(dir)` | ~5450 | Navigate ⬆⬇ to prev/next user prompt using viewport |
-| `toggleCodeBlock(btn, codeId)` | ~7775 | Expand/collapse truncated code block (>10 lines) |
+| `_filterVisibleContent(text)` | 7810 | Strip `<think>...</think>` blocks for copy/export |
+| `downloadMD(text)` | 5339 | Export message as `.md` file via Blob/URL |
+| `scrollToAdjacentUserPrompt(dir)` | 5094 | Navigate ⬆⬇ to prev/next user prompt using viewport |
+| `toggleCodeBlock(btn, codeId)` | 7934 (`window.`) | Expand/collapse truncated code block (>10 lines) |
+| `copyCodeBlock(id, btn)` | 7921 (`window.`) | Copy a code block to clipboard |
 
 ### HTML Structure (NEW v4.0.3)
 | Element | Purpose |
@@ -191,36 +211,42 @@ Built dynamically via `buildProviderRegistry()`. Maps provider ID → provider i
 ### Persistence
 | Method | Line | Purpose |
 |--------|------|---------|
-| `autoSaveChat()` | ~6848 | Save current session to IndexedDB |
-| `loadChat(id)` | ~6558 | Load session from IndexedDB |
-| `saveCurrentChat()` | ~6882 | Save with custom name |
+| `autoSaveChat()` | 7766 | Save current session to IndexedDB |
+| `loadChat(id)` | 7475 | Load session from IndexedDB |
+| `saveCurrentChat()` | 7801 | Save with custom name |
+| `persistSessionState()` | 3648 | Persist a non-active session without re-rendering |
 
 ### UI Rendering
 | Method | Line | Purpose |
 |--------|------|---------|
-| `renderMessages()` | ~4800 | Render message list with markdown, code blocks, images |
-| `updateHeaderStatus()` | ~5273 | Update header model/persona display |
-| `showStatus(msg, type)` | ~5503 | Toast notification |
-| `togglePopup(type)` | ~5316 | Show/hide settings popups |
+| `renderMessages()` | 5172 | Render message list with markdown, code blocks, images |
+| `renderEnhancedMarkdown(text)` | 5388 | Markdown → HTML (escaping, code collapse, math, think blocks) |
+| `updateHeaderStatus()` | 5858 | Update header model/persona display |
+| `showStatus(msg, type)` | 6315 (dead copy at 6093) | Toast notification |
+| `togglePopup(type)` | 5906 | Show/hide settings popups |
+| `updateTokenEstimate()` | 7377 | Recompute token estimate |
+| `updateMaxTokens(v)` | 7671 | Set token slider value + persist to localStorage |
 
 ### API Protocol Helpers
 | Method | Line | Purpose |
 |--------|------|---------|
-| `_getProviderProtocol()` | ~4014 | Detect openai/gemini/anthropic protocol |
-| `_buildApiUrl()` | ~4022 | Construct endpoint URL |
-| `_buildHeaders()` | ~4036 | Build auth + content headers |
-| `_transformBody()` | ~4056 | Transform messages to provider-specific format |
-| `_parseApiResponse()` | ~4159 | Parse response for all protocols |
-| `_parseStreamLine()` | ~4194 | Parse SSE stream chunks |
+| `_getProviderProtocol()` | 4193 | Detect openai/gemini/anthropic protocol |
+| `_buildApiUrl()` | 4201 | Construct endpoint URL (`:streamGenerateContent?alt=sse` for gemini) |
+| `_buildHeaders()` | 4215 | Build auth + content headers (`x-goog-api-key` for gemini) |
+| `_transformBody()` | 4235 | Transform messages to provider-specific format (**model-family aware for gemini — see v4.0.5**) |
+| `_finishReasonNotice(reason)` | 4369 | finishReason → human-readable warning (NEW v4.0.5) |
+| `_parseApiResponse()` | 4385 | Parse response for all protocols |
+| `_parseStreamLine()` | 4457 | Parse SSE stream chunks |
 
 ## Common Editing Patterns
 
 ### When patching methods that exist twice (both class copies)
-Use `replace_all=True` or patch both locations. Affected methods:
-- `setModel()`, `updateModelOptions()`, `updatePersonaOptions()`, `showStatus()`, `stopGeneration()`, `renderToolsList()`, `renderChatHistory()`, `togglePin()`, `exportNamedChats()`, `handleBeforeUnload()`
+Use the LIVE copy from the duplication table at the top (last definition wins), or patch both.
+Verified duplicated: `renderChatHistory()`, `togglePin()`, `renderGenericList()`, `showStatus()`, `setModel()`, `updateModelOptions()`, `setPersona()`, `stopGeneration()`, `handleBeforeUnload()`, `exportNamedChats()`
 
 ### Finding methods
-Use line numbers above. The file is ~7,016 lines.
+Use line numbers above. The file is ~7,955 lines. Re-derive them with a quick
+`grep`/Node scan after any large patch — every edit above line 4369 shifts the rest.
 
 ### Adding CSS
 CSS is in `<style>` tag (~lines 58–~2700). Use CSS variables (`--color-*`) for theming.
@@ -242,6 +268,87 @@ Follow the convention: snake_case keys, serialize with `JSON.stringify()`.
 > - Functions: `showPromptLibrary()`, `_getShortcuts()`, `_saveShortcuts()`, `_renderPromptLibrary(filter)`, `_bindPromptLibraryEvents()`, `_showPromptForm(mode, idx)`, `_hidePromptForm()`, `_savePromptForm()`, `_promptLibraryExport()`, `_promptLibraryImport(file)`
 > - All UI bindings registered in constructor via safe `document.getElementById()` null-checks
 > - Modal uses standard `togglePopup('promptLibrary')` pattern (added to popups array)
+
+## Recent Changes (v4.0.5 — Gemini 3.x Streaming Truncation Fix)
+
+Fixed 2026-10-20.
+
+### Symptom
+Gemini-compatible custom provider (Base URL = Cloudflare Worker in front of
+`generativelanguage.googleapis.com`, e.g. `gemini-3.8-flash`). With **streaming on**,
+the answer stopped abruptly part-way — "only the first batch" — with no error, no toast,
+and **no "Show more" button** (so it was real truncation, not the `code-block-truncated` collapse).
+Non-streaming looked fine.
+
+### Root cause (confirmed against Google's docs)
+`_transformBody()` sent a Gemini 2.5 payload to Gemini 3.x models:
+
+```js
+generationConfig: {
+    maxOutputTokens: body.max_tokens || 4096,
+    temperature: body.temperature ?? 0.2,
+    responseMimeType: "text/plain",
+    thinkingConfig: { thinkingBudget: 0 }   // <-- 2.5-only parameter
+}
+```
+
+Three official facts break this on Gemini 3.6+:
+
+1. **`thinking_budget` was replaced by `thinking_level`** (`low`/`medium`/`high`).
+   Sending `thinkingBudget` on 3.x is ignored or rejected, so thinking kept running at
+   the model default (`medium` for 3.6/3.8 Flash, `high` for 3 Flash / 3 Pro).
+2. **`max_output_tokens` is a hard cutoff that INCLUDES thought tokens.** Google:
+   *"If the model hits this limit while reasoning, it stops generating with status
+   `incomplete` and returns truncated or empty output."* With a 4096 cap and `medium`
+   thinking, the visible answer got whatever was left — hence mid-sentence truncation.
+3. **`temperature` / `top_p` / `top_k` are deprecated and ignored** on Gemini 3.6+,
+   and future models return HTTP 400. They must not be sent.
+
+Because the response is still HTTP 200, and the parser never read `finishReason`
+(`MAX_TOKENS`), nothing in the UI could explain the missing text.
+
+### Fix
+
+| # | Location | Change |
+|---|----------|--------|
+| R1 | `_transformBody()` 4235 | Model-family split: `gemini[N.]X` with X≥3 → `thinkingConfig: { thinkingLevel: 'low' }` and **no `temperature`**; 2.5 → `{ thinkingBudget: 0 }` + temperature; older/unknown aliases → **no** thinkingConfig at all. `maxOutputTokens` fallback 4096 → 8192. |
+| R2 | `_parseStreamLine()` 4457 | Reads `candidates[0].finishReason`, `promptFeedback.blockReason`, mid-stream `{"error":…}` frames; splits `parts[].thought` into `reasoningContent`; accepts `data:{` without the space (some relays). |
+| R3 | `_parseApiResponse()` 4385 | Same fields for the non-streaming path. |
+| R4 | `_finishReasonNotice()` 4369 | NEW helper mapping finishReason → human text. |
+| R5 | `streamResponse()` ~7150 | Wires finishReason / blockReason / streamError onto the assistant message. |
+| R6 | `streamResponse()` finally ~7250 | Appends a visible warning when finishReason ≠ `STOP` (e.g. `MAX_TOKENS` says "raise Max Tokens or lower the thinking level"). |
+| R7/R8 | `streamResponse()` 7096, 7115 | Fixed a swallowed error: the old `try { throw new Error(msg) } catch (e) { throw new Error(rawBody) }` always rethrew the raw JSON. Also: on HTTP 400 whose body mentions "thinking", strip `generationConfig.thinkingConfig` and retry once (guards gemini-compatible endpoints that reject the param). |
+| R9 | `callAPI()` ~6855 | Same truncation notice for non-streaming. |
+| R10 | `worker.js` | `respHeaders.delete('content-length')` — a stale length on a re-streamed body makes the browser cut the SSE short. |
+
+### Model detection
+`/gemini[-_ ]?(\d+)(?:\.(\d+))?/` on the lowercased model id. `gemini-3.8-flash`,
+`gemini-3.6-flash`, `gemini-3-pro-preview`, `models/gemini-3.8-flash`, `GEMINI-3.8-FLASH`
+and `gemini-4-argon` all resolve to major≥3. `gemini-flash-latest` matches nothing → no
+thinkingConfig is sent (safe default: never guess a param the endpoint may not know).
+
+### Verification
+- `node --check` on the extracted inline script (314,872 chars) — exit 0
+- `node --check` on `worker.js` — exit 0
+- 20/20 unit tests on the real `_parseStreamLine` (MAX_TOKENS, error frame, thought split,
+  `data:` without space, `[DONE]`, OpenAI branch regression)
+- 26/26 unit tests on the real `_transformBody` (3.8/3.6/3-pro/4-argon → thinkingLevel low
+  and no temperature; 2.5 → thinkingBudget 0; 2.0/1.5/unknown → no thinkingConfig)
+- `python -m http.server 8010` smoke test — HTTP 200
+
+### Files changed
+- `index.html` — 403,869 → 412,008 chars (+8,139), 10 patches
+- `worker.js` — 3,503 → 3,719 chars, 1 patch (now tracked in git)
+- `code/HANDBOOK.md` — this update
+
+### Pitfalls learned
+1. **Do not send Gemini 2.5 thinking params to 3.x.** `thinkingBudget` ↔ `thinkingLevel`.
+2. **`maxOutputTokens` includes thought tokens.** Truncation is a budget problem, not a network problem.
+3. **Gemini truncation is HTTP 200.** Always read `finishReason`; otherwise the failure is invisible.
+4. **`write`/`edit` file tools cannot write into this workspace.** The workspace lives on
+   `\\wsl.localhost\...` (WSL 9p). The tools use atomic temp-file + hardlink, and 9p returns
+   `ENOTSUP`, so writes fail. Use `python`/`node` (available on this machine) to write files.
+   `git` also needs `-c safe.directory=*` because of the UNC path ownership check.
 
 ## Recent Changes (v4.0.4 — 5 Features: Filter, Export, Nav, Code Preview, Persona Lock)
 
@@ -362,6 +469,11 @@ Added to `generationConfig` for Gemini protocol requests:
 - `responseMimeType: "text/plain"` — prevents Gemini from returning HTML/Markdown that browsers might parse
 - `thinkingConfig: { thinkingBudget: 0 }` — disables thinking token budget so all output capacity goes to content
 
+> ⚠️ **SUPERSEDED in v4.0.5.** `thinkingBudget` is a **Gemini 2.5-only** parameter.
+> On Gemini 3.x it is ignored (or rejected), thinking stays on at the default level,
+> and the reasoning tokens eat `maxOutputTokens` — which truncated answers mid-sentence.
+> `temperature` is also deprecated on Gemini 3.x. See the v4.0.5 section below.
+
 ### Files Changed
 - `index.html` — `renderEnhancedMarkdown()` at line ~5310 (HTML escaping logic)
 - `index.html` — `_transformBody()` at line ~4271-4281 (Gemini generationConfig params)
@@ -372,7 +484,10 @@ Added to `generationConfig` for Gemini protocol requests:
 
 ## Deployment
 
-- **Target:** GitHub Pages (user: friendsalot66, repo: terrywong0606.github.io)
+- **Target:** GitHub Pages (user: friendsalot66-cpu, repo: terrywong0606.github.io, branch `main`)
 - **Type:** Single-file static HTML — just push `index.html`
+- **Also versioned:** `worker.js` (Cloudflare Worker proxy for gemini/CORS). It is **not**
+  served by Pages for the app; it must be deployed separately to Cloudflare Workers.
+- **Never commit** the `*.bak-*` patch backups.
 - **Dependencies:** All CDN-loaded (showdown, highlight.js, KaTeX, Mermaid, PDF.js, Highcharts, SheetJS)
 - **No build step required**
