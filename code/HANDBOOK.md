@@ -196,15 +196,19 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 2. **`processHighcharts()` implemented** (was an empty stub since v4.0.4). It parses `code.language-highcharts` / `language-hc` / `language-chart`, injects a `.highcharts-host` div after the code block and calls `Highcharts.chart()`. Invalid JSON is ignored silently; render errors are caught and logged.
 3. **Tool HTTP errors are surfaced.** `/search` and `/web/fetch` now throw on non-2xx so the tool result carries `HTTP <status>: <message>`. A permission-blocked key therefore produces a truthful answer instead of “no results”.
 
-### Verification (3 suites, 66 checks, 0 failures, 0 page errors)
+### Verification (3 suites, 71 checks, 0 failures, 0 page errors)
 
 | Suite | Covers |
 |---|---|
 | 1 (42 checks) | boot, removed/new UI, memory, base-URL rules, branch tree + navigator, profile export/import, agent loop (4 scenarios incl. budget-exhausted synthesis), Gemini 3.x regression |
 | 2 (12 checks) | tree persistence + restore in IndexedDB, memory without a persona, `/models` + CORS-proxy resolution, full Gemini SSE stream with `MAX_TOKENS` notice |
-| 3 (12 checks) | Highcharts real SVG render, **real** OmniRoute non-stream, **real** SSE stream, **real** agent loop with live `tool_calls` (403 surfaced) |
+| 3 (17 checks) | Highcharts real SVG render, **real** OmniRoute non-stream, **real** SSE stream, **real** agent loop with live `tool_calls` **and live citations** (10 results → 10 citations, all http(s) URLs, inline `[n]` markers, `session.references` populated for the 🔗 panel) |
 
-Real-API notes: tested against OmniRoute (`http://127.0.0.1:20128/v1`, model `Commandcode_cheap`). `/search` and `/web/fetch` return `403 permission_denied` for the key used, so citation population could not be verified against live search data — everything else was. Gemini could not be tested against a live endpoint (OmniRoute is OpenAI-compatible only); the Gemini path is covered by unit + mocked-SSE tests.
+Real-API notes: tested against OmniRoute (`http://127.0.0.1:20128/v1`, model `Commandcode_cheap`). Verified live: chat completions (stream + non-stream, including keepalive frames and `<think>` blocks), OpenAI-style `tool_calls`, `POST /search` (tavily) and `POST /web/fetch`. One agent turn produced 10 search results and a cited answer.
+
+`/search` and `/web/fetch` are **separate model permissions** on the router. Without them the endpoints answer `403 permission_denied`; the tool-error surfacing added above reports that to the model instead of silently handing it an empty result set, so the answer says “the search endpoint returned HTTP 403 …” rather than “no results found”. If citations stop working, check those permissions first.
+
+Gemini has no live endpoint here (OmniRoute is OpenAI-compatible only); the Gemini path is covered by unit + mocked-SSE tests.
 
 ## Deployment
 
