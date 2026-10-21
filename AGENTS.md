@@ -6,8 +6,8 @@
 
 | Field | Value |
 |-------|-------|
-| **App** | Multi-API Chat Interface v4.0.1 |
-| **File** | `index.html` (~7,000 lines, 354 KB) |
+| **App** | Multi-API Chat Interface v5.0.0 |
+| **File** | `index.html` (~7,250 lines, 350 KB) |
 | **Type** | Single-file SPA (HTML + embedded CSS + vanilla JS) |
 | **Deploy** | GitHub Pages (`friendsalot66/terrywong0606.github.io`) |
 | **Deps** | CDN only (showdown, highlight.js, KaTeX, Mermaid, PDF.js, Highcharts, SheetJS) |
@@ -40,7 +40,7 @@
 
 ### Phase 3 — Execute
 7. Make targeted edits using `patch` tool
-8. After every patch, run `node --check index.html` to catch syntax errors immediately
+8. After every patch, extract the inline `<script>` and run `node --check` on it (`node --check index.html` cannot parse HTML) — snippet in HANDBOOK
 9. Start a local server on **port 8010**:
    ```bash
    cd /home/erry/.hermes/projects/terrywong0606 && python3 -m http.server 8010 &
@@ -76,7 +76,7 @@
 | **Simple bug fix (1 method, 1 area)** | Direct edit. No orchestrator needed. |
 | **Complex feature (3+ methods, new UI, new API)** | Orchestrator + kanban with specialists |
 | **Line numbers shift after edit** | Update HANDBOOK.md line numbers after confirmation |
-| **Method exists in BOTH class copies** | Use `replace_all=True` in patch, or patch both locations |
+| **Method looks duplicated** | v5.0.0 removed the duplicate definitions — re-run the duplicate scan in HANDBOOK; a duplicate is a bug now, not a patching rule |
 
 ---
 
@@ -107,7 +107,7 @@
 ## Key Pitfalls (from `multi-api-web-app` skill)
 
 These are the hard-learned lessons. Read the skill for full details:
-1. Duplicate `MultiAPIChat` class — always `replace_all=True`
+1. ~~Duplicate `MultiAPIChat` class~~ — **fixed in v5.0.0**; every method now has exactly one definition (scan command in HANDBOOK)
 2. Event listener method names must match HTML bindings exactly
 3. `switchSession()` must call `updateHeaderStatus()`
 4. Never use bare `effectiveAPI` — always `this.effectiveAPI` or local `effAPI`

@@ -2,3 +2,9 @@
 *.bak-*
 index.html.dsh-write-probe
 probe*.tmp
+
+# v5.0.0 source drop (index.html is canonical)
+index_v5.0.0.html
+
+# Windows download markers
+*Zone.Identifier
