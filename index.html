@@ -2166,6 +2166,14 @@
                 <input type="number" id="maxTokensInput" class="form-control" style="width: 100%; margin-top: 4px;"
                     value="4096">
             </div>
+            <div class="form-group">
+                <label class="form-label">Max tool rounds per message: <span id="maxToolRoundsValue">3</span></label>
+                <input type="range" id="maxToolRoundsSlider" min="1" max="10" step="1" value="3">
+                <p style="font-size:11px; color:var(--color-text-secondary); margin-top:4px;">
+                    One round = one model request. A turn makes at most rounds + 1 requests,
+                    so keep this at 4 or lower if your model allows only 5 requests per minute.
+                </p>
+            </div>
             <h4 style="margin-top:16px;">Custom Providers</h4>
             <div id="customProvidersModelSection">
                 <p style="font-size:12px; color:var(--color-text-secondary);">Add providers in Settings → Custom API Providers</p>
@@ -2772,7 +2780,8 @@
                 this.currentReference = { num: '', url: '', snippet: '', title: '' };
                 this.oneShotMode = localStorage.getItem('oneShotMode') === 'true' || false;
                 this.streamMode = localStorage.getItem('streamMode') !== 'false';
-                this.useToolsEnabled = true;
+                this.useToolsEnabled = localStorage.getItem('useToolsEnabled') === 'true';
+                this.maxToolRounds = Math.max(1, Math.min(10, parseInt(localStorage.getItem('maxToolRounds') || '3', 10) || 3));
 
                 this.savedChats = {};
                 this.maxTokens = parseInt(localStorage.getItem('maxTokens') || '4096');
@@ -3594,6 +3603,33 @@
 
             // ========== PROTOCOL TRANSLATION HELPERS ==========
 
+            // Tools may only call an endpoint the provider explicitly declares.
+            // Never guess `{baseUrl}/search` - that path does not exist on normal
+            // OpenAI-compatible APIs, and guessing made every provider run a tool
+            // loop that could only fail.
+            hasSearchEndpoint(providerId) {
+                const id = providerId || this.effectiveAPI;
+                const cp = this.customProviders.find(p => p.id === id);
+                if (!cp) return false;
+                return !!(cp.useCustomSearchEndpoint && cp.customSearchBaseUrl && String(cp.customSearchBaseUrl).trim());
+            }
+
+            // Re-send a request after HTTP 429, honouring Retry-After (capped).
+            // Models on a low requests-per-minute budget trip this mid tool-loop.
+            async _fetchRetry429(url, opts, maxRetries = 2, maxWaitSec = 20) {
+                let res = null;
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    res = await fetch(url, opts);
+                    if (!res || res.status !== 429 || attempt === maxRetries) return res;
+                    const raRaw = parseInt(res.headers && res.headers.get ? (res.headers.get('retry-after') || '') : '', 10);
+                    const waitSec = Math.min(maxWaitSec, Math.max(2, isNaN(raRaw) ? 5 : raRaw));
+                    this.showStatus(`Model rate limit (429) - waiting ${waitSec}s, retry ${attempt + 1}/${maxRetries}`, 'warning');
+                    try { await res.text(); } catch (e) { }
+                    await new Promise(r => setTimeout(r, waitSec * 1000));
+                }
+                return res;
+            }
+
             _getProviderProtocol() {
                 const effAPI = this.effectiveAPI;
                 const cp = this.customProviders.find(p => p.id === effAPI);
@@ -4068,6 +4104,12 @@
                     this.useToolsToggle.addEventListener('click', () => {
                         this.useToolsEnabled = !this.useToolsEnabled;
                         this.useToolsToggle.classList.toggle('active', this.useToolsEnabled);
+                        localStorage.setItem('useToolsEnabled', this.useToolsEnabled ? 'true' : 'false');
+                        if (this.useToolsEnabled && !this.hasSearchEndpoint()) {
+                            this.showStatus('Tools need a Custom Search endpoint - set one in the provider settings', 'warning');
+                        } else {
+                            this.showStatus(`Tools ${this.useToolsEnabled ? 'Enabled' : 'Disabled'}`, 'info');
+                        }
                     });
                 }
 
@@ -4110,6 +4152,11 @@
                 this.importPersonasInput.addEventListener('change', (e) => this.importPersonas(e));
 
                 this.maxTokensSlider.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
+                this.maxToolRoundsSlider = document.getElementById('maxToolRoundsSlider');
+                if (this.maxToolRoundsSlider) {
+                    this.maxToolRoundsSlider.addEventListener('input', (e) => this.updateMaxToolRounds(e.target.value));
+                }
+                this.updateMaxToolRounds(this.maxToolRounds);
                 this.maxTokensInput.addEventListener('input', (e) => this.updateMaxTokens(e.target.value));
 
                 document.getElementById('closeReferencePopup').addEventListener('click', () => this.referencePopup.classList.add('hidden'));
@@ -5792,9 +5839,11 @@
                 const cpConfig = this.customProviders.find(p => p.id === effAPI);
                 const baseUrl = (cpConfig?.baseUrl || this.providerRegistry[effAPI]?.baseUrl || '').replace(/\/+$/, '').replace(/\/(chat\/completions|messages)$/i, '');
 
-                const searchBase = (cpConfig?.useCustomSearchEndpoint && cpConfig?.customSearchBaseUrl?.trim())
-                    ? cpConfig.customSearchBaseUrl.trim().replace(/\/+$/, '')
-                    : baseUrl;
+                if (!this.hasSearchEndpoint(effAPI)) {
+                    this.showStatus('Tools need a Custom Search endpoint - set one in the provider settings', 'warning');
+                    throw new Error('No Custom Search endpoint configured for this provider. Enable "Use Custom Search / Fetch Endpoint" in the provider settings, or turn the Tools toggle off.');
+                }
+                const searchBase = cpConfig.customSearchBaseUrl.trim().replace(/\/+$/, '');
 
                 let searchUrl = `${searchBase}/search`;
                 let fetchUrl = `${searchBase}/web/fetch`;
@@ -5867,7 +5916,7 @@
                 }
 
                 let toolLogMarkdown = '';
-                let maxIterations = 5;
+                let maxIterations = this.maxToolRounds || 3;
                 let finalRoundContent = '';
                 let hadToolCallsInLastRound = false;
 
@@ -5885,7 +5934,7 @@
                         tool_choice: 'auto'
                     };
 
-                    const res = await fetch(chatUrl, {
+                    const res = await this._fetchRetry429(chatUrl, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(roundBody),
@@ -6044,7 +6093,7 @@
                     };
 
                     try {
-                        const sRes = await fetch(streamChatUrl, {
+                        const sRes = await this._fetchRetry429(streamChatUrl, {
                             method: 'POST',
                             headers: headers,
                             body: JSON.stringify(synthBody),
@@ -6111,7 +6160,7 @@
                         temperature: 0.2,
                         stream: false
                     };
-                    const sRes = await fetch(chatUrl, {
+                    const sRes = await this._fetchRetry429(chatUrl, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(synthBody),
@@ -6175,8 +6224,29 @@
                         }, userNodeId);
                         this.renderMessages();
                         await this.autoSaveChat();
-                    } else if (this.useToolsEnabled && this._getProviderProtocol() === 'openai') {
+                    } else if (this.useToolsEnabled && this._getProviderProtocol() === 'openai' && this.hasSearchEndpoint()) {
                         await this.omniRouteAgenticCall(sessionId, userNodeId);
+                    } else if (this.useToolsEnabled && this._getProviderProtocol() === 'openai' && !this.hasSearchEndpoint()) {
+                        // Tools are on but this provider has no search/fetch endpoint:
+                        // fall back to a normal answer instead of failing tool rounds.
+                        this.showStatus('Tools skipped: no Custom Search endpoint configured', 'warning');
+                        if (this.streamMode) {
+                            await this.streamResponse(promptText, null, sessionId, userNodeId);
+                        } else {
+                            const res = await this.callAPI(promptText, null, sessionId, userNodeId);
+                            this.appendMessageNode(session, {
+                                role: 'assistant',
+                                content: res.content,
+                                timestamp: Date.now(),
+                                tokenUsage: res.tokenUsage,
+                                searchResults: res.searchResults || [],
+                                citations: res.citations || [],
+                                images: res.images || [],
+                                modelUsed: effModel
+                            }, userNodeId);
+                            this.renderMessages();
+                            await this.autoSaveChat();
+                        }
                     } else if (this.streamMode) {
                         await this.streamResponse(promptText, null, sessionId, userNodeId);
                     } else {
@@ -6499,7 +6569,9 @@
                         continue;
                     }
                     if (res.status === 429) {
-                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                        const _ra = res.headers && res.headers.get ? res.headers.get('retry-after') : null;
+                        throw new Error('Rate limit exceeded (429).' + (_ra ? ' Retry after ' + _ra + 's.' : ' Wait about a minute before retrying.')
+                            + ' If your model allows only a few requests per minute, lower "Max tool rounds" in Settings.');
                     }
                     const errorData = await res.json().catch(() => ({}));
                     const errorMsg = errorData.error?.message || errorData.message || errorData.error || `HTTP ${res.status}`;
@@ -6622,7 +6694,9 @@
                         continue;
                     }
                     if (res.status === 429) {
-                        throw new Error("Rate limit exceeded (429). Please wait a moment before trying again.");
+                        const _ra = res.headers && res.headers.get ? res.headers.get('retry-after') : null;
+                        throw new Error('Rate limit exceeded (429).' + (_ra ? ' Retry after ' + _ra + 's.' : ' Wait about a minute before retrying.')
+                            + ' If your model allows only a few requests per minute, lower "Max tool rounds" in Settings.');
                     }
                     const errorText = await res.text();
                     if (res.status === 400 && !_thinkingStripped && _protocol === 'gemini'
@@ -6926,14 +7000,97 @@
                 });
             }
 
+            // Extract the options object from `Highcharts.chart('id', { ... })`.
+            // Returns the text after the first top-level comma, or null.
+            _extractChartCallOptions(src) {
+                const s = String(src || '');
+                const idx = s.search(/Highcharts\s*\.\s*(?:chart|stockChart)\s*\(/);
+                if (idx < 0) return null;
+                const open = s.indexOf('(', idx);
+                if (open < 0) return null;
+                let depth = 0, start = -1, quote = null;
+                for (let i = open; i < s.length; i++) {
+                    const c = s[i];
+                    if (quote) {
+                        if (c === '\\') { i++; continue; }
+                        if (c === quote) quote = null;
+                        continue;
+                    }
+                    if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+                    if (c === '(') { depth++; continue; }
+                    if (c === ')') { depth--; if (depth === 0) return start >= 0 ? s.slice(start, i) : null; continue; }
+                    if (c === ',' && depth === 1 && start < 0) start = i + 1;
+                }
+                return null;
+            }
+
+            // Convert a JS object literal (single quotes, bare keys, comments,
+            // trailing commas) into JSON text. Never executes anything.
+            _jsLiteralToJson(src) {
+                const s = String(src || '');
+                let out = '';
+                let i = 0;
+                while (i < s.length) {
+                    const c = s[i];
+                    if (c === '/' && s[i + 1] === '/') { while (i < s.length && s[i] !== '\n') i++; continue; }
+                    if (c === '/' && s[i + 1] === '*') { i += 2; while (i < s.length && !(s[i] === '*' && s[i + 1] === '/')) i++; i += 2; continue; }
+                    if (c === '"' || c === "'" || c === '`') {
+                        const q = c; let str = ''; i++;
+                        while (i < s.length) {
+                            const d = s[i];
+                            if (d === '\\') { str += d + (s[i + 1] || ''); i += 2; continue; }
+                            if (d === q) { i++; break; }
+                            str += d; i++;
+                        }
+                        out += '"' + str.replace(/\\'/g, "'").replace(/(^|[^\\])"/g, '$1\\"') + '"';
+                        continue;
+                    }
+                    if (c === '{' || c === ',') {
+                        out += c; i++;
+                        let j = i;
+                        while (j < s.length && /\s/.test(s[j])) j++;
+                        const m = /^([A-Za-z_$][\w$]*)\s*:/.exec(s.slice(j));
+                        if (m) { out += s.slice(i, j) + '"' + m[1] + '":'; i = j + m[0].length; }
+                        continue;
+                    }
+                    out += c; i++;
+                }
+                return out.replace(/,(\s*[}\]])/g, '$1');
+            }
+
+            _parseChartOptions(text) {
+                if (!text) return null;
+                const UNSAFE = /=>|\bfunction\b|\bnew\s+[A-Za-z_$]|document\.|window\.|globalThis|\beval\s*\(|\bimport\b|\brequire\s*\(|\$\{/;
+                let src = String(text).trim();
+                if (UNSAFE.test(src)) {
+                    src = this._extractChartCallOptions(src) || '';
+                    if (!src || UNSAFE.test(src)) return null;
+                }
+                src = src.trim().replace(/;\s*$/, '');
+                let cfg = null;
+                try { cfg = JSON.parse(src); } catch (e) { }
+                if (!cfg) { try { cfg = JSON.parse(this._jsLiteralToJson(src)); } catch (e) { } }
+                if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return null;
+                if (!cfg.series && !cfg.chart) return null;
+                return cfg;
+            }
+
             processHighcharts(el) {
                 if (!el || !window.Highcharts) return;
-                const blocks = el.querySelectorAll('code.language-highcharts, code.language-hc, code.language-chart');
+                const blocks = el.querySelectorAll('.code-block code, pre > code');
                 blocks.forEach(codeEl => {
                     if (!codeEl || codeEl.dataset.hcRendered === '1') return;
-                    let cfg = null;
-                    try { cfg = JSON.parse(codeEl.textContent || ''); } catch (e) { return; }
-                    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return;
+                    const langMatch = (codeEl.className || '').match(/language-([\w-]+)/);
+                    const lang = langMatch ? langMatch[1].toLowerCase() : '';
+                    let text = codeEl.textContent || '';
+                    if (lang === 'html' || lang === 'javascript' || lang === 'js' || lang === 'htm') {
+                        text = this._extractChartCallOptions(text);
+                        if (!text) return;
+                    } else if (lang && !['highcharts', 'hc', 'chart', 'json', 'text'].includes(lang)) {
+                        return;
+                    }
+                    const cfg = this._parseChartOptions(text);
+                    if (!cfg) return;
                     const anchor = codeEl.closest('.code-block') || codeEl.parentElement;
                     if (!anchor || !anchor.parentNode) return;
                     const host = document.createElement('div');
@@ -7088,6 +7245,15 @@
                 } else {
                     this.showStatus('Cannot edit standard persona. Save as New.', 'warning');
                 }
+            }
+
+            updateMaxToolRounds(v) {
+                this.maxToolRounds = Math.max(1, Math.min(10, parseInt(v, 10) || 3));
+                localStorage.setItem('maxToolRounds', this.maxToolRounds);
+                const lbl = document.getElementById('maxToolRoundsValue');
+                if (lbl) lbl.textContent = this.maxToolRounds;
+                const slider = document.getElementById('maxToolRoundsSlider');
+                if (slider && String(slider.value) !== String(this.maxToolRounds)) slider.value = this.maxToolRounds;
             }
 
             updateMaxTokens(v) {
