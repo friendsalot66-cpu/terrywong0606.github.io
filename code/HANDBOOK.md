@@ -81,18 +81,18 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 | `appendMessageNode(session, msgData, parentId?)` | 4297 | Add a node under `currentLeafId` (or explicit parent), activate it |
 | `switchBranch(nodeId, delta)` | 4332 | Cycle siblings; **call with the node currently displayed** (UI contract, see 4576) |
 | `regenerateResponse(nodeId)` | 4360 | 🔄 on an assistant node → new sibling assistant node |
-| `_generateFromUserNode(sessionId, userNodeId)` | 6134 | Edit "Save & Regenerate" / regenerate entry point |
+| `_generateFromUserNode(sessionId, userNodeId)` | 6144 | Edit "Save & Regenerate" / regenerate entry point |
 | `scrollToAdjacentUserPrompt(dir)` | 4448 | ⬆⬇ jump between user prompts |
 
 ### Messaging
 | Method | Line | Purpose |
 |---|---|---|
-| `sendUserMessage()` | 6207 | Validate, push user node, dispatch |
+| `sendUserMessage()` | 6217 | Validate, push user node, dispatch |
 | `omniRouteAgenticCall(sessionId, parentNodeId?)` | 5786 | Multi-turn agent loop (web_search / web_fetch, max 5 rounds) |
-| `streamResponse(msg, pre, sessionId, parentNodeId?)` | 6568 | SSE streaming |
-| `callAPI(msg, pre, sessionId)` | 6449 | Non-streaming request |
-| `callChatImageAPI(prompt, params, sessionId)` | 6401 | Image generation (passes `_protocol` to `_parseApiResponse`) |
-| `buildMessagesForAPI(pre, upToNodeId?)` | 6532 | Build payload; appends `[User Memory]` and slices to the active path |
+| `streamResponse(msg, pre, sessionId, parentNodeId?)` | 6578 | SSE streaming |
+| `callAPI(msg, pre, sessionId)` | 6459 | Non-streaming request |
+| `callChatImageAPI(prompt, params, sessionId)` | 6411 | Image generation (passes `_protocol` to `_parseApiResponse`) |
+| `buildMessagesForAPI(pre, upToNodeId?)` | 6542 | Build payload; appends `[User Memory]` and slices to the active path |
 
 ### Session / persistence
 | Method | Line | Purpose |
@@ -101,9 +101,9 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 | `switchSession(id)` | 4403 | Switch tab (sets `activeSessionId` **and** `currentChatId`) |
 | `closeSession(id)` | 4478 | Delete tab |
 | `forkConversation()` | 4662 | Duplicate session |
-| `loadChat(id)` | 6946 | Restore from IndexedDB (restores `messageTree`) |
-| `autoSaveChat()` | 7122 | Save — **keys on `this.currentChatId`**, not `activeSessionId` |
-| `saveCurrentChat()` | 7158 | Save with a custom name |
+| `loadChat(id)` | 6978 | Restore from IndexedDB (restores `messageTree`) |
+| `autoSaveChat()` | 7154 | Save — **keys on `this.currentChatId`**, not `activeSessionId` |
+| `saveCurrentChat()` | 7190 | Save with a custom name |
 | `persistSessionState()` | 3050 | Persist a non-active session |
 
 ### Settings / memory / profile
@@ -129,7 +129,7 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 | `_parseStreamLine(line, protocol, state)` | 3829 | One SSE line → `{content, reasoningContent, finishReason, blockReason, error, ...}` |
 
 ### UI
-`renderMessages()` 4538 · `renderEnhancedMarkdown(text)` 4830 · `showStatus(msg,type)` 5720 · `updateHeaderStatus()` 5273 · `updateTokenEstimate()` 6857 · `updateMaxTokens(v)` 7061 · `processHighcharts(el)` 6919 (no-op stub) · `processTables(el)` 6921.
+`renderMessages()` 4538 · `renderEnhancedMarkdown(text)` 4830 · `showStatus(msg,type)` 5720 · `updateHeaderStatus()` 5273 · `updateTokenEstimate()` 6867 · `updateMaxTokens(v)` 7093 · `processHighcharts(el)` 6929 (renders ```highcharts``` JSON blocks) · `processTables(el)` 6953.
 `window.` helpers: `copyCodeBlock` 7216, `toggleCodeBlock` 7229, `exportTable` 7205.
 
 ## Spec A2 — Base URL rules (v5.0.0)
@@ -154,7 +154,7 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 
 `omniRouteAgenticCall()` posts to `{chatUrl}` with `tools: [web_search, web_fetch]`, `tool_choice: 'auto'`, up to **5** rounds. Tool endpoints: `POST {searchBase}/search` `{query, max_results}` → `{results|data|organic:[{url,title,snippet}]}`; `POST {searchBase}/web/fetch` `{url}` → `{content|markdown|text}`. `searchBase` = the provider's `customSearchBaseUrl` when `useCustomSearchEndpoint` is on, else the provider base. Tool steps accumulate into `toolLogMarkdown` and are wrapped in `<details class="tool-collapse">`; citations land on the assistant node (`citations[]` = URLs, `searchResults[]` = `{name,title,url,snippet}`) which feeds the 🔗 References panel.
 
-**Final round:** with `streamMode` on, the loop's non-streaming final answer is followed by a **second, streaming** synthesis request, so expect 3 chat calls for a 1-tool turn (2 with `streamMode` off). That double call is deliberate (token-by-token UX + fallback) but doubles the final-answer tokens and the two answers can differ.
+**Final round:** the loop's last non-streaming round already contains the answer, so it is **reused** — one tool turn costs 2 chat calls, and `streamMode` does not add a request. Only when the 5-round tool budget runs out before any answer exists does the code make **one** extra synthesis request (without `tools`), honouring `streamMode`. Tool HTTP errors (non-2xx) are thrown so the message reaches the model, e.g. “web_search returned HTTP 403: Model \"search\" is not allowed for this API key”.
 
 ## Spec B2 — Branching model
 
@@ -175,8 +175,9 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 5. **Never use bare `effectiveAPI`.** Use `this.effectiveAPI` or a local `effAPI`.
 6. **Image rendering must sit outside `if (message.content)`** so image-only replies still render.
 7. **KaTeX: watch backslash doubling** in template strings.
-8. **`processHighcharts(el)` is an empty stub** — Highcharts/chart post-processing is currently a no-op. Don't assume charts render.
-9. After any patch: extract the inline script → `node --check`, then run the Playwright suite. Static scanning alone will not catch DOM/null regressions.
+8. **Charts:** ```highcharts``` fenced blocks holding Highcharts options JSON are rendered by `processHighcharts()` — a `.highcharts-host` div is injected after the code block (the config stays visible). JSON only; JS functions in the config are not supported.
+9. **Agent-loop tool HTTP errors must reach the model.** `/search` and `/web/fetch` used to be parsed without checking `res.ok`, so a 403 looked like an empty result set and the model answered “search found nothing”. They now throw and the reason lands in the tool result. Keep that behaviour.
+10. After any patch: extract the inline script → `node --check`, then run the Playwright suites. Static scanning alone will not catch DOM/null regressions.
 
 ## Recent Changes (v5.0.0)
 
@@ -188,6 +189,22 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 - **B2 — Conversation branching.** `messageTree` + `◀ n/m ▶` navigator, edit/regenerate as siblings.
 - **Dedup & fixes.** All duplicate `MultiAPIChat` method definitions removed; `callChatImageAPI()` now passes `_protocol` (was `null`) to `_parseApiResponse()`.
 - **Bugfix during acceptance testing:** `_rawContent` empty-stream guard rewritten (pitfall 4).
+
+## Post-acceptance fixes (2026-10-21)
+
+1. **The agent loop no longer pays for the final answer twice.** `needsSynthesisCall` is now `!finalRoundContent`: the loop's last round already contains the answer, so it is reused. One extra request (without `tools`) happens only when the 5-round tool budget ran out before any answer existed, and it respects `streamMode`.
+2. **`processHighcharts()` implemented** (was an empty stub since v4.0.4). It parses `code.language-highcharts` / `language-hc` / `language-chart`, injects a `.highcharts-host` div after the code block and calls `Highcharts.chart()`. Invalid JSON is ignored silently; render errors are caught and logged.
+3. **Tool HTTP errors are surfaced.** `/search` and `/web/fetch` now throw on non-2xx so the tool result carries `HTTP <status>: <message>`. A permission-blocked key therefore produces a truthful answer instead of “no results”.
+
+### Verification (3 suites, 66 checks, 0 failures, 0 page errors)
+
+| Suite | Covers |
+|---|---|
+| 1 (42 checks) | boot, removed/new UI, memory, base-URL rules, branch tree + navigator, profile export/import, agent loop (4 scenarios incl. budget-exhausted synthesis), Gemini 3.x regression |
+| 2 (12 checks) | tree persistence + restore in IndexedDB, memory without a persona, `/models` + CORS-proxy resolution, full Gemini SSE stream with `MAX_TOKENS` notice |
+| 3 (12 checks) | Highcharts real SVG render, **real** OmniRoute non-stream, **real** SSE stream, **real** agent loop with live `tool_calls` (403 surfaced) |
+
+Real-API notes: tested against OmniRoute (`http://127.0.0.1:20128/v1`, model `Commandcode_cheap`). `/search` and `/web/fetch` return `403 permission_denied` for the key used, so citation population could not be verified against live search data — everything else was. Gemini could not be tested against a live endpoint (OmniRoute is OpenAI-compatible only); the Gemini path is covered by unit + mocked-SSE tests.
 
 ## Deployment
 

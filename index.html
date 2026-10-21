@@ -5939,6 +5939,10 @@
                                         signal: this._sessionAbort[sessionId]?.signal
                                     });
                                     const sData = await sRes.json().catch(() => ({}));
+                                    if (!sRes.ok) {
+                                        const _em = (sData && sData.error && (sData.error.message || sData.error)) || ('HTTP ' + sRes.status);
+                                        throw new Error('search endpoint returned HTTP ' + sRes.status + ': ' + (typeof _em === 'string' ? _em : JSON.stringify(_em)));
+                                    }
                                     const rawItems = sData.results || sData.data || sData.organic || (Array.isArray(sData) ? sData : []);
                                     rawItems.forEach(item => {
                                         const url = item.url || item.link || '';
@@ -5986,6 +5990,10 @@
                                         signal: this._sessionAbort[sessionId]?.signal
                                     });
                                     const fData = await fRes.json().catch(async () => ({ text: await fRes.text().catch(() => '') }));
+                                    if (!fRes.ok) {
+                                        const _fm = (fData && fData.error && (fData.error.message || fData.error)) || ('HTTP ' + fRes.status);
+                                        throw new Error('fetch endpoint returned HTTP ' + fRes.status + ': ' + (typeof _fm === 'string' ? _fm : JSON.stringify(_fm)));
+                                    }
                                     fetchedContent = String(fData.content || fData.markdown || fData.text || JSON.stringify(fData)).slice(0, 12000);
                                 } catch (fetchErr) {
                                     fetchedContent = `Error fetching ${url}: ${fetchErr.message}`;
@@ -6016,10 +6024,12 @@
                     ? `<details class="tool-collapse" style="background:var(--color-bg-1); padding:10px; border-radius:8px; margin-bottom:10px;"><summary style="cursor:pointer; font-weight:bold; color:var(--color-primary); margin-bottom:8px;">🛠️ View Tool Execution Steps</summary>\n\n${toolLogMarkdown}</details>\n\n`
                     : '';
 
-                // Spec B1.2: Final Round Streaming Respecting this.streamMode
-                // If tools were called and streamMode === true (and round didn't already synthesize, or we want token-by-token synthesis),
-                // or if maxIterations === 0 was reached after tool calls:
-                const needsSynthesisCall = (toolLogMarkdown !== '' && this.streamMode) || hadToolCallsInLastRound;
+                // Spec B1.2 (revised): the loop's last round already generated the final
+                // answer, so REUSE it. Asking a second time (the old behaviour) billed the
+                // answer twice and could return different text than the citations came from.
+                // Only when the tool budget ran out before any answer existed (_no_ content)
+                // do we ask once more, without tools.
+                const needsSynthesisCall = !finalRoundContent;
 
                 if (needsSynthesisCall && this.streamMode) {
                     assistantMessage.content = wrappedToolPrefix + (finalRoundContent || '');
@@ -6093,7 +6103,7 @@
                         if (!finalRoundContent) throw synthErr;
                         assistantMessage.content = wrappedToolPrefix + finalRoundContent;
                     }
-                } else if (hadToolCallsInLastRound && !this.streamMode) {
+                } else if (needsSynthesisCall) {
                     const synthBody = {
                         model: effModel,
                         messages: conversationMsgs,
@@ -6916,7 +6926,29 @@
                 });
             }
 
-            processHighcharts(el) { }
+            processHighcharts(el) {
+                if (!el || !window.Highcharts) return;
+                const blocks = el.querySelectorAll('code.language-highcharts, code.language-hc, code.language-chart');
+                blocks.forEach(codeEl => {
+                    if (!codeEl || codeEl.dataset.hcRendered === '1') return;
+                    let cfg = null;
+                    try { cfg = JSON.parse(codeEl.textContent || ''); } catch (e) { return; }
+                    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return;
+                    const anchor = codeEl.closest('.code-block') || codeEl.parentElement;
+                    if (!anchor || !anchor.parentNode) return;
+                    const host = document.createElement('div');
+                    host.className = 'highcharts-host';
+                    host.style.cssText = 'width:100%;min-height:320px;margin:8px 0;padding:8px;background:var(--color-bg-1);border-radius:8px;';
+                    anchor.parentNode.insertBefore(host, anchor.nextSibling);
+                    try {
+                        window.Highcharts.chart(host, cfg);
+                        codeEl.dataset.hcRendered = '1';
+                    } catch (e) {
+                        host.remove();
+                        console.warn('[Highcharts] render failed:', e && e.message);
+                    }
+                });
+            }
 
             processTables(container) {
                 container.querySelectorAll('table').forEach((table) => {
