@@ -289,6 +289,58 @@ Infra note: `middleware.service` now binds `127.0.0.1:5000` (was `0.0.0.0`). WSL
 still reach it, while LAN hosts no longer can. The tunnel itself still publishes the service —
 that surface needs Cloudflare Access or a disabled tunnel, not a bind change.
 
+### Terminal sandbox + OmniRoute default route (2026-10-22, round 2)
+
+`run_terminal_command` used to hand model-authored shell to the skill worker, which runs
+`subprocess.run(command, shell=True)` as `erry` - an account with **passwordless sudo**. Reachable
+through the public tunnel, one prompt injection was full host compromise. It is now wrapped in
+`bubblewrap` before it leaves the middleware:
+
+```
+bwrap --ro-bind / / --dev /dev --proc /proc
+      --bind /tmp /tmp --tmpfs /dev/shm
+      --bind <each TERMINAL_SANDBOX_ROOTS + TERMINAL_SANDBOX_RW>
+      --ro-bind /tmp/.X11-unix /tmp/.X11-unix
+      --tmpfs <each TERMINAL_SANDBOX_MASK>
+      --unshare-user --unshare-pid --die-with-parent --new-session
+      --chdir <middleware cwd> -- /bin/bash -c "<command>"
+```
+
+* defaults - ROOTS `/tmp:/mnt/c/Users/Terry/Desktop/AI_projects:/home/erry/.hermes/projects`,
+  RW `/home/erry/.cache/ms-playwright`,
+  MASK `/home/erry/.ssh:/home/erry/.omniroute:/home/erry/.dsh:/home/erry/.aws:/home/erry/.config`
+* `TERMINAL_SANDBOX=none` disables it; `bwrap` (default) enables it.
+
+Two things that bite:
+
+1. **`--tmpfs` cannot be mounted over a symlink.** `/home/erry/.aws` is a symlink to
+   `/mnt/c/Users/Terry/.aws`, so `bwrap: Can't mount tmpfs on /newroot/home/erry/.aws` killed every
+   command. The mask list now runs through `os.path.realpath()`.
+2. **The sandbox self-tests at startup** (`bwrap ... -- /bin/true`). If that fails the module caches
+   a `["!FAILED"]` sentinel and `_execute_terminal_command` **refuses** the command instead of
+   running it unsandboxed. Failing closed is the point; `TERMINAL_SANDBOX=none` is the deliberate
+   override.
+
+Verified live through the real model: `id -u` -> `1000`; `echo PWN > /etc/sbx2` -> `Read-only file
+system` and the file does not exist; `sudo -n id -u` -> fails (`/etc/sudo.conf` owned by 65534, no
+privilege escalation); `systemctl --user ...` -> `Failed to connect to bus` (no dbus in the private
+namespaces); `/tmp` and the project mount stay writable, so playwright still drives Chromium
+(`DISPLAY=:99` via the bind-mounted X socket, `~/.cache/ms-playwright` writable for the daemon).
+
+**DSH route order is now OmniRoute first, llama.cpp second.** `_dsh_spawn(task, workdir, model=,
+baseurl=, api_key=, is_fallback=)` centralises spawning, so `check_dsh_task` can start a retry:
+when a job ends in `error` with **no** answer text, is not already a fallback, and did not run on
+`DSH_FALLBACK_MODEL`, the task is respawned once on `http://127.0.0.1:8080/v1`. The tool result
+returns the *new* job id. `DSH_LOCAL_BASEURL` (20128) / `DSH_LOCAL_MODEL` (`Commandcode_cheap`) /
+`DSH_FALLBACK_*` live in `middleware.service`; the OmniRoute key lives in
+`~/.config/middleware-secrets.env` (0600, pulled in via `EnvironmentFile=`), never in the unit or
+the repo.
+
+Measured: the same timestamp task took **18.7 s** on `Commandcode_cheap` vs **45.8 s** on the local
+27B - OmniRoute is also the cheaper route because llama.cpp runs `-np 1` and the outer model shares
+that single slot. Forced-failure test (bogus primary base URL): primary `error` in 16 s -> automatic
+respawn on `Qwen3.8-27B-MTP-Q4_K_M` -> `done` in 15.1 s with `FALLBACK_OK`.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
