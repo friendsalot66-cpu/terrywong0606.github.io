@@ -341,6 +341,59 @@ Measured: the same timestamp task took **18.7 s** on `Commandcode_cheap` vs **45
 that single slot. Forced-failure test (bogus primary base URL): primary `error` in 16 s -> automatic
 respawn on `Qwen3.8-27B-MTP-Q4_K_M` -> `done` in 15.1 s with `FALLBACK_OK`.
 
+### Auth guard, llama.cpp API key, tunnel posture (2026-10-22, round 3)
+
+**llama.cpp had no authentication at all.** `llama-server.service` never passed `--api-key`, even
+though the middleware was sending `Authorization: Bearer <LLAMA_CPP_API_KEY>` to it; llama.cpp accepts any
+request when no key is configured, so every probe returned 200 (wrong key, no key). It also listens
+on `0.0.0.0:8080`. `--api-key <same value as LLAMA_CPP_API_KEY>` is now in the unit, and
+`no key`/`wrong key` both return 401. The key value itself is unchanged - rotating it is
+independent of adding the flag, and rotating only matters if a value actually leaked.
+
+**`/tools` used to be anonymous.** It is a complete map of what the host can be made to do, and it
+was readable by anyone who found the tunnel URL. It now goes through the same guard as
+`/v1/chat/completions`; `/health` stays public but exposes only status, not secrets.
+
+**Auth guard** (`AUTH_RATE_ENABLED`, default on):
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `AUTH_FAIL_MAX` | 10 | failed credentials per window before lockout |
+| `AUTH_FAIL_WINDOW` | 300 s | failure-counting window |
+| `AUTH_LOCKOUT_BASE` | 300 s | first lockout; doubles per strike |
+| `AUTH_LOCKOUT_MAX` | 86400 s | cap |
+| `AUTH_STRIKE_DECAY` | 86400 s | how long a strike is remembered |
+| `AUTH_RPM_LIMIT` | 120 | authenticated requests/min/IP (0 = off) |
+| `TRUST_PROXY_HEADERS` | 1 | read `CF-Connecting-IP` (needed behind the tunnel) |
+
+Sequence: lockout check -> token check -> rpm counter. A locked IP gets 429 + `Retry-After` even
+with the **correct** key. A valid token clears the failure window but **not** an active lockout,
+otherwise one lucky guess would wipe the penalty.
+
+**Three bugs this went through, all the same shape as the DSH zombie-pid bug - in-memory state
+under a multi-process server:**
+
+1. `_auth_fail`/`_auth_locked` as module dicts. gunicorn runs **4 workers**, so 40 bad attempts
+   spread over 4 processes only ever looked like ~10 each and the threshold was never reached.
+   Moved to `/tmp/middleware-auth/state.json` (`AUTH_STATE_DIR`).
+2. Same for the rpm counter - 130 parallel authenticated requests all returned 200 because each
+   worker counted its own share. Fixed with `fcntl.flock` on a sidecar `.lock` file around a
+   read-modify-write context manager (`_auth_state_txn`). Verified: exactly **120 x 200, 10 x 429**.
+3. `AUTH_STRIKE_DECAY`: pruning deleted the strike counter when the lockout expired, so an attacker
+   who waited out 300 s was back to a 300 s penalty forever. Strikes now live in their own map and
+   survive expiry. Verified escalation: **300 -> 600 -> 1200 -> 2400 s**.
+
+Also caught in review: an early version of `_auth_record_failure` returned from inside the
+`with _auth_state_txn()` block *before* mutating the state, so failures were never persisted and
+lockout silently never fired. The transaction commits on normal exit - never `return` out of it
+before applying the change.
+
+**Tunnel posture.** `cloudflared-middleware.service` still publishes :5000 and the token is static,
+so the guards above cap brute force but do not authenticate a *human* at the edge. IP lockout is
+per-`CF-Connecting-IP`, so a botnet rotating IPs still gets `AUTH_FAIL_MAX` guesses each - the only
+real fix for that is Cloudflare Access in front of the hostname (dashboard-side; the local
+cloudflared is token-based and no API token exists on this machine to script it).
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
