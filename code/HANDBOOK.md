@@ -238,6 +238,15 @@ A llama.cpp setup behind a middleware (middleware :5000 → skill-worker :5001 �
 
 Now: the notice reads “No in-app search endpoint - tool calls are delegated to your provider” and fires **once per page load**. Behaviour is unchanged — the app still sends `use_tools: <toggle>` on both the streaming and non-streaming paths, so a provider-side agent keeps working with the toggle on and no configured endpoint.
 
+**Verified live** against that setup (middleware `:5000` → skill-worker `:5001` → llama.cpp `:8080`, Qwen3.8-27B):
+
+| App state | Request sent | Result |
+|---|---|---|
+| 🛠 off | `use_tools:false, stream:true, tools:0` | plain answer in **1.6 s** (middleware fast path) |
+| 🛠 on, no in-app endpoint | `use_tools:true, stream:true, tools:0` | middleware ran `run_terminal_command`; a real `date -u` value (1 s from wall clock) reached the app in **3.0 s** |
+
+Only `POST /v1/chat/completions` is ever called — the app never invents a `/search` path for such a provider, and it never sends its own `tools` definitions in that mode (the middleware ships its own registry and overwrites `data["tools"]` anyway). The delegation notice appeared exactly once.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
