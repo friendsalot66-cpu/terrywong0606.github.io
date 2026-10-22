@@ -247,6 +247,48 @@ Now: the notice reads “No in-app search endpoint - tool calls are delegated to
 
 Only `POST /v1/chat/completions` is ever called — the app never invents a `/search` path for such a provider, and it never sends its own `tools` definitions in that mode (the middleware ships its own registry and overwrites `data["tools"]` anyway). The delegation notice appeared exactly once.
 
+### DSH task runner in the middleware (2026-10-22)
+
+The llama.cpp middleware (`C:\Users\Terry\Desktop\AI_projects\LLM\middleware`) now exposes
+two extra tools, verified end-to-end through the web app:
+
+| Tool | Behaviour |
+|---|---|
+| `run_dsh_task(task, cwd?)` | spawns `dsh --profile headless --json "<task>"` detached and returns a job id immediately |
+| `check_dsh_task(job_id, cancel?)` | status + elapsed + final answer + stderr tail; `cancel=true` kills the process group |
+
+State lives in `$DSH_JOB_DIR` (default `/tmp/dsh_jobs`) as `<id>.json`, `.events.jsonl`, `.err.log`
+and `.exit`. gunicorn runs 4 workers, so disk state is what lets a poll handled by a different
+worker see the job. **The child writes its exit code to `<id>.exit`, and that file is the only
+liveness signal** — the first implementation used `os.kill(pid, 0)`, which succeeds on a zombie,
+so a job that finished in 6 s reported "running" forever. The spawner also reaps the child in a
+daemon thread, and the whole run is wrapped in `timeout -k 5 N`.
+
+Env knobs: `DSH_ENABLED`, `DSH_NODE`, `DSH_BIN`, `DSH_PROFILE`, `DSH_JOB_DIR`, `DSH_MAX_SECONDS`
+(900), `DSH_MAX_CONCURRENT` (2), `DSH_MAX_TASK_CHARS` (8000), `DSH_ALLOWED_ROOTS`
+(`/home/erry:/tmp:/mnt/c/Users/Terry`), `DSH_DEFAULT_CWD`, and `DSH_DEPTH` (recursion guard — the
+runner refuses to start when it is already 1). `DSH_NODE` **must be node >= 20**: gunicorn's PATH
+resolves `node` to v18, so the runner probes `/home/erry/.local/bin/node` and friends by version
+instead of trusting PATH.
+
+The headless profile is pointed at a local OpenAI-compatible endpoint by
+`~/.dsh/profiles/headless/cordis.patch.yml` (pi-ai provider `local-openai`), configured through
+`DSH_LOCAL_BASEURL` / `DSH_LOCAL_API_KEY` / `DSH_LOCAL_MODEL`. llama.cpp ignores the credential but
+the provider still requires one, so the runner injects a harmless placeholder when the env var is
+absent.
+
+**Sandbox is the real boundary.** DSH's own config sets `sandbox-policy.workspaceRoot =
+process.cwd()` (the job's cwd) and approval policy `ask` unless `DSH_PERMISSION_MODE` is
+`danger-full-access`. Verified live: a task told to write `/etc/dsh_escape_test.txt` was denied with
+`Permission denied`, the escalation failed closed for lack of an approval channel, and the file was
+absent afterwards. Keep `DSH_PERMISSION_MODE` at `workspace-write`; never give a headless runner
+full access.
+
+Infra note: `middleware.service` now binds `127.0.0.1:5000` (was `0.0.0.0`). WSL runs in
+*mirrored* networking, so the Windows browser and the cloudflared tunnel (`originService=http://localhost:5000`)
+still reach it, while LAN hosts no longer can. The tunnel itself still publishes the service —
+that surface needs Cloudflare Access or a disabled tunnel, not a bind change.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
