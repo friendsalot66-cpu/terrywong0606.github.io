@@ -4105,8 +4105,9 @@
                         this.useToolsEnabled = !this.useToolsEnabled;
                         this.useToolsToggle.classList.toggle('active', this.useToolsEnabled);
                         localStorage.setItem('useToolsEnabled', this.useToolsEnabled ? 'true' : 'false');
+                        this._toolsNoEndpointNotified = false;
                         if (this.useToolsEnabled && !this.hasSearchEndpoint()) {
-                            this.showStatus('Tools need a Custom Search endpoint - set one in the provider settings', 'warning');
+                            this.showStatus('Tool calls will be delegated to your provider (no in-app search endpoint)', 'info');
                         } else {
                             this.showStatus(`Tools ${this.useToolsEnabled ? 'Enabled' : 'Disabled'}`, 'info');
                         }
@@ -6229,7 +6230,12 @@
                     } else if (this.useToolsEnabled && this._getProviderProtocol() === 'openai' && !this.hasSearchEndpoint()) {
                         // Tools are on but this provider has no search/fetch endpoint:
                         // fall back to a normal answer instead of failing tool rounds.
-                        this.showStatus('Tools skipped: no Custom Search endpoint configured', 'warning');
+                        // `use_tools` is still forwarded, so a provider-side agent
+                        // (middleware that owns its own tools) keeps working. Warn once.
+                        if (!this._toolsNoEndpointNotified) {
+                            this._toolsNoEndpointNotified = true;
+                            this.showStatus('No in-app search endpoint - tool calls are delegated to your provider', 'info');
+                        }
                         if (this.streamMode) {
                             await this.streamResponse(promptText, null, sessionId, userNodeId);
                         } else {

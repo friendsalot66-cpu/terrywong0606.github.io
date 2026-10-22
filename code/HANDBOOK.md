@@ -76,34 +76,34 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 ### Conversation tree / branching (new in v5.0.0)
 | Method | Line | Purpose |
 |---|---|---|
-| `ensureSessionTree(session)` | 4249 | Migrate flat `messages` → tree (idempotent; reuses `m.id`) |
-| `recomputeActiveMessages(session)` | 4303 | Walk root → `activeChildIndex` chain, rebuild `session.messages` + `references` |
-| `appendMessageNode(session, msgData, parentId?)` | 4344 | Add a node under `currentLeafId` (or explicit parent), activate it |
-| `switchBranch(nodeId, delta)` | 4379 | Cycle siblings; **call with the node currently displayed** (UI contract, see 4576) |
-| `regenerateResponse(nodeId)` | 4407 | 🔄 on an assistant node → new sibling assistant node |
-| `_generateFromUserNode(sessionId, userNodeId)` | 6193 | Edit "Save & Regenerate" / regenerate entry point |
-| `scrollToAdjacentUserPrompt(dir)` | 4495 | ⬆⬇ jump between user prompts |
+| `ensureSessionTree(session)` | 4250 | Migrate flat `messages` → tree (idempotent; reuses `m.id`) |
+| `recomputeActiveMessages(session)` | 4304 | Walk root → `activeChildIndex` chain, rebuild `session.messages` + `references` |
+| `appendMessageNode(session, msgData, parentId?)` | 4345 | Add a node under `currentLeafId` (or explicit parent), activate it |
+| `switchBranch(nodeId, delta)` | 4380 | Cycle siblings; **call with the node currently displayed** (UI contract, see 4576) |
+| `regenerateResponse(nodeId)` | 4408 | 🔄 on an assistant node → new sibling assistant node |
+| `_generateFromUserNode(sessionId, userNodeId)` | 6194 | Edit "Save & Regenerate" / regenerate entry point |
+| `scrollToAdjacentUserPrompt(dir)` | 4496 | ⬆⬇ jump between user prompts |
 
 ### Messaging
 | Method | Line | Purpose |
 |---|---|---|
-| `sendUserMessage()` | 6287 | Validate, push user node, dispatch |
-| `omniRouteAgenticCall(sessionId, parentNodeId?)` | 5833 | Multi-turn agent loop (web_search / web_fetch, max 5 rounds) |
-| `streamResponse(msg, pre, sessionId, parentNodeId?)` | 6650 | SSE streaming |
-| `callAPI(msg, pre, sessionId)` | 6529 | Non-streaming request |
-| `callChatImageAPI(prompt, params, sessionId)` | 6481 | Image generation (passes `_protocol` to `_parseApiResponse`) |
-| `buildMessagesForAPI(pre, upToNodeId?)` | 6614 | Build payload; appends `[User Memory]` and slices to the active path |
+| `sendUserMessage()` | 6293 | Validate, push user node, dispatch |
+| `omniRouteAgenticCall(sessionId, parentNodeId?)` | 5834 | Multi-turn agent loop (web_search / web_fetch, max 5 rounds) |
+| `streamResponse(msg, pre, sessionId, parentNodeId?)` | 6656 | SSE streaming |
+| `callAPI(msg, pre, sessionId)` | 6535 | Non-streaming request |
+| `callChatImageAPI(prompt, params, sessionId)` | 6487 | Image generation (passes `_protocol` to `_parseApiResponse`) |
+| `buildMessagesForAPI(pre, upToNodeId?)` | 6620 | Build payload; appends `[User Memory]` and slices to the active path |
 
 ### Session / persistence
 | Method | Line | Purpose |
 |---|---|---|
-| `createNewSession()` | 4432 | New tab |
-| `switchSession(id)` | 4450 | Switch tab (sets `activeSessionId` **and** `currentChatId`) |
-| `closeSession(id)` | 4525 | Delete tab |
-| `forkConversation()` | 4709 | Duplicate session |
-| `loadChat(id)` | 7135 | Restore from IndexedDB (restores `messageTree`) |
-| `autoSaveChat()` | 7320 | Save — **keys on `this.currentChatId`**, not `activeSessionId` |
-| `saveCurrentChat()` | 7356 | Save with a custom name |
+| `createNewSession()` | 4433 | New tab |
+| `switchSession(id)` | 4451 | Switch tab (sets `activeSessionId` **and** `currentChatId`) |
+| `closeSession(id)` | 4526 | Delete tab |
+| `forkConversation()` | 4710 | Duplicate session |
+| `loadChat(id)` | 7141 | Restore from IndexedDB (restores `messageTree`) |
+| `autoSaveChat()` | 7326 | Save — **keys on `this.currentChatId`**, not `activeSessionId` |
+| `saveCurrentChat()` | 7362 | Save with a custom name |
 | `persistSessionState()` | 3059 | Persist a non-active session |
 
 ### Settings / memory / profile
@@ -112,10 +112,10 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 | `openAddProviderModal(editId?)` | 3323 | Provider form + **Base URL validation/normalisation** |
 | `addCustomProvider(cfg)` | 3212 | Persist a new provider |
 | `saveMemory()` / `clearMemory()` | 4793 / 4806 | 🧠 global memory (2000-char cap) |
-| `updateMemoryToggleIcon()` | 4833 | Active state of the 🧠 button |
-| `exportProfile()` | 5404 | Selective JSON export (6 checkbox sections) |
-| `handleImportProfileFile(file)` | 5484 | File picker → parse |
-| `applyImportedProfile(data)` | 5502 | Restore selected sections |
+| `updateMemoryToggleIcon()` | 4834 | Active state of the 🧠 button |
+| `exportProfile()` | 5405 | Selective JSON export (6 checkbox sections) |
+| `handleImportProfileFile(file)` | 5485 | File picker → parse |
+| `applyImportedProfile(data)` | 5503 | Restore selected sections |
 
 ### API protocol layer
 | Method | Line | Purpose |
@@ -131,7 +131,7 @@ MultiAPIChat              — the app (constructor at line 2721, ~4,500 lines)
 | `_parseStreamLine(line, protocol, state)` | 3865 | One SSE line → `{content, reasoningContent, finishReason, blockReason, error, ...}` |
 
 ### UI
-`renderMessages()` 4585 · `renderEnhancedMarkdown(text)` 4877 · `showStatus(msg,type)` 5767 · `updateHeaderStatus()` 5320 · `updateTokenEstimate()` 6941 · `updateMaxTokens(v)` 7259 · `updateMaxToolRounds(v)` 7250 · `processHighcharts(el)` 7078 (renders ```highcharts/chart/json``` + ```html/js``` containing `Highcharts.chart(...)`) · `processTables(el)` 7110.
+`renderMessages()` 4586 · `renderEnhancedMarkdown(text)` 4878 · `showStatus(msg,type)` 5768 · `updateHeaderStatus()` 5321 · `updateTokenEstimate()` 6947 · `updateMaxTokens(v)` 7265 · `updateMaxToolRounds(v)` 7250 · `processHighcharts(el)` 7084 (renders ```highcharts/chart/json``` + ```html/js``` containing `Highcharts.chart(...)`) · `processTables(el)` 7116.
 `window.` helpers: `copyCodeBlock` 7216, `toggleCodeBlock` 7229, `exportTable` 7205.
 
 ## Spec A2 — Base URL rules (v5.0.0)
@@ -156,7 +156,9 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 
 `omniRouteAgenticCall()` posts to `{chatUrl}` with `tools: [web_search, web_fetch]`, `tool_choice: 'auto'`, up to **`maxToolRounds`** rounds (default **3**, Settings → Max tool rounds).
 
-**Gating (v5 patch):** the agent loop only runs when `hasSearchEndpoint()` is true — i.e. the active custom provider has `useCustomSearchEndpoint` **and** a `customSearchBaseUrl`. Without it the message falls back to a normal streamed answer and a “Tools skipped: no Custom Search endpoint configured” toast appears. The tool endpoints are never guessed from `{baseUrl}`. Tool endpoints: `POST {searchBase}/search` `{query, max_results}` → `{results|data|organic:[{url,title,snippet}]}`; `POST {searchBase}/web/fetch` `{url}` → `{content|markdown|text}`. `searchBase` = the provider's `customSearchBaseUrl` when `useCustomSearchEndpoint` is on, else the provider base. Tool steps accumulate into `toolLogMarkdown` and are wrapped in `<details class="tool-collapse">`; citations land on the assistant node (`citations[]` = URLs, `searchResults[]` = `{name,title,url,snippet}`) which feeds the 🔗 References panel.
+**Gating (v5 patch):** the agent loop only runs when `hasSearchEndpoint()` is true — i.e. the active custom provider has `useCustomSearchEndpoint` **and** a `customSearchBaseUrl`. Without it the message falls back to a normal streamed answer and a one-time notice appears. The tool endpoints are never guessed from `{baseUrl}`.
+
+**Provider-side tool loops (`use_tools`):** every chat request also carries `use_tools: <tool toggle>`. An endpoint that owns its own agent — e.g. a middleware in front of llama.cpp that ships `web_search` / `run_terminal_command` / playwright tools, forces `stream:false` upstream to read `tool_calls`, then re-streams the result — reads that flag and runs its own loop. For that setup: keep the 🛠 toggle **on**, leave the in-app Custom Search endpoint **empty**, and the app stays on the plain streamed path; the notice reads “tool calls are delegated to your provider”. The app's `maxToolRounds` does not apply there — the middleware has its own round cap. Tool endpoints: `POST {searchBase}/search` `{query, max_results}` → `{results|data|organic:[{url,title,snippet}]}`; `POST {searchBase}/web/fetch` `{url}` → `{content|markdown|text}`. `searchBase` = the provider's `customSearchBaseUrl` when `useCustomSearchEndpoint` is on, else the provider base. Tool steps accumulate into `toolLogMarkdown` and are wrapped in `<details class="tool-collapse">`; citations land on the assistant node (`citations[]` = URLs, `searchResults[]` = `{name,title,url,snippet}`) which feeds the 🔗 References panel.
 
 **Final round:** the loop's last non-streaming round already contains the answer, so it is **reused** — one tool turn costs 2 chat calls, and `streamMode` does not add a request. Only when the `maxToolRounds` budget runs out before any answer exists does the code make **one** extra synthesis request (without `tools`), honouring `streamMode`. Worst case per turn is therefore `maxToolRounds + 1` model requests — keep it at 4 or lower if the model allows only 5 requests/minute. Tool HTTP errors (non-2xx) are thrown so the message reaches the model, e.g. “web_search returned HTTP 403: Model \"search\" is not allowed for this API key”.
 
@@ -180,6 +182,7 @@ only when `this.memoryEnabled && this.userMemory.trim()`. Capped at 2000 chars i
 6. **Image rendering must sit outside `if (message.content)`** so image-only replies still render.
 7. **KaTeX: watch backslash doubling** in template strings.
 8. **Tools require a declared search endpoint.** `hasSearchEndpoint()` must be true before `omniRouteAgenticCall()` runs. The old code fell back to `{baseUrl}/search`, which meant **every** OpenAI-compatible provider silently ran a tool loop that could only 404. `useToolsEnabled` now persists in localStorage and **defaults to off**.
+   **But** each request also carries `use_tools`, so a provider-side agent (middleware) still receives the flag and runs its own tools on the plain path — do not treat a missing in-app endpoint as “no tools”.
 9. **Charts:** models do **not** emit a ```highcharts``` JSON fence — verified against a live router, they return a full ```html``` page containing `Highcharts.chart('container', {...})`. `processHighcharts()` handles both: it extracts the options object, converts the JS literal to JSON (`_jsLiteralToJson`) and calls `Highcharts.chart()` on an injected `.highcharts-host` div. **Model JavaScript is never executed** — anything containing `function`, `=>`, `new`, `document.`, `window.`, `eval`, `import` or `require` is rejected.
 10. **Agent-loop tool HTTP errors must reach the model.** `/search` and `/web/fetch` used to be parsed without checking `res.ok`, so a 403 looked like an empty result set and the model answered “search found nothing”. They now throw and the reason lands in the tool result. Keep that behaviour.
 11. **A model with a per-minute request cap needs a round budget.** One agent turn costs `maxToolRounds + 1` chat requests. The default of 3 keeps a 5 rpm model usable (4 requests/turn). `_fetchRetry429()` retries 429s using `Retry-After` (max 20s, 2 retries) in the agent loop; `callAPI`/`streamResponse` surface the header instead of retrying.
@@ -228,6 +231,12 @@ Triggered by three reports:
 ### Verification
 
 83 checks across 4 suites, 0 failures, 0 page errors (see the table above). Live model output for prompt “render a bar chart with Highcharts” was captured and used verbatim as the Highcharts regression fixture.
+
+### Patch round 3 (2026-10-21) — provider-side tools
+
+A llama.cpp setup behind a middleware (middleware :5000 → skill-worker :5001 → llama.cpp :8080) exposed a wording bug: the middleware decides everything from the `use_tools` field the app already sends, and owns its own tool registry (it overwrites any `tools` the client sends). For that architecture the app's in-app search endpoint is unnecessary, so the old “Tools skipped: no Custom Search endpoint configured” toast was wrong and fired on every message.
+
+Now: the notice reads “No in-app search endpoint - tool calls are delegated to your provider” and fires **once per page load**. Behaviour is unchanged — the app still sends `use_tools: <toggle>` on both the streaming and non-streaming paths, so a provider-side agent keeps working with the toggle on and no configured endpoint.
 
 ## Deployment
 
