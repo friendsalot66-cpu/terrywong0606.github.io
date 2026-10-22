@@ -394,6 +394,38 @@ per-`CF-Connecting-IP`, so a botnet rotating IPs still gets `AUTH_FAIL_MAX` gues
 real fix for that is Cloudflare Access in front of the hostname (dashboard-side; the local
 cloudflared is token-based and no API token exists on this machine to script it).
 
+### State persistence + public-surface trimming (2026-10-22, round 4)
+
+**Auth state moved off `/tmp`.** `/tmp` is wiped on reboot, which silently reset every strike
+counter and re-armed brute force at the base delay. `AUTH_STATE_DIR` now points at
+`/mnt/c/Users/Terry/Desktop/AI_projects/LLM/middleware/.state` (same place as the rest of the
+project state, survives reboots). `fcntl.flock` works on the drvfs mount - verified - so the
+cross-process transaction is unaffected. Note the directory lands mode 777 because drvfs does not
+honour chmod; the file only ever contains SHA-free IP strings and timestamps, no credentials.
+Verified: lockout written, `systemctl --user restart middleware`, same IP still got 429.
+
+**Public surface, measured from the internet** (`https://docker-llm.friendsalot66.ccwu.cc`):
+
+| Endpoint | Anonymous | Note |
+|---|---|---|
+| `/health` | 200 | was leaking masked paths + tool inventory |
+| `/tools` | 401 | authenticated since round 3 |
+| `/v1/chat/completions` | 401 | authenticated |
+
+`/health` now branches: anonymous callers get `{status, timestamp}` only; an authenticated caller
+gets the full inventory. The uptime checker still works; an attacker learns nothing about the host.
+
+**Answers for the record:**
+
+* Doing nothing on Cloudflare is survivable **because of the layers underneath it** - llama.cpp
+  rejects anonymous calls (401), `/tools` is closed, `/v1/chat/completions` needs the bearer token,
+  wrong guesses lock the IP out exponentially, and shell commands run inside bubblewrap. What
+  remains open is: anyone can reach `/health`, anyone can attempt up to `AUTH_FAIL_MAX` guesses per
+  IP (`AUTH_RPM_LIMIT` per minute), and a botnet rotating IPs gets a fresh allowance each time.
+  Access would close that; it is a dashboard step, not a code step.
+* The tunnel hostname is `docker-llm.friendsalot66.ccwu.cc` (from
+  `cloudflared`'s ingress config in the journal), origin `http://localhost:5000`.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
