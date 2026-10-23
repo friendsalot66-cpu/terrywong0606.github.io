@@ -626,6 +626,43 @@ streaming fix was still present.
 Practical rule when a fix "does not work": check the chip first. If it shows the
 old build, it is cache, not code.
 
+### Four defects found by auditing a real 15-minute run (2026-10-23, round 6)
+
+A real turn wrote nothing for 15 minutes and ended with `{"type":"final","text":""}`.
+The journal showed 38 tool rounds, the last one `cat` on a large HTML file, then silence.
+
+1. **Tool output was unbounded.** `cat` of a ~300 KB HTML file pushed the whole
+   thing back into the conversation, and every later round re-sends the history,
+   so the prompt grew until each call took minutes. `_execute_terminal_command`
+   now truncates to `TERMINAL_OUTPUT_MAX_CHARS` (16000) keeping head **and** tail,
+   with an explicit "... N characters omitted ... narrow it with head/tail/grep"
+   note so the model retries differently instead of re-running `cat`.
+   Verified: a 500 KB file came back as 16142 chars with the notice.
+2. **`_dsh_refresh` only ran when someone asked.** A job that died at second 30
+   reported `running` until the model polled it or the deadline forced a refresh.
+   A daemon `dsh-reaper` thread now settles jobs every `DSH_REAPER_INTERVAL`
+   (10 s), independent of any request. Verified: a forged `running` record with
+   `exit=0` became `done` in 14 s with nobody polling.
+3. **`DSH_MAX_SECONDS` 900 -> 300.** Nothing in the logs ever succeeded after
+   ~5 minutes; every 900 s job ended in `timeout` with an empty answer. Failing
+   sooner turns a dead end into a visible error.
+4. **Concurrency miscounted dead jobs.** `_dsh_active_jobs()` counted anything
+   still marked `running`, so a dead job kept `DSH_MAX_CONCURRENT` saturated and
+   the next request was refused with "2 DSH task(s) already running". With the
+   reaper settling records, the count is now accurate - verified `active jobs: 0`
+   after the stuck jobs resolved.
+
+End to end after the fixes: a real DSH turn returned `finish_reason: stop` in
+**42.9 s**, 8 progress frames, and `/tmp/e2e2/note.txt` = `HELLO_E2E`.
+
+**Why large single files keep failing (not a bug, a shape problem).** DSH's own
+tools are `bash` (243 calls), `read`, `glob`, `grep`, `write`. Asking a model to
+emit 300 KB of HTML token by token will always hit an output cap or a context
+wall. The fix is delegation, not more tokens: DSH ships
+`@deepseek-ai/dsh-tool-subagent` + `dsh-subagent-spawn-in-process`, so a task can
+be split into children that each write one part and test it. Not wired into the
+headless profile yet - it is a composition change, not a middleware change.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
