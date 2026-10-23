@@ -569,6 +569,25 @@ The same test on localhost: 85.5 s, 10 progress lines, 3 keep-alives.
 Note: the non-streaming JSON path is kept for direct/local callers, but it is inherently unsafe
 behind a proxy with an idle timeout — any tool-using turn there can still be cut off.
 
+### Diagnosing a 524 in one log line (2026-10-23, round 5)
+
+`/v1/chat/completions` now logs, for every turn:
+
+```
+mode: tools=True stream=False client=210.6.73.210
+```
+
+and adds a warning when a tool-using turn is **not** streaming. That single line
+answers the only question that matters when a proxy reports 524: did the client
+ask for a stream, and did the request actually come through the tunnel (a real
+`CF-Connecting-IP` rather than `127.0.0.1`)? Before this, streaming and
+non-streaming tool turns were indistinguishable in the journal, and a turn cut
+off by Cloudflare simply had no `<<<` line at all.
+
+Verified both shapes: `stream=True` logs `tools=True stream=True`, and a
+`stream=False` tool turn logs both the mode line and the warning. Through the
+tunnel the client field shows the public IP.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
