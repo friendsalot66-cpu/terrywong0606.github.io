@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-API Chat Interface (v5.0.1)</title>
+    <title>Multi-API Chat Interface (v5.1.0)</title>
 
     <!-- External Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"
@@ -1930,7 +1930,7 @@
                 <div class="header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
                     <div class="header-info">
-                        <h1>Multi-API Chat Interface<small id="appVersionLabel" title="build marker — changes on every deploy">v5.0.1</small></h1>
+                        <h1>Multi-API Chat Interface<small id="appVersionLabel" title="build marker — changes on every deploy">v5.1.0</small></h1>
                         <div class="status-line">
                             <span id="modelStatus">Model: None</span>
                             <span>|</span>
@@ -2727,7 +2727,7 @@
         // ========== END PROVIDER PATTERN CLASSES ==========
         /* BUILD MARKER — updated on every deploy so the running build is identifiable.
    Console: BUILD_INFO  |  header chip shows the same string. */
-            const BUILD_INFO = { version: 'v5.0.1', build: '20261023-144954', commit: '843613d', deployed: '2026-10-23 14:49' };
+            const BUILD_INFO = { version: 'v5.1.0', build: '20261023-151857', commit: 'f3f7c98', deployed: '2026-10-23 15:18' };
             window.BUILD_INFO = BUILD_INFO;
 
             class MultiAPIChat {
@@ -3630,6 +3630,79 @@
                 const cp = this.customProviders.find(p => p.id === id);
                 if (!cp) return false;
                 return !!(cp.useCustomSearchEndpoint && cp.customSearchBaseUrl && String(cp.customSearchBaseUrl).trim());
+            }
+
+            // Reassemble an OpenAI-style completion from an SSE stream.
+            // Content deltas go to `onProgress` (live UI), while content and
+            // tool_call fragments are accumulated into the same shape a
+            // non-streaming response would have, so callers stay unchanged.
+            async _sseToCompletion(res, onProgress) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = '';
+                let content = '';
+                const toolCalls = [];   // index -> {id, type, function:{name, arguments}}
+                let done = false;
+
+                const handleLine = (line) => {
+                    if (!line.startsWith('data:')) return;      // ignore ': keepalive'
+                    const payload = line.slice(5).trim();
+                    if (!payload || payload === '[DONE]') { if (payload === '[DONE]') done = true; return; }
+                    let obj;
+                    try { obj = JSON.parse(payload); } catch (e) { return; }
+
+                    // Some servers answer a streaming request with a whole object.
+                    if (obj.choices && obj.choices[0] && obj.choices[0].message && !obj.choices[0].delta) {
+                        const m = obj.choices[0].message;
+                        if (m.content) { content += m.content; if (onProgress) onProgress(m.content); }
+                        (m.tool_calls || []).forEach((tc, i) => {
+                            toolCalls[i] = toolCalls[i] || { id: '', type: 'function', function: { name: '', arguments: '' } };
+                            if (tc.id) toolCalls[i].id = tc.id;
+                            if (tc.function?.name) toolCalls[i].function.name = tc.function.name;
+                            if (tc.function?.arguments) toolCalls[i].function.arguments += tc.function.arguments;
+                        });
+                        return;
+                    }
+
+                    const choice = (obj.choices || [])[0];
+                    if (!choice) return;
+                    const delta = choice.delta || {};
+                    if (delta.content) {
+                        content += delta.content;
+                        if (onProgress) onProgress(delta.content);
+                    }
+                    (delta.tool_calls || []).forEach((tc, pos) => {
+                        const idx = (typeof tc.index === 'number') ? tc.index : pos;
+                        toolCalls[idx] = toolCalls[idx] || { id: '', type: 'function', function: { name: '', arguments: '' } };
+                        if (tc.id) toolCalls[idx].id = tc.id;
+                        if (tc.function?.name) toolCalls[idx].function.name = tc.function.name;
+                        if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+                    });
+                };
+
+                while (!done) {
+                    const { value, done: streamDone } = await reader.read();
+                    if (streamDone) break;
+                    buf += decoder.decode(value, { stream: true });
+                    let nl;
+                    // SSE frames end with a blank line; tolerate both CRLF and LF.
+                    while ((nl = buf.indexOf('\n')) !== -1) {
+                        const line = buf.slice(0, nl).replace(/\r$/, '');
+                        buf = buf.slice(nl + 1);
+                        handleLine(line);
+                        if (done) break;
+                    }
+                }
+                if (buf) handleLine(buf.replace(/\r$/, ''));
+
+                const message = { role: 'assistant', content: content };
+                if (toolCalls.length) {
+                    message.tool_calls = toolCalls.filter(Boolean).map(tc => ({
+                        ...tc,
+                        id: tc.id || ('call_' + Math.random().toString(36).slice(2, 10))
+                    }));
+                }
+                return { choices: [{ index: 0, message, finish_reason: toolCalls.length ? 'tool_calls' : 'stop' }] };
             }
 
             // Re-send a request after HTTP 429, honouring Retry-After (capped).
@@ -5943,17 +6016,22 @@
                     maxIterations--;
                     hadToolCallsInLastRound = false;
 
+                    // Stream the round. A provider-side agent loop (the middleware runs
+                    // its own tools) can spend minutes before answering, and a
+                    // non-streaming request sends nothing until it finishes - Cloudflare
+                    // answers 524 after ~100s of silence. Streaming also lets progress
+                    // events render live instead of appearing all at once.
                     const roundBody = {
                         model: effModel,
                         messages: conversationMsgs,
                         max_tokens: this.maxTokens,
                         temperature: 0.2,
-                        stream: false,
+                        stream: true,
                         tools: tools,
                         tool_choice: 'auto'
                     };
 
-                    const res = await this._fetchRetry429(chatUrl, {
+                    const res = await this._fetchRetry429(streamChatUrl, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(roundBody),
@@ -5972,7 +6050,14 @@
                         throw new Error(errMsg);
                     }
 
-                    const data = await res.json();
+                    // Reassemble an OpenAI-style response from the SSE stream. The rest
+                    // of this loop expects `data.choices[0].message`, so accumulate
+                    // content and tool_call deltas into that shape.
+                    const data = await this._sseToCompletion(res, (progressText) => {
+                        toolLogMarkdown += progressText;
+                        assistantMessage.content = toolLogMarkdown;
+                        if (this.activeSessionId === sessionId) this.renderMessages();
+                    });
                     if (data.usage) assistantMessage.tokenUsage = data.usage;
                     const choice = data.choices?.[0] || {};
                     const message = choice.message || {};
