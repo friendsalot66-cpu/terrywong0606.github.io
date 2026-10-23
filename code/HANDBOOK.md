@@ -501,6 +501,38 @@ Verified: `llama.cpp reports n_ctx=131072` in the journal; a full DSH turn retur
 `finish_reason: stop` in **19.3 s** with `/tmp/final/result.txt` = `PERSIST_TEST`; the record landed
 in `.state/dsh_jobs/`.
 
+### The fallback hop was silently dead (2026-10-23, round 3)
+
+Adding `--api-key` to llama.cpp (round 3 of the auth work) broke the DSH fallback route, and nothing
+noticed because the primary route kept working. The fallback spawned with
+`api_key="local-no-key"`, a placeholder that was harmless *while llama.cpp ignored credentials* and
+became a hard 401 the moment it enforced one:
+
+```
+dsh: AUTH: 401: {"message":"Invalid API Key",...}
+```
+
+Fixes:
+
+* `DSH_FALLBACK_API_KEY` (defaults to `LLAMA_CPP_API_KEY`) is what the fallback hop sends.
+* The profile's fallback provider now reads `DSH_FALLBACK_API_KEY`, not `DSH_LOCAL_API_KEY`.
+* `DSH_LOCAL_API_KEY` no longer silently falls back to the fallback key; the two routes are distinct
+  credentials for distinct endpoints.
+
+**The subtle part:** repointing only the *model id* at the profile's `local-fallback` provider does
+nothing, because `agent-default-model` pins `provider: local-openai`. A fallback spawn must repoint
+**that provider's base URL and credential together**, which is what `_dsh_spawn(baseurl=, api_key=)`
+now does. Symptom of getting this wrong is another 401 even though the key is correct.
+
+Verified end to end: forced-failure test (dead primary base URL) -> primary `error` -> automatic
+respawn -> `status: done` in 8.4 s with `AUTOFB_OK`. Primary route unaffected: a full turn created
+`/tmp/z/f.txt` = `ZZZ` in 14.1 s with `finish_reason: stop`.
+
+Note on testing this class of bug: running the checks from a plain shell reads *no* systemd
+environment, so `DSH_FALLBACK_API_KEY` looks empty and every key-dependent test fails for the wrong
+reason. Read the worker's real environment from `/proc/<MainPID>/environ` before concluding
+anything.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
