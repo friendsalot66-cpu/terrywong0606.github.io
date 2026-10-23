@@ -533,6 +533,42 @@ environment, so `DSH_FALLBACK_API_KEY` looks empty and every key-dependent test 
 reason. Read the worker's real environment from `/proc/<MainPID>/environ` before concluding
 anything.
 
+### Cloudflare 524 through the tunnel (2026-10-23, round 4)
+
+Symptom: the app (served from GitHub Pages) calling the middleware through
+`docker-llm.friendsalot66.ccwu.cc` failed with **524**, while the same turn worked on localhost.
+
+Root cause, from the journal: the request entered at `12:49:07` and **never logged a matching
+`<<<` line** — Cloudflare closed the connection first. It had taken the non-streaming path
+(`stream: false`), so the whole agent loop ran with **zero bytes written to the socket**. The turn
+spent 15.8 s on the first llama.cpp call, then ran `run_dsh_task` and `check_dsh_task(…, wait_seconds=300)`,
+which alone blocks for five minutes. Cloudflare's idle limit is ~100 s, so 524 was inevitable.
+
+Two independent fixes, because either one alone leaves a hole:
+
+1. **The app no longer takes the non-streaming path when tools are delegated.** The branch
+   `useToolsEnabled && protocol === 'openai' && !hasSearchEndpoint()` used to call `callAPI`
+   (`stream: false`) whenever `streamMode` was off. It now always calls `streamResponse`, which
+   sends `use_tools` *and* `stream: true`. Verified in a real browser: with
+   `useTools:true, streamMode:false, hasEndpoint:false` the routing branch calls `streamResponse`
+   (it called `callAPI` before).
+2. **The stream actually carries traffic now.** `run_agent_loop` had a `progress_queue` parameter
+   that **nothing ever wrote to** — the keep-alive in `stream_response` only fires between queue
+   reads, so a silent loop produced no frames at all. It now emits progress on every round and tool
+   call through `emit_progress()`. Because tool executors are reached through the registry (they get
+   only their own arguments), the queue is published via a `threading.local` (`_set_progress_queue`)
+   rather than threaded through every call site.
+3. `check_dsh_task` emits `[waiting for DSH job <id>... Ns]` every `DSH_HEARTBEAT_SECONDS` (20 s)
+   while it blocks, and its default wait dropped 240 s -> `DSH_POLL_WAIT` 90 s so a single tool call
+   stays well under the tunnel's idle limit.
+
+Measured **through the real Cloudflare tunnel** with a 50-second DSH task: `http=200`, **80.5 s**
+total, 3 keep-alives and 13 progress lines, no 524, and `/tmp/cf/cf.txt` really contained `CFPASS`.
+The same test on localhost: 85.5 s, 10 progress lines, 3 keep-alives.
+
+Note: the non-streaming JSON path is kept for direct/local callers, but it is inherently unsafe
+behind a proxy with an idle timeout — any tool-using turn there can still be cut off.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.

@@ -6236,23 +6236,12 @@
                             this._toolsNoEndpointNotified = true;
                             this.showStatus('No in-app search endpoint - tool calls are delegated to your provider', 'info');
                         }
-                        if (this.streamMode) {
-                            await this.streamResponse(promptText, null, sessionId, userNodeId);
-                        } else {
-                            const res = await this.callAPI(promptText, null, sessionId, userNodeId);
-                            this.appendMessageNode(session, {
-                                role: 'assistant',
-                                content: res.content,
-                                timestamp: Date.now(),
-                                tokenUsage: res.tokenUsage,
-                                searchResults: res.searchResults || [],
-                                citations: res.citations || [],
-                                images: res.images || [],
-                                modelUsed: effModel
-                            }, userNodeId);
-                            this.renderMessages();
-                            await this.autoSaveChat();
-                        }
+                        // Always stream when tools are delegated to the provider.
+                        // A provider-side agent loop can take minutes; with a
+                        // non-streaming request no bytes move until it finishes and
+                        // Cloudflare's tunnel answers 524 after ~100s of silence.
+                        // The SSE stream carries progress + keep-alives instead.
+                        await this.streamResponse(promptText, null, sessionId, userNodeId);
                     } else if (this.streamMode) {
                         await this.streamResponse(promptText, null, sessionId, userNodeId);
                     } else {
