@@ -588,6 +588,44 @@ Verified both shapes: `stream=True` logs `tools=True stream=True`, and a
 `stream=False` tool turn logs both the mode line and the warning. Through the
 tunnel the client field shows the public IP.
 
+### Build marker + one-command deploy (2026-10-23)
+
+GitHub Pages serves `index.html` with `cache-control: max-age=600`, and the CDN
+also keeps its own copy, so a freshly pushed fix can be invisible for up to ~10
+minutes even after `Ctrl+Shift+R`. That made "is the fix live?" indistinguishable
+from "the fix does not work".
+
+Every page now carries a build marker:
+
+```js
+const BUILD_INFO = { version: 'v5.0.1', build: '20261023-144842',
+                     commit: '011e769', deployed: '2026-10-23 14:48' };
+```
+
+It surfaces in three places so a stale page is obvious without devtools:
+
+* the header chip next to the title (`v5.0.1 · 20261023-144842`)
+* `document.title`
+* `window.BUILD_INFO` and a `[BUILD]` line in the console
+
+**Deploy through `code/deploy.sh`, never a bare `git push`** — it stamps the
+marker, syntax-checks the inline script, refuses a diff that looks like an API
+key, then commits and pushes:
+
+```bash
+./code/deploy.sh -m "fix: ..."              # patch bump
+./code/deploy.sh -m "feat: ..." --minor
+./code/deploy.sh -m "docs: ..."  --no-bump
+```
+
+`code/bump_build.py` does the stamping (and owns `code/VERSION`, the semver
+source of truth). Verified end to end: after deploy the live page reported
+`build: 20261023-144842` in `BUILD_INFO`, the chip, and the title, and the
+streaming fix was still present.
+
+Practical rule when a fix "does not work": check the chip first. If it shows the
+old build, it is cache, not code.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
