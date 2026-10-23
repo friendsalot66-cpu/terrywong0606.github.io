@@ -426,6 +426,43 @@ gets the full inventory. The uptime checker still works; an attacker learns noth
 * The tunnel hostname is `docker-llm.friendsalot66.ccwu.cc` (from
   `cloudflared`'s ingress config in the journal), origin `http://localhost:5000`.
 
+### DSH turn ended with "[Called tools: check_dsh_task]" (2026-10-23)
+
+Symptom: the web app showed `[Called tools: check_dsh_task]` as the entire answer and stopped,
+while the DSH job kept running. Three separate defects stacked up:
+
+1. **`check_dsh_task` returned instantly** (`status: running`), so the model polled it in a tight
+   loop, two seconds apart.
+2. **The repeat-call breaker treated that poll as a stuck loop.** It hashes tool name + arguments,
+   and every poll had identical arguments, so after 2 consecutive rounds it fired
+   `forced_fallback` and broke out.
+3. **The fallback synthesis produced the empty answer.** It strips `tool_calls` messages and
+   replaced them with the synthetic line `[Called tools: ...]`; the model had written no prose in
+   those turns, so that line *was* the reply.
+
+Fixes:
+
+* `check_dsh_task` now **blocks until the job settles** (`DSH_POLL_WAIT`, default 240 s;
+  `DSH_POLL_INTERVAL` 2 s; per-call `wait_seconds` override, `0` = check immediately). One tool
+  call replaces N polls - cheaper too, since every poll re-sends the whole transcript. The tool
+  description now says "call it ONCE ... do not poll".
+* The repeat signature for `check_dsh_task` is built from **the job's state** (`status`/`exit_code`)
+  rather than its arguments, and a round that is waiting on a live job no longer increments the
+  duplicate counter at all. Boundedness comes from the iteration budget and `DSH_MAX_SECONDS`.
+  A genuine repeat (finished job, same state) is still caught.
+* The fallback keeps whatever prose the model wrote next to the tool call instead of emitting only
+  the `[Called tools: ...]` marker.
+
+**A fourth defect surfaced underneath it:** the job had `turn_end reason: max-tokens` after
+`outputTokens: 8192`. The DSH profile pinned `maxTokens: 8192` for *every* model, but
+`Commandcode_cheap` reports `max_output_tokens: 131072` and `context_length: 200000`. The headless
+profile now sets 131072 (OmniRoute) and 16384 (local Qwen, which shares llama.cpp's 131072 context
+with the prompt). Before this, long tasks silently ran out of output mid-thought and exited 1.
+
+Verified: a two-file task through `dsh --profile headless` completed in **17.4 s** with both files
+really created; the full middleware turn returned a normal `finish_reason: stop` in **24.3 s** and
+`/tmp/e2e/hello.txt` contained `BANANA`.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
