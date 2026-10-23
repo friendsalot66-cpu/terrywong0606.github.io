@@ -463,6 +463,44 @@ Verified: a two-file task through `dsh --profile headless` completed in **17.4 s
 really created; the full middleware turn returned a normal `finish_reason: stop` in **24.3 s** and
 `/tmp/e2e/hello.txt` contained `BANANA`.
 
+### DSH state off /tmp, context length from llama.cpp (2026-10-23, round 2)
+
+**Job records moved out of `/tmp`.** `DSH_JOB_DIR` now defaults to
+`$MIDDLEWARE_STATE_DIR/dsh_jobs` = `LLM/middleware/.state/dsh_jobs`, next to the auth state, so a
+reboot no longer wipes the history of jobs the user may still be waiting on. Existing records were
+copied over; the old `/tmp/dsh_jobs` is ignored from now on.
+
+Moving them exposed a stale-state bug that could never happen while the directory was ephemeral:
+
+* A record says `status: running` long after its process died, and **pids are recycled**, so
+  `os.kill(pid, 0)` on a stale pid can succeed against an unrelated process and the job reports
+  "running" forever.
+* Records now store `boot_id` (`/proc/sys/kernel/random/boot_id`). `_dsh_job_process_alive()`
+  requires the **same boot id and a live pid**; a mismatch resolves the record to `error` with
+  "the machine or service restarted before it finished" instead of hanging.
+* Verified by forging a record with a dead pid and a foreign boot id: it resolved to `error`
+  immediately rather than waiting out the 900 s deadline.
+
+**Local context length is read, not guessed.** The profile used to hard-code `16384` for the local
+Qwen. `_llama_context_length()` asks llama.cpp for `n_ctx` (`/props` ->
+`default_generation_settings.n_ctx`, falling back to `/slots[0].n_ctx`; 5 min cache, then
+`DSH_CTX_FALLBACK`). The spawn passes `DSH_LOCAL_CTX` and `DSH_LOCAL_MAXTOK` to the profile, which
+interpolates them with `!!js parseInt(...)`.
+
+`DSH_CTX_OUTPUT_FRACTION` (default 0.25) is the important part: llama.cpp runs `-np 1`, so prompt
+and generation **share one 131072 window**. Advertising the whole window as `maxTokens` invites a
+context overflow, so the output budget is a quarter of it (32768 today).
+
+**Unit env precedence bug, found while wiring this up.** `EnvironmentFile=` is applied *before*
+`Environment=`, so a key written inline in the unit silently wins over the secrets file. The
+`LLAMA_CPP_API_KEY` / `LLAMA_SWAP_API_KEY` lines are now removed from the unit and live only in
+`~/.config/middleware-secrets.env` (0600). Symptom was `_llama_context_length()` hitting 401 and
+falling back to the default - correct-looking output from a broken path.
+
+Verified: `llama.cpp reports n_ctx=131072` in the journal; a full DSH turn returned
+`finish_reason: stop` in **19.3 s** with `/tmp/final/result.txt` = `PERSIST_TEST`; the record landed
+in `.state/dsh_jobs/`.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
