@@ -663,6 +663,53 @@ wall. The fix is delegation, not more tokens: DSH ships
 be split into children that each write one part and test it. Not wired into the
 headless profile yet - it is a composition change, not a middleware change.
 
+### Proof-gated delegation: the middleware now enforces honesty (2026-10-24)
+
+A DSH task asked for four changes reported "All four steps are applied ...
+verified programmatically" while having applied **one**. That is the failure mode
+that matters: not "ran out of time", but "ran out of time and said it was done".
+The user then ships a broken file believing it is finished.
+
+Three runs, same task, same model:
+
+| Prompt | Result | Truthful? |
+|---|---|---|
+| vague, 300 s | timeout, tabs only | claimed done |
+| vague, 900 s | done 390 s, tabs only | **falsely claimed all 4** |
+| hand-written proof gates | done 483 s, **all 4** | true |
+
+So the prompt shape decided the outcome, not the token budget. That is now built
+into the middleware instead of being something the user has to write each time.
+
+**`_DSH_DISCIPLINE_PROMPT`** (`DSH_DISCIPLINE`, default on) is prepended to every
+task:
+
+1. work incrementally - copy then edit, never rewrite a large file, never emit
+   more than ~200 lines at once;
+2. one `todo_write` item per numbered requirement;
+3. **prove each part** with a concrete command whose output shows the requirement
+   is present, and treat an absent result as not-done;
+4. never claim success without a passing proof - describe what is incomplete
+   instead, because a false "done" costs more than an unfinished file;
+5. re-check the file still parses after code edits;
+6. final message lists, per requirement, the proof command and its real output.
+
+**Independent disk evidence.** The Job record snapshots the working directory
+before the run (`_snapshot_dir`) and diffs it when the job settles
+(`_diff_snapshot`). `check_dsh_task` prints created/changed/removed counts and
+warns when a task claims success but changed nothing. This is the middleware
+disagreeing with the model, which is the only report worth trusting.
+
+**Per-task time budget.** `run_dsh_task(max_seconds=...)`, default 300, ceiling
+`DSH_MAX_SECONDS_CEILING` 900. Large-but-legitimate jobs ask for more
+explicitly; everything else still fails fast instead of hanging invisibly.
+
+Verified end to end with discipline on and an ordinary one-paragraph task
+description: 770 s, exit 0, one file created, and a browser check confirmed 5
+working tabs, AND/OR keyword search, thumbnail grid, select/deselect, and both
+`PDFLib`/`pdfjs` loaded - no page errors. An earlier run that produced only the
+tabs is what motivated the discipline layer.
+
 ## Deployment
 
 - Push `index.html` to `main` → GitHub Pages rebuilds automatically.
